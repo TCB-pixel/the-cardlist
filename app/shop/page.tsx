@@ -39,11 +39,11 @@ function CardArt({ shape, color }: { shape: string; color: string }) {
   const card = <rect x="1" y="1" width={W-2} height={H-2} rx="3" {...s} />;
   const bg = <rect x="4" y="4" width={W-8} height={H-16} rx="2" fill={color} fillOpacity={0.07} stroke="none" />;
   let inner = null;
-  if (shape === "circle") inner = <circle cx={W/2} cy={H/2-4} r="11" fill={color} fillOpacity={0.12} {...s} />;
-  else if (shape === "diamond") inner = <polygon points={`${W/2},10 ${W-6},${H/2-4} ${W/2},${H-18} 6,${H/2-4}`} fill={color} fillOpacity={0.1} {...s} />;
-  else if (shape === "flame") inner = <path d={`M${W/2} 10 C${W/2} 10 ${W-8} 20 ${W-9} 30 C${W-10} 38 10 38 10 30 C10 22 ${W/2} 10 ${W/2} 10Z`} fill={color} fillOpacity={0.12} stroke={color} strokeWidth={1} />;
-  else if (shape === "triangle") inner = <polygon points={`${W/2},8 ${W-6},${H-18} 6,${H-18}`} fill={color} fillOpacity={0.1} {...s} />;
-  else if (shape === "star") inner = <polygon points={`${W/2},8 ${W/2+4},17 ${W-6},17 ${W/2+7},23 ${W/2+4},32 ${W/2},26 ${W/2-4},32 ${W/2-7},23 6,17 ${W/2-4},17`} fill={color} fillOpacity={0.12} stroke={color} strokeWidth={1} />;
+  if (shape === "circle") inner = <circle cx={W/2} cy={H/2-4} r="11" fill={color} fillOpacity={0.12} stroke={color} strokeWidth={1.2} />;
+else if (shape === "diamond") inner = <polygon points={`${W/2},10 ${W-6},${H/2-4} ${W/2},${H-18} 6,${H/2-4}`} fill={color} fillOpacity={0.1} stroke={color} strokeWidth={1.2} />;
+else if (shape === "flame") inner = <path d={`M${W/2} 10 C${W/2} 10 ${W-8} 20 ${W-9} 30 C${W-10} 38 10 38 10 30 C10 22 ${W/2} 10 ${W/2} 10Z`} fill={color} fillOpacity={0.12} stroke={color} strokeWidth={1} />;
+else if (shape === "triangle") inner = <polygon points={`${W/2},8 ${W-6},${H-18} 6,${H-18}`} fill={color} fillOpacity={0.1} stroke={color} strokeWidth={1.2} />;
+else if (shape === "star") inner = <polygon points={`${W/2},8 ${W/2+4},17 ${W-6},17 ${W/2+7},23 ${W/2+4},32 ${W/2},26 ${W/2-4},32 ${W/2-7},23 6,17 ${W/2-4},17`} fill={color} fillOpacity={0.12} stroke={color} strokeWidth={1} />;
   return (
     <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>{card}{bg}{inner}</svg>
   );
