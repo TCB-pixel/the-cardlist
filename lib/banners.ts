@@ -11,7 +11,8 @@ export type Banner = {
   ctaSecondaryLabel?: string;
   ctaSecondaryHref?: string;
   bgColor: string;
-  imageUrl: string | null;
+  imageUrl: string | null;        // Background image (overlay 75% dark)
+  productImageUrl: string | null; // Product image (box/pack) — แสดงฝั่งขวา
   active: boolean;
   order: number;
 };
@@ -29,6 +30,7 @@ export const DEFAULT_HOME_BANNERS: Banner[] = [
     ctaSecondaryHref: "/shop",
     bgColor: "#111111",
     imageUrl: null,
+    productImageUrl: null,
     active: true,
     order: 1,
   },
@@ -44,6 +46,7 @@ export const DEFAULT_HOME_BANNERS: Banner[] = [
     ctaSecondaryHref: "/shop?tcg=pokemon",
     bgColor: "#1a1a2e",
     imageUrl: null,
+    productImageUrl: null,
     active: true,
     order: 2,
   },
@@ -57,6 +60,7 @@ export const DEFAULT_HOME_BANNERS: Banner[] = [
     ctaHref: "/shop?tcg=mtg",
     bgColor: "#1c1410",
     imageUrl: null,
+    productImageUrl: null,
     active: true,
     order: 3,
   },
@@ -73,6 +77,7 @@ export const DEFAULT_TOURNAMENT_BANNERS: Banner[] = [
     ctaHref: "/events",
     bgColor: "#0f0f0f",
     imageUrl: null,
+    productImageUrl: null,
     active: true,
     order: 1,
   },
@@ -86,6 +91,7 @@ export const DEFAULT_TOURNAMENT_BANNERS: Banner[] = [
     ctaHref: "/events",
     bgColor: "#1a0f00",
     imageUrl: null,
+    productImageUrl: null,
     active: true,
     order: 2,
   },

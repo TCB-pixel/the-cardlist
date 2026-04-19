@@ -14,56 +14,68 @@ const EMPTY_BANNER = (type: BannerType, order: number): Omit<Banner, "id"> => ({
   ctaSecondaryHref: "",
   bgColor: "#111111",
   imageUrl: null,
+  productImageUrl: null,
   active: true,
   order,
 });
 
 const BG_PRESETS = [
-  { label: "ดำ", value: "#111111" },
-  { label: "Navy", value: "#1a1a2e" },
+  { label: "ดำ",         value: "#111111" },
+  { label: "Navy",       value: "#1a1a2e" },
   { label: "น้ำตาลเข้ม", value: "#1c1410" },
-  { label: "เขียวเข้ม", value: "#0d1f0f" },
-  { label: "แดงเข้ม", value: "#1f0d0d" },
-  { label: "น้ำเงินเข้ม", value: "#0d1520" },
+  { label: "เขียวเข้ม",  value: "#0d1f0f" },
+  { label: "แดงเข้ม",   value: "#1f0d0d" },
+  { label: "น้ำเงินเข้ม",value: "#0d1520" },
 ];
 
 type Tab = "home" | "tournament";
 
 export default function AdminBannersPage() {
-  const [activeTab, setActiveTab] = useState<Tab>("home");
-  const [homeBanners, setHomeBanners] = useState<Banner[]>(DEFAULT_HOME_BANNERS);
+  const [activeTab, setActiveTab]           = useState<Tab>("home");
+  const [homeBanners, setHomeBanners]       = useState<Banner[]>(DEFAULT_HOME_BANNERS);
   const [tournamentBanners, setTournamentBanners] = useState<Banner[]>(DEFAULT_TOURNAMENT_BANNERS);
-  const [showModal, setShowModal] = useState(false);
-  const [editing, setEditing] = useState<Banner | null>(null);
-  const [form, setForm] = useState<Omit<Banner, "id">>(EMPTY_BANNER("home", 1));
-  const [previewImg, setPreviewImg] = useState<string | null>(null);
-  const [dragging, setDragging] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [showModal, setShowModal]           = useState(false);
+  const [editing, setEditing]               = useState<Banner | null>(null);
+  const [form, setForm]                     = useState<Omit<Banner, "id">>(EMPTY_BANNER("home", 1));
+  const [uploading, setUploading]           = useState<"bg" | "product" | null>(null);
 
-  const banners = activeTab === "home" ? homeBanners : tournamentBanners;
+  const bgFileRef      = useRef<HTMLInputElement>(null);
+  const productFileRef = useRef<HTMLInputElement>(null);
+
+  const banners    = activeTab === "home" ? homeBanners : tournamentBanners;
   const setBanners = activeTab === "home" ? setHomeBanners : setTournamentBanners;
 
   function openAdd() {
     setEditing(null);
-    setPreviewImg(null);
     setForm(EMPTY_BANNER(activeTab, banners.length + 1));
     setShowModal(true);
   }
 
   function openEdit(b: Banner) {
     setEditing(b);
-    setPreviewImg(b.imageUrl);
-    setForm({ type: b.type, title: b.title, subtitle: b.subtitle, badge: b.badge, ctaLabel: b.ctaLabel, ctaHref: b.ctaHref, ctaSecondaryLabel: b.ctaSecondaryLabel ?? "", ctaSecondaryHref: b.ctaSecondaryHref ?? "", bgColor: b.bgColor, imageUrl: b.imageUrl, active: b.active, order: b.order });
+    setForm({
+      type: b.type, title: b.title, subtitle: b.subtitle, badge: b.badge,
+      ctaLabel: b.ctaLabel, ctaHref: b.ctaHref,
+      ctaSecondaryLabel: b.ctaSecondaryLabel ?? "",
+      ctaSecondaryHref: b.ctaSecondaryHref ?? "",
+      bgColor: b.bgColor,
+      imageUrl: b.imageUrl,
+      productImageUrl: b.productImageUrl ?? null,
+      active: b.active, order: b.order,
+    });
     setShowModal(true);
   }
 
-  function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleFileUpload(type: "bg" | "product", e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { alert("ไฟล์ใหญ่เกิน 2MB กรุณาบีบอัดรูปก่อน"); return; }
+    if (file.size > 3 * 1024 * 1024) { alert("ไฟล์ใหญ่เกิน 3MB"); return; }
+    setUploading(type);
     const url = URL.createObjectURL(file);
-    setPreviewImg(url);
-    setForm((f) => ({ ...f, imageUrl: url }));
+    if (type === "bg") setForm((f) => ({ ...f, imageUrl: url }));
+    else               setForm((f) => ({ ...f, productImageUrl: url }));
+    setUploading(null);
+    e.target.value = "";
   }
 
   function handleSave() {
@@ -108,8 +120,8 @@ export default function AdminBannersPage() {
   const labelCls = "text-[11px] font-semibold text-zinc-500 tracking-wide block mb-1.5";
 
   const INFO = {
-    home: { label: "Home Page", size: "1920 × 600 px", ratio: "16:5", maxMB: "2 MB" },
-    tournament: { label: "Tournament / Events", size: "1200 × 400 px", ratio: "3:1", maxMB: "1 MB" },
+    home:       { label: "Home Page",             size: "1920×600px", ratio: "16:5", maxMB: "2MB" },
+    tournament: { label: "Tournament / Events",   size: "1200×400px", ratio: "3:1",  maxMB: "1MB" },
   };
 
   return (
@@ -124,7 +136,7 @@ export default function AdminBannersPage() {
         ))}
       </div>
 
-      {/* Image spec info */}
+      {/* Info */}
       <div className="bg-blue-50 border border-blue-100 rounded-2xl px-4 py-3 mb-5 flex items-start gap-3">
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="flex-shrink-0 mt-0.5">
           <circle cx="9" cy="9" r="8" stroke="#3b82f6" strokeWidth="1.2"/>
@@ -132,14 +144,12 @@ export default function AdminBannersPage() {
           <circle cx="9" cy="5.5" r="0.8" fill="#3b82f6"/>
         </svg>
         <div>
-          <p className="text-xs font-semibold text-blue-800">ขนาดรูปภาพที่แนะนำสำหรับ {INFO[activeTab].label}</p>
+          <p className="text-xs font-semibold text-blue-800">ขนาดรูปแนะนำ — {INFO[activeTab].label}</p>
           <p className="text-[11px] text-blue-600 mt-0.5">
-            ขนาด <strong>{INFO[activeTab].size}</strong> · สัดส่วน {INFO[activeTab].ratio} · ไฟล์ JPG/PNG ไม่เกิน <strong>{INFO[activeTab].maxMB}</strong>
+            Background: <strong>{INFO[activeTab].size}</strong> · Product image: PNG มีพื้นหลัง transparent ดีที่สุด
           </p>
           <p className="text-[10px] text-blue-500 mt-1">
-            {activeTab === "home"
-              ? "เนื้อหาสำคัญควรอยู่ตรงกลาง 800px เพราะมือถือจะตัดขอบซ้าย-ขวา"
-              : "เหมาะสำหรับแบนเนอร์อีเวนต์ — ใส่ชื่องาน วันที่ และ Call-to-action ให้ชัดเจน"}
+            Background จะถูกทำให้มืด 75% อัตโนมัติ · รูปสินค้าจะแสดงฝั่งขวาของ Banner
           </p>
         </div>
       </div>
@@ -147,7 +157,8 @@ export default function AdminBannersPage() {
       {/* Toolbar */}
       <div className="flex items-center justify-between mb-4">
         <p className="text-xs text-zinc-400">{banners.length} banner · {banners.filter(b => b.active).length} แสดงอยู่</p>
-        <button onClick={openAdd} className="flex items-center gap-2 bg-zinc-900 text-white text-xs font-semibold px-4 py-2.5 rounded-xl hover:bg-zinc-700">
+        <button onClick={openAdd}
+          className="flex items-center gap-2 bg-zinc-900 text-white text-xs font-semibold px-4 py-2.5 rounded-xl hover:bg-zinc-700">
           <span className="text-base leading-none">+</span> เพิ่ม Banner
         </button>
       </div>
@@ -156,21 +167,26 @@ export default function AdminBannersPage() {
       <div className="space-y-3">
         {banners.map((b, idx) => (
           <div key={b.id}
-            className={`bg-white border rounded-2xl overflow-hidden transition-all ${b.active ? "border-zinc-100" : "border-zinc-100 opacity-50"}`}>
-            {/* Preview strip */}
+            className={`bg-white border rounded-2xl overflow-hidden ${b.active ? "border-zinc-100" : "border-zinc-100 opacity-50"}`}>
+            {/* Preview */}
             <div className="h-20 relative flex items-end" style={{ background: b.bgColor }}>
               {b.imageUrl && (
-                <Image src={b.imageUrl} alt="" fill className="object-cover object-center" />
+                <>
+                  <Image src={b.imageUrl} alt="" fill className="object-cover object-center" />
+                  <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.75)" }} />
+                </>
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+              {b.productImageUrl && (
+                <div className="absolute right-4 bottom-0 h-full flex items-end pb-1">
+                  <Image src={b.productImageUrl} alt="" width={48} height={48} className="object-contain object-bottom h-16 w-auto" />
+                </div>
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
               <div className="relative z-10 px-4 pb-3">
                 <span className="text-[8px] tracking-widest text-zinc-300 font-semibold">{b.badge}</span>
                 <p className="text-sm font-bold text-white leading-tight">{b.title.split("\n")[0]}</p>
               </div>
-              {/* Order badge */}
-              <div className="absolute top-2 right-2 bg-black/50 text-white text-[9px] font-bold px-2 py-0.5 rounded-full">
-                #{idx + 1}
-              </div>
+              <div className="absolute top-2 right-2 bg-black/50 text-white text-[9px] font-bold px-2 py-0.5 rounded-full">#{idx + 1}</div>
             </div>
 
             <div className="px-4 py-3 flex items-center justify-between gap-3">
@@ -178,14 +194,14 @@ export default function AdminBannersPage() {
                 <p className="text-xs font-semibold text-zinc-900 truncate">{b.title.replace("\n", " · ")}</p>
                 <p className="text-[10px] text-zinc-400 mt-0.5 truncate">{b.subtitle || "ไม่มีคำอธิบาย"}</p>
                 <div className="flex items-center gap-2 mt-1.5">
-                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: b.bgColor, border: "1px solid #ccc" }}></div>
+                  <div className="w-2 h-2 rounded-full" style={{ background: b.bgColor, border: "1px solid #ccc" }} />
                   <span className="text-[10px] text-zinc-400">CTA: {b.ctaLabel}</span>
-                  {b.imageUrl && <span className="text-[9px] bg-green-50 text-green-700 px-1.5 py-0.5 rounded font-semibold">มีรูป</span>}
+                  {b.imageUrl        && <span className="text-[9px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-semibold">BG รูป</span>}
+                  {b.productImageUrl && <span className="text-[9px] bg-green-50 text-green-700 px-1.5 py-0.5 rounded font-semibold">รูปสินค้า</span>}
                 </div>
               </div>
 
               <div className="flex items-center gap-1.5 flex-shrink-0">
-                {/* Move up/down */}
                 <button onClick={() => moveUp(b.id)} disabled={idx === 0}
                   className="w-7 h-7 flex items-center justify-center border border-zinc-200 rounded-lg text-zinc-400 hover:text-zinc-700 disabled:opacity-30">
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 8l4-4 4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -194,14 +210,11 @@ export default function AdminBannersPage() {
                   className="w-7 h-7 flex items-center justify-center border border-zinc-200 rounded-lg text-zinc-400 hover:text-zinc-700 disabled:opacity-30">
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 </button>
-                {/* Toggle */}
                 <button onClick={() => toggleActive(b.id)}
                   className={`text-[10px] font-semibold px-2.5 py-1 rounded-lg border transition-colors ${b.active ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 text-zinc-400"}`}>
                   {b.active ? "แสดง" : "ซ่อน"}
                 </button>
-                {/* Edit */}
                 <button onClick={() => openEdit(b)} className="text-xs text-zinc-500 border border-zinc-200 rounded-lg px-2.5 py-1 hover:bg-zinc-50">แก้ไข</button>
-                {/* Delete */}
                 <button onClick={() => deleteBanner(b.id)} className="text-xs text-red-400 border border-red-100 rounded-lg px-2.5 py-1 hover:bg-red-50">ลบ</button>
               </div>
             </div>
@@ -215,7 +228,7 @@ export default function AdminBannersPage() {
         )}
       </div>
 
-      {/* Add/Edit Modal */}
+      {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowModal(false)} />
@@ -226,96 +239,132 @@ export default function AdminBannersPage() {
             </div>
 
             {/* Live preview */}
-            <div className="mx-6 mt-4 rounded-xl overflow-hidden flex-shrink-0" style={{ background: form.bgColor, minHeight: 80 }}>
+            <div className="mx-6 mt-4 rounded-xl overflow-hidden flex-shrink-0 relative flex items-center"
+              style={{ background: form.bgColor, minHeight: 90 }}>
               {form.imageUrl && (
-                <div className="relative h-20">
-                  <Image src={form.imageUrl} alt="" fill className="object-cover" />
-                  <div className="absolute inset-0 bg-black/50" />
-                </div>
+                <>
+                  <Image src={form.imageUrl} alt="" fill className="object-cover object-center" />
+                  <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.75)" }} />
+                  <div className="absolute inset-0" style={{ background: "linear-gradient(to right, rgba(0,0,0,0.5) 0%, transparent 70%)" }} />
+                </>
               )}
-              <div className={`px-4 py-3 ${form.imageUrl ? "relative -mt-16" : ""}`}>
+              {/* Left text */}
+              <div className="relative z-10 px-4 py-3 flex-1">
                 <p className="text-[8px] tracking-widest text-zinc-400 font-semibold">{form.badge || "BADGE"}</p>
-                <p className="text-sm font-bold text-white leading-tight mt-0.5">
-                  {form.title || "ชื่อ Banner"}
-                </p>
+                <p className="text-sm font-bold text-white leading-tight mt-0.5">{form.title || "ชื่อ Banner"}</p>
                 {form.subtitle && <p className="text-[10px] text-zinc-400 mt-0.5">{form.subtitle}</p>}
                 <div className="flex gap-1.5 mt-2">
                   <span className="text-[9px] bg-white text-zinc-900 font-semibold px-2.5 py-1 rounded-lg">{form.ctaLabel || "CTA"}</span>
                   {form.ctaSecondaryLabel && <span className="text-[9px] border border-zinc-600 text-zinc-300 px-2.5 py-1 rounded-lg">{form.ctaSecondaryLabel}</span>}
                 </div>
               </div>
+              {/* Right product image */}
+              {form.productImageUrl && (
+                <div className="relative z-10 pr-4 flex-shrink-0">
+                  <Image src={form.productImageUrl} alt="" width={64} height={64} className="object-contain h-16 w-auto" style={{ filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.7))" }} />
+                </div>
+              )}
             </div>
 
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-              {/* Image upload */}
-              <div>
-                <label className={labelCls}>
-                  รูปภาพพื้นหลัง
-                  <span className="text-zinc-400 font-normal ml-1">
-                    ({activeTab === "home" ? "1920×600px, ≤2MB" : "1200×400px, ≤1MB"})
-                  </span>
-                </label>
-                <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleImageUpload} />
-                <div className="flex gap-2">
-                  <button type="button" onClick={() => fileRef.current?.click()}
-                    className="flex-1 border-2 border-dashed border-zinc-200 rounded-xl py-3 text-xs text-zinc-500 hover:border-zinc-400 hover:text-zinc-700 transition-colors text-center">
-                    {form.imageUrl ? "เปลี่ยนรูปภาพ" : "คลิกเพื่ออัปโหลดรูป"}
-                  </button>
-                  {form.imageUrl && (
-                    <button type="button" onClick={() => { setPreviewImg(null); setForm(f => ({ ...f, imageUrl: null })); }}
-                      className="border border-zinc-200 rounded-xl px-3 text-xs text-red-400 hover:bg-red-50">
-                      ลบรูป
+
+              {/* ── Image uploads ── */}
+              <div className="grid grid-cols-2 gap-3">
+                {/* Background image */}
+                <div>
+                  <label className={labelCls}>
+                    🖼 รูปพื้นหลัง (Background)
+                    <span className="text-zinc-400 font-normal block mt-0.5">จะถูกทำให้มืด 75% อัตโนมัติ</span>
+                  </label>
+                  <input ref={bgFileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
+                    onChange={(e) => handleFileUpload("bg", e)} />
+                  <div className="space-y-1.5">
+                    <button type="button" onClick={() => bgFileRef.current?.click()}
+                      className="w-full border-2 border-dashed border-zinc-200 rounded-xl py-3 text-xs text-zinc-500 hover:border-zinc-400 hover:text-zinc-700 transition-colors text-center">
+                      {form.imageUrl ? "เปลี่ยนรูป BG" : "อัปโหลดรูป BG"}
                     </button>
-                  )}
+                    {form.imageUrl && (
+                      <button type="button" onClick={() => setForm(f => ({ ...f, imageUrl: null }))}
+                        className="w-full border border-red-100 rounded-xl py-1.5 text-xs text-red-400 hover:bg-red-50">
+                        ลบรูป BG
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Product image */}
+                <div>
+                  <label className={labelCls}>
+                    📦 รูปสินค้า (Product)
+                    <span className="text-zinc-400 font-normal block mt-0.5">แสดงฝั่งขวา · PNG แนะนำ</span>
+                  </label>
+                  <input ref={productFileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
+                    onChange={(e) => handleFileUpload("product", e)} />
+                  <div className="space-y-1.5">
+                    <button type="button" onClick={() => productFileRef.current?.click()}
+                      className="w-full border-2 border-dashed border-zinc-200 rounded-xl py-3 text-xs text-zinc-500 hover:border-zinc-400 hover:text-zinc-700 transition-colors text-center">
+                      {form.productImageUrl ? "เปลี่ยนรูปสินค้า" : "อัปโหลดรูปสินค้า"}
+                    </button>
+                    {form.productImageUrl && (
+                      <button type="button" onClick={() => setForm(f => ({ ...f, productImageUrl: null }))}
+                        className="w-full border border-red-100 rounded-xl py-1.5 text-xs text-red-400 hover:bg-red-50">
+                        ลบรูปสินค้า
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
 
               {/* Text content */}
               <div>
                 <label className={labelCls}>Badge Label</label>
-                <input className={inputCls} placeholder="เช่น NEW RELEASE, PRE-ORDER" value={form.badge} onChange={(e) => setForm(f => ({ ...f, badge: e.target.value }))} />
+                <input className={inputCls} placeholder="เช่น NEW RELEASE, PRE-ORDER"
+                  value={form.badge} onChange={(e) => setForm(f => ({ ...f, badge: e.target.value }))} />
               </div>
               <div>
-                <label className={labelCls}>ชื่อหลัก (Title) *<span className="text-zinc-400 font-normal ml-1">ขึ้นบรรทัดใหม่ด้วย \n</span></label>
-                <textarea rows={2} className={inputCls} placeholder={"One Piece TCG\nOP-10 Manga"} value={form.title} onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))} />
+                <label className={labelCls}>ชื่อหลัก (Title) * <span className="text-zinc-400 font-normal">ขึ้นบรรทัดใหม่ด้วย \n</span></label>
+                <textarea rows={2} className={inputCls} placeholder={"One Piece TCG\nOP-10 Manga"}
+                  value={form.title} onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))} />
               </div>
               <div>
                 <label className={labelCls}>คำอธิบาย (Subtitle)</label>
-                <input className={inputCls} placeholder="วางจำหน่าย 20 เมษายน 2026" value={form.subtitle} onChange={(e) => setForm(f => ({ ...f, subtitle: e.target.value }))} />
+                <input className={inputCls} placeholder="วางจำหน่าย 20 เมษายน 2026"
+                  value={form.subtitle} onChange={(e) => setForm(f => ({ ...f, subtitle: e.target.value }))} />
               </div>
 
-              {/* CTA Buttons */}
+              {/* CTA */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelCls}>ปุ่มหลัก (label)</label>
-                  <input className={inputCls} placeholder="Pre-order" value={form.ctaLabel} onChange={(e) => setForm(f => ({ ...f, ctaLabel: e.target.value }))} />
+                  <input className={inputCls} placeholder="Pre-order"
+                    value={form.ctaLabel} onChange={(e) => setForm(f => ({ ...f, ctaLabel: e.target.value }))} />
                 </div>
                 <div>
                   <label className={labelCls}>ปุ่มหลัก (ลิงก์)</label>
-                  <input className={inputCls} placeholder="/shop?category=preorder" value={form.ctaHref} onChange={(e) => setForm(f => ({ ...f, ctaHref: e.target.value }))} />
+                  <input className={inputCls} placeholder="/shop?category=preorder"
+                    value={form.ctaHref} onChange={(e) => setForm(f => ({ ...f, ctaHref: e.target.value }))} />
                 </div>
                 <div>
                   <label className={labelCls}>ปุ่มรอง (label)</label>
-                  <input className={inputCls} placeholder="ดูทั้งหมด (ถ้าไม่ต้องการ เว้นว่าง)" value={form.ctaSecondaryLabel ?? ""} onChange={(e) => setForm(f => ({ ...f, ctaSecondaryLabel: e.target.value }))} />
+                  <input className={inputCls} placeholder="ดูทั้งหมด (ถ้าไม่ต้องการ เว้นว่าง)"
+                    value={form.ctaSecondaryLabel ?? ""} onChange={(e) => setForm(f => ({ ...f, ctaSecondaryLabel: e.target.value }))} />
                 </div>
                 <div>
                   <label className={labelCls}>ปุ่มรอง (ลิงก์)</label>
-                  <input className={inputCls} placeholder="/shop" value={form.ctaSecondaryHref ?? ""} onChange={(e) => setForm(f => ({ ...f, ctaSecondaryHref: e.target.value }))} />
+                  <input className={inputCls} placeholder="/shop"
+                    value={form.ctaSecondaryHref ?? ""} onChange={(e) => setForm(f => ({ ...f, ctaSecondaryHref: e.target.value }))} />
                 </div>
               </div>
 
-              {/* Background color */}
+              {/* BG Color */}
               <div>
                 <label className={labelCls}>สีพื้นหลัง (ใช้เมื่อไม่มีรูป)</label>
-                <div className="flex items-center gap-2">
-                  <div className="flex gap-1.5 flex-wrap">
-                    {BG_PRESETS.map((c) => (
-                      <button key={c.value} onClick={() => setForm(f => ({ ...f, bgColor: c.value }))} title={c.label}
-                        className={`w-7 h-7 rounded-lg border-2 transition-all ${form.bgColor === c.value ? "border-zinc-900 scale-110" : "border-zinc-200"}`}
-                        style={{ background: c.value }}>
-                      </button>
-                    ))}
-                  </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {BG_PRESETS.map((c) => (
+                    <button key={c.value} onClick={() => setForm(f => ({ ...f, bgColor: c.value }))} title={c.label}
+                      className={`w-7 h-7 rounded-lg border-2 transition-all ${form.bgColor === c.value ? "border-zinc-900 scale-110" : "border-zinc-200"}`}
+                      style={{ background: c.value }} />
+                  ))}
                   <input type="color" value={form.bgColor} onChange={(e) => setForm(f => ({ ...f, bgColor: e.target.value }))}
                     className="w-9 h-9 rounded-lg border border-zinc-200 cursor-pointer p-0.5" />
                   <span className="text-[11px] text-zinc-400 font-mono">{form.bgColor}</span>
@@ -330,13 +379,16 @@ export default function AdminBannersPage() {
                 </div>
                 <button onClick={() => setForm(f => ({ ...f, active: !f.active }))}
                   className={`w-12 h-6 rounded-full transition-colors relative ${form.active ? "bg-zinc-900" : "bg-zinc-200"}`}>
-                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${form.active ? "left-7" : "left-1"}`}></span>
+                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${form.active ? "left-7" : "left-1"}`} />
                 </button>
               </div>
             </div>
 
             <div className="flex gap-2 px-6 py-4 border-t border-zinc-100 flex-shrink-0">
-              <button onClick={() => setShowModal(false)} className="flex-1 border border-zinc-200 text-xs font-semibold text-zinc-700 py-2.5 rounded-xl hover:bg-zinc-50">ยกเลิก</button>
+              <button onClick={() => setShowModal(false)}
+                className="flex-1 border border-zinc-200 text-xs font-semibold text-zinc-700 py-2.5 rounded-xl hover:bg-zinc-50">
+                ยกเลิก
+              </button>
               <button onClick={handleSave} disabled={!form.title}
                 className={`flex-1 text-xs font-semibold py-2.5 rounded-xl ${form.title ? "bg-zinc-900 text-white hover:bg-zinc-700" : "bg-zinc-100 text-zinc-400 cursor-not-allowed"}`}>
                 {editing ? "บันทึกการแก้ไข" : "เพิ่ม Banner"}
