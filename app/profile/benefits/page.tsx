@@ -110,7 +110,7 @@ export default function BenefitsPage() {
             <div
               key={tier.key}
               className={`card overflow-hidden ${isActive ? "ring-2" : ""}`}
-              style={isActive ? { ringColor: tier.color, boxShadow: `0 0 0 2px ${tier.color}` } : {}}
+              style={isActive ? { boxShadow: `0 0 0 2px ${tier.color}` } : {}}
             >
               {/* Tier Header */}
               <div className={`px-5 py-3.5 flex items-center justify-between ${tier.bg}`}>
