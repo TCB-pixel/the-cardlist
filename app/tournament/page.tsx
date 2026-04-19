@@ -1,8 +1,9 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import BottomNav from "@/components/BottomNav";
 import HeroBanner from "@/components/HeroBanner";
-import { DEFAULT_TOURNAMENT_BANNERS } from "@/lib/banners";
+import { Banner, DEFAULT_TOURNAMENT_BANNERS } from "@/lib/banners";
+import { createClient } from "@/lib/supabase";
 
 const EVENTS = [
   { id: "1", day: "26", month: "APR", title: "OP Regional Bangkok", desc: "One Piece TCG Regional Tournament — Swiss Format 8 rounds", location: "สยามพารากอน Hall A", time: "09:00 น.", maxSlots: 128, bookedSlots: 110, tcg: "One Piece", format: "Swiss Format", fee: 300 },
@@ -25,6 +26,33 @@ export default function TournamentPage() {
   const [selectedSlot, setSelectedSlot] = useState("");
   const [tableDate, setTableDate] = useState("");
   const [tableDone, setTableDone] = useState(false);
+  const [banners, setBanners] = useState<Banner[]>(DEFAULT_TOURNAMENT_BANNERS);
+
+  useEffect(() => {
+    async function loadBanners() {
+      try {
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from("banners")
+          .select("*")
+          .eq("type", "tournament")
+          .eq("active", true)
+          .order("order", { ascending: true });
+        if (!error && data && data.length > 0) {
+          setBanners(data.map((r: any) => ({
+            id: r.id, type: r.type, title: r.title, subtitle: r.subtitle,
+            badge: r.badge, ctaLabel: r.cta_label, ctaHref: r.cta_href,
+            ctaSecondaryLabel: r.cta_secondary_label ?? "",
+            ctaSecondaryHref: r.cta_secondary_href ?? "",
+            bgColor: r.bg_color, imageUrl: r.image_url,
+            productImageUrl: r.product_image_url,
+            active: r.active, order: r.order,
+          })));
+        }
+      } catch { /* fallback to default */ }
+    }
+    loadBanners();
+  }, []);
 
   return (
     <div className="min-h-screen bg-zinc-50 pb-20">
@@ -36,7 +64,7 @@ export default function TournamentPage() {
       </header>
 
       {/* Tournament Banner Slideshow */}
-      <HeroBanner banners={DEFAULT_TOURNAMENT_BANNERS} intervalMs={3000} />
+      <HeroBanner banners={banners} intervalMs={4000} />
 
       {/* Tabs */}
       <div className="flex bg-white border-b border-zinc-100">
