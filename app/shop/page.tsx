@@ -250,9 +250,9 @@ export default function ShopPage() {
 
       {/* Cart Drawer */}
       {showCart && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setShowCart(false)} />
-          <div className="relative bg-white rounded-t-3xl flex flex-col" style={{ maxHeight: "calc(75vh - 64px)" }}>
+        <div className="fixed inset-x-0 bottom-16 z-50 flex flex-col justify-end">
+          <div className="fixed inset-0 bg-black/40" onClick={() => setShowCart(false)} />
+          <div className="relative bg-white rounded-t-3xl flex flex-col" style={{ maxHeight: "60vh" }}>
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 flex-shrink-0">
               <h3 className="text-sm font-semibold text-zinc-900">ตะกร้าสินค้า ({totalItems})</h3>
