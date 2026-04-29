@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
@@ -28,30 +28,38 @@ const SHIPPING_OPTIONS = [
 const PROMPTPAY_NUMBER = "0634463792"; // ← เปลี่ยนเป็นเบอร์ร้านจริง
 const PROMPTPAY_NAME   = "KRITANAT SUKHANESKUL";
 
-// ─── PromptPay QR SVG (placeholder — ใช้ API จริงใน production) ─────────────
+// ─── PromptPay QR (จริง) ─────────────────────────────────────────────────────
 
 function PromptPayQR({ amount }: { amount: number }) {
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function generate() {
+      try {
+        const generatePayload = (await import("promptpay-qr")).default;
+        const QRCode = await import("qrcode");
+        const payload = generatePayload(PROMPTPAY_NUMBER, { amount });
+        const url = await QRCode.toDataURL(payload, {
+          width: 200,
+          margin: 1,
+          color: { dark: "#0a0a0a", light: "#ffffff" },
+        });
+        setQrDataUrl(url);
+      } catch (e) {
+        console.error("QR generation failed", e);
+      }
+    }
+    generate();
+  }, [amount]);
+
   return (
     <div className="flex flex-col items-center gap-3">
-      <div className="w-44 h-44 bg-white border-2 border-zinc-200 rounded-2xl flex items-center justify-center p-3">
-        {/* QR placeholder — ใน production ใช้ promptpay-qr library */}
-        <svg viewBox="0 0 100 100" className="w-full h-full">
-          <rect width="100" height="100" fill="white"/>
-          {/* Finder patterns */}
-          <rect x="5" y="5" width="30" height="30" rx="3" fill="none" stroke="#0a0a0a" strokeWidth="3"/>
-          <rect x="10" y="10" width="20" height="20" rx="1" fill="#0a0a0a"/>
-          <rect x="65" y="5" width="30" height="30" rx="3" fill="none" stroke="#0a0a0a" strokeWidth="3"/>
-          <rect x="70" y="10" width="20" height="20" rx="1" fill="#0a0a0a"/>
-          <rect x="5" y="65" width="30" height="30" rx="3" fill="none" stroke="#0a0a0a" strokeWidth="3"/>
-          <rect x="10" y="70" width="20" height="20" rx="1" fill="#0a0a0a"/>
-          {/* Data modules */}
-          {[40,45,50,55,60,42,48,52,58,44,46,54,56].map((x, i) => (
-            <rect key={i} x={x} y={[40,42,44,46,48,50,52,54,56,58,60,45,55][i]} width="4" height="4" fill="#0a0a0a"/>
-          ))}
-          {[15,25,35,45,55,65,75,85,20,30,50,70,80].map((x, i) => (
-            <rect key={`d${i}`} x={x} y={[40,45,50,55,60,40,45,50,55,60,40,55,45][i]} width="3" height="3" fill="#0a0a0a"/>
-          ))}
-        </svg>
+      <div className="w-44 h-44 bg-white border-2 border-zinc-200 rounded-2xl flex items-center justify-center p-2 overflow-hidden">
+        {qrDataUrl ? (
+          <Image src={qrDataUrl} alt="PromptPay QR" width={176} height={176} className="w-full h-full" unoptimized />
+        ) : (
+          <div className="w-full h-full bg-zinc-100 rounded-xl animate-pulse" />
+        )}
       </div>
       <div className="text-center">
         <p className="text-[11px] text-zinc-500">พร้อมเพย์ · {PROMPTPAY_NUMBER}</p>
