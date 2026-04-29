@@ -213,7 +213,7 @@ export default function ShopPage() {
                     </span>
                   )}
                   {p.image_url ? (
-                    <div className="aspect-[3/4] relative bg-zinc-50 overflow-hidden">
+                    <div className="h-36 relative bg-zinc-50 overflow-hidden">
                       <Image
                         src={p.image_url}
                         alt={p.name}
@@ -252,11 +252,13 @@ export default function ShopPage() {
       {showCart && (
         <div className="fixed inset-0 z-50 flex flex-col justify-end">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowCart(false)} />
-          <div className="relative bg-white rounded-t-3xl max-h-[80vh] flex flex-col">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100">
+          <div className="relative bg-white rounded-t-3xl flex flex-col" style={{ maxHeight: "70vh" }}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 flex-shrink-0">
               <h3 className="text-sm font-semibold text-zinc-900">ตะกร้าสินค้า ({totalItems})</h3>
               <button onClick={() => setShowCart(false)} className="text-zinc-400 text-lg leading-none">✕</button>
             </div>
+            {/* Items - scrollable */}
             <div className="overflow-y-auto flex-1 px-5 py-3 space-y-3">
               {cart.length === 0 ? (
                 <p className="text-center text-sm text-zinc-400 py-8">ตะกร้าว่างอยู่</p>
@@ -273,15 +275,25 @@ export default function ShopPage() {
                 </div>
               ))}
             </div>
-            {cart.length > 0 && (
-              <div className="px-5 py-4 border-t border-zinc-100">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs text-zinc-500">รวมทั้งหมด</span>
-                  <span className="text-base font-bold text-zinc-900">฿{totalPrice.toLocaleString()}</span>
-                </div>
-                <button onClick={() => { localStorage.setItem("cardlist_cart", JSON.stringify(cart.map(i => ({...i, image_url: products.find(p => p.id === i.id)?.image_url})))); window.location.href = "/checkout"; }} className="btn-primary w-full py-3 text-center text-sm">ดำเนินการสั่งซื้อ →</button>
+            {/* Checkout - always visible at bottom */}
+            <div className="flex-shrink-0 px-5 py-4 border-t border-zinc-100 bg-white">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs text-zinc-500">รวมทั้งหมด</span>
+                <span className="text-base font-bold text-zinc-900">฿{totalPrice.toLocaleString()}</span>
               </div>
-            )}
+              {cart.length > 0 && (
+                <button
+                  onClick={() => {
+                    localStorage.setItem("cardlist_cart", JSON.stringify(
+                      cart.map(i => ({ ...i, image_url: products.find(p => p.id === i.id)?.image_url }))
+                    ));
+                    window.location.href = "/checkout";
+                  }}
+                  className="btn-primary w-full py-3 text-center text-sm">
+                  ดำเนินการสั่งซื้อ →
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
