@@ -213,12 +213,12 @@ export default function ShopPage() {
                     </span>
                   )}
                   {p.image_url ? (
-                    <div className="aspect-[3/4] relative bg-zinc-50">
+                    <div className="aspect-[3/4] relative bg-zinc-50 overflow-hidden">
                       <Image
                         src={p.image_url}
                         alt={p.name}
                         fill
-                        className="object-cover"
+                        className="object-contain p-2"
                         sizes="(max-width: 768px) 33vw, 20vw"
                       />
                     </div>
@@ -279,7 +279,7 @@ export default function ShopPage() {
                   <span className="text-xs text-zinc-500">รวมทั้งหมด</span>
                   <span className="text-base font-bold text-zinc-900">฿{totalPrice.toLocaleString()}</span>
                 </div>
-                <button className="btn-primary w-full py-3 text-center text-sm">ดำเนินการสั่งซื้อ</button>
+                <button onClick={() => { localStorage.setItem("cardlist_cart", JSON.stringify(cart.map(i => ({...i, image_url: products.find(p => p.id === i.id)?.image_url})))); window.location.href = "/checkout"; }} className="btn-primary w-full py-3 text-center text-sm">ดำเนินการสั่งซื้อ →</button>
               </div>
             )}
           </div>
