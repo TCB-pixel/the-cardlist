@@ -252,7 +252,7 @@ export default function ShopPage() {
       {showCart && (
         <div className="fixed inset-0 z-50 flex flex-col justify-end">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowCart(false)} />
-          <div className="relative bg-white rounded-t-3xl flex flex-col" style={{ maxHeight: "70vh" }}>
+          <div className="relative bg-white rounded-t-3xl flex flex-col" style={{ maxHeight: "calc(75vh - 64px)" }}>
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 flex-shrink-0">
               <h3 className="text-sm font-semibold text-zinc-900">ตะกร้าสินค้า ({totalItems})</h3>
@@ -276,7 +276,7 @@ export default function ShopPage() {
               ))}
             </div>
             {/* Checkout - always visible at bottom */}
-            <div className="flex-shrink-0 px-5 py-4 border-t border-zinc-100 bg-white">
+            <div className="flex-shrink-0 px-5 pt-3 pb-6 border-t border-zinc-100 bg-white">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xs text-zinc-500">รวมทั้งหมด</span>
                 <span className="text-base font-bold text-zinc-900">฿{totalPrice.toLocaleString()}</span>
@@ -289,7 +289,7 @@ export default function ShopPage() {
                     ));
                     window.location.href = "/checkout";
                   }}
-                  className="btn-primary w-full py-3 text-center text-sm">
+                  className="btn-primary w-full py-3.5 text-center text-sm font-semibold">
                   ดำเนินการสั่งซื้อ →
                 </button>
               )}
