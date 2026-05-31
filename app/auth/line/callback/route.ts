@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     const pictureUrl = profile.pictureUrl || null;
 
     // 3. สร้าง email จำลองจาก LINE user ID
-    const fakeEmail = `line_${lineUserId}@thecardlist.line`;
+    const fakeEmail = `line_${lineUserId}@thecardlist.com`;
     const fakePassword = `line_${lineUserId}_${process.env.LINE_CLIENT_SECRET!.substring(0, 8)}`;
 
     // 4. สร้าง Supabase server client
