@@ -12,7 +12,6 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // 1. แลก code เป็น access token
     const tokenRes = await fetch("https://api.line.me/oauth2/v2.1/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -30,7 +29,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL("/login?error=line_token_failed", request.url));
     }
 
-    // 2. ดึงข้อมูล profile จาก LINE
     const profileRes = await fetch("https://api.line.me/v2/profile", {
       headers: { Authorization: `Bearer ${tokenData.access_token}` },
     });
@@ -40,11 +38,9 @@ export async function GET(request: NextRequest) {
     const displayName = profile.displayName || "LINE User";
     const pictureUrl = profile.pictureUrl || null;
 
-    // 3. สร้าง email จำลองจาก LINE user ID
     const fakeEmail = `line_${lineUserId}@thecardlist.com`;
     const fakePassword = `line_${lineUserId}_${process.env.LINE_CLIENT_SECRET!.substring(0, 8)}`;
 
-    // 4. สร้าง Supabase server client
     const cookieStore = await cookies();
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -61,26 +57,25 @@ export async function GET(request: NextRequest) {
       }
     );
 
-    // 5. ลอง login ด้วย email จำลองก่อน
+    // ลอง login ก่อน (มี account แล้ว)
     const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
       email: fakeEmail,
       password: fakePassword,
     });
 
     if (!signInError && signInData.user) {
-      await supabase
+      // มี account แล้ว → เช็คว่ากรอกข้อมูลครบยัง
+      const { data: existingProfile } = await supabase
         .from("profiles")
-        .update({
-          line_user_id: lineUserId,
-          display_name: displayName,
-          avatar_url: pictureUrl,
-        })
-        .eq("id", signInData.user.id);
+        .select("first_name, last_name")
+        .eq("id", signInData.user.id)
+        .single();
 
-      return NextResponse.redirect(new URL("/profile", request.url));
+      const isComplete = existingProfile?.first_name && existingProfile?.last_name;
+      return NextResponse.redirect(new URL(isComplete ? "/profile" : "/profile/complete", request.url));
     }
 
-    // 6. ยังไม่มี account → สร้างใหม่
+    // สร้าง account ใหม่
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email: fakeEmail,
       password: fakePassword,
@@ -98,16 +93,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL("/login?error=signup_failed", request.url));
     }
 
-    // 7. บันทึกข้อมูล profile
     await supabase.from("profiles").upsert({
       id: signUpData.user.id,
       line_user_id: lineUserId,
       display_name: displayName,
+      username: `line_${lineUserId.substring(0, 8)}`,
       avatar_url: pictureUrl,
       email: fakeEmail,
     });
 
-    return NextResponse.redirect(new URL("/profile", request.url));
+    // ไปหน้ากรอกข้อมูลเพิ่มเติม
+    return NextResponse.redirect(new URL("/profile/complete", request.url));
   } catch (err) {
     console.error("LINE callback error:", err);
     return NextResponse.redirect(new URL("/login?error=unknown", request.url));
