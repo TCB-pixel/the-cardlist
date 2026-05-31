@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -39,20 +40,34 @@ export async function GET(request: NextRequest) {
     const displayName = profile.displayName || "LINE User";
     const pictureUrl = profile.pictureUrl || null;
 
-    // 3. สร้าง email จำลองจาก LINE user ID (Supabase ต้องการ email)
+    // 3. สร้าง email จำลองจาก LINE user ID
     const fakeEmail = `line_${lineUserId}@thecardlist.line`;
     const fakePassword = `line_${lineUserId}_${process.env.LINE_CLIENT_SECRET!.substring(0, 8)}`;
 
-    const supabase = createClient();
+    // 4. สร้าง Supabase server client
+    const cookieStore = await cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() { return cookieStore.getAll(); },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
+          },
+        },
+      }
+    );
 
-    // 4. ลอง login ด้วย email จำลองก่อน (ถ้ามี account แล้ว)
+    // 5. ลอง login ด้วย email จำลองก่อน
     const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
       email: fakeEmail,
       password: fakePassword,
     });
 
     if (!signInError && signInData.user) {
-      // มี account แล้ว → update ข้อมูล LINE ล่าสุด
       await supabase
         .from("profiles")
         .update({
@@ -65,7 +80,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL("/profile", request.url));
     }
 
-    // 5. ยังไม่มี account → สร้างใหม่
+    // 6. ยังไม่มี account → สร้างใหม่
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email: fakeEmail,
       password: fakePassword,
@@ -79,10 +94,11 @@ export async function GET(request: NextRequest) {
     });
 
     if (signUpError || !signUpData.user) {
+      console.error("SignUp error:", signUpError);
       return NextResponse.redirect(new URL("/login?error=signup_failed", request.url));
     }
 
-    // 6. บันทึกข้อมูล profile เพิ่มเติม
+    // 7. บันทึกข้อมูล profile
     await supabase.from("profiles").upsert({
       id: signUpData.user.id,
       line_user_id: lineUserId,
