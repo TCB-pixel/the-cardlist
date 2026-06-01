@@ -52,6 +52,24 @@ const STATUS_LABEL: Record<string, string> = {
 
 type Tab = "overview" | "orders" | "bookings" | "qr";
 
+type GenReg = {
+  id: string;
+  qr_code: string;
+  pack_used: number;
+  events: { title: string; date: string; location: string } | null;
+};
+
+type PriorityTicket = {
+  id: string;
+  qr_code: string;
+  status: string;
+  free_pack_redeemed: boolean;
+  price_pack_quota: number;
+  price_pack_used: number;
+  ma5_slot: boolean | null;
+  events: { title: string; date: string; location: string } | null;
+};
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatDate(dateStr: string) {
@@ -130,6 +148,8 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [bookings, setBookings] = useState<BookingWithEvent[]>([]);
+  const [genRegs, setGenRegs] = useState<GenReg[]>([]);
+  const [priorityTickets, setPriorityTickets] = useState<PriorityTicket[]>([]);
   const [totalSpend, setTotalSpend] = useState(0);
   const [fetchError, setFetchError] = useState("");
 
@@ -223,6 +243,22 @@ export default function ProfilePage() {
         .order("created_at", { ascending: false });
       if (bookingsErr) throw bookingsErr;
       setBookings((bookingsData as unknown as BookingWithEvent[]) ?? []);
+
+      // 6) General registrations
+      const { data: genData } = await supabase
+        .from("general_registrations")
+        .select("id, qr_code, pack_used, events(title, date, location)")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
+      setGenRegs((genData as unknown as GenReg[]) ?? []);
+
+      // 7) Priority tickets
+      const { data: priorityData } = await supabase
+        .from("priority_tickets")
+        .select("id, qr_code, status, free_pack_redeemed, price_pack_quota, price_pack_used, ma5_slot, events(title, date, location)")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
+      setPriorityTickets((priorityData as unknown as PriorityTicket[]) ?? []);
 
     } catch (err: any) {
       setFetchError(err?.message ?? "โหลดข้อมูลไม่สำเร็จ");
@@ -564,27 +600,103 @@ export default function ProfilePage() {
 
         {/* QR */}
         {activeTab === "qr" && (
-          <div className="space-y-3">
-            {bookings.length === 0 ? (
+          <div className="space-y-4">
+            {genRegs.length === 0 && priorityTickets.length === 0 ? (
               <div className="card px-5 py-10 text-center">
+                <p className="text-2xl mb-3">🎫</p>
                 <p className="text-sm text-zinc-400">ยังไม่มี QR Code</p>
-                <p className="text-[11px] text-zinc-400 mt-1">จองอีเวนต์เพื่อรับ QR Code สำหรับ Check-in</p>
+                <p className="text-[11px] text-zinc-400 mt-1">ลงทะเบียนเข้างานเพื่อรับ QR Code</p>
               </div>
             ) : (
-              bookings.map((b) => (
-                <div key={b.id} className="card px-5 py-5 text-center">
-                  <p className="text-xs font-semibold text-zinc-900 mb-0.5">{b.events?.title ?? "—"}</p>
-                  <p className="text-[10px] text-zinc-400 mb-4">
-                    {b.events?.date ? formatDate(b.events.date) : ""}
-                    {b.events?.time ? ` · ${b.events.time.slice(0, 5)}` : ""}
-                  </p>
-                  <QRCode value={b.qr_code} />
-                  <p className="text-[10px] text-zinc-400 mt-3 mb-0.5 font-mono">
-                    {b.qr_code.slice(0, 18).toUpperCase()}...
-                  </p>
-                  <p className="text-[9px] text-zinc-400">แสดง QR Code นี้เพื่อ Check-in หน้างาน</p>
-                </div>
-              ))
+              <>
+                {/* General Tickets */}
+                {genRegs.map((g) => (
+                  <div key={g.id} className="card px-5 py-5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-[10px] bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded-full font-semibold">GENERAL</span>
+                      <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">ฟรี</span>
+                    </div>
+                    <p className="text-xs font-semibold text-zinc-900 mb-0.5">{(g.events as any)?.title ?? "—"}</p>
+                    <p className="text-[10px] text-zinc-400 mb-4">
+                      {(g.events as any)?.date ? formatDate((g.events as any).date) : ""} · {(g.events as any)?.location ?? ""}
+                    </p>
+                    <div className="flex justify-center mb-4">
+                      <QRCode value={g.qr_code} />
+                    </div>
+                    <p className="text-[10px] text-center text-zinc-400 font-mono mb-3">{g.qr_code}</p>
+                    {/* สิทธิ์ */}
+                    <div className="bg-zinc-50 rounded-xl p-3 space-y-2">
+                      <p className="text-[10px] font-semibold text-zinc-500 tracking-widest uppercase">สิทธิ์ของคุณ</p>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">🏷️</span>
+                          <span className="text-[11px] text-zinc-700">ซื้อ Pokemon ราคาป้าย</span>
+                        </div>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${g.pack_used >= 1 ? "bg-red-50 text-red-600" : "bg-green-50 text-green-700"}`}>
+                          {g.pack_used >= 1 ? "ใช้แล้ว" : "1 ซอง"}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-[9px] text-zinc-400 text-center mt-3">แสดง QR Code นี้หน้างานเพื่อใช้สิทธิ์</p>
+                  </div>
+                ))}
+
+                {/* Priority Tickets */}
+                {priorityTickets.map((p) => (
+                  <div key={p.id} className="card px-5 py-5 border-2 border-amber-200">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold">🥇 PRIORITY GUEST</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${p.status === "approved" ? "bg-green-100 text-green-700" : "bg-amber-50 text-amber-600"}`}>
+                        {p.status === "approved" ? "✓ อนุมัติแล้ว" : "รอยืนยัน"}
+                      </span>
+                    </div>
+                    <p className="text-xs font-semibold text-zinc-900 mb-0.5">{(p.events as any)?.title ?? "—"}</p>
+                    <p className="text-[10px] text-zinc-400 mb-4">
+                      {(p.events as any)?.date ? formatDate((p.events as any).date) : ""} · {(p.events as any)?.location ?? ""}
+                    </p>
+                    {p.status === "approved" && (
+                      <>
+                        <div className="flex justify-center mb-4">
+                          <QRCode value={p.qr_code} />
+                        </div>
+                        <p className="text-[10px] text-center text-zinc-400 font-mono mb-3">{p.qr_code}</p>
+                      </>
+                    )}
+                    {/* สิทธิ์ */}
+                    <div className="bg-amber-50 rounded-xl p-3 space-y-2">
+                      <p className="text-[10px] font-semibold text-zinc-500 tracking-widest uppercase">สิทธิ์ของคุณ</p>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">🎁</span>
+                          <span className="text-[11px] text-zinc-700">Pokemon M2 (JP) ฟรี</span>
+                        </div>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${p.free_pack_redeemed ? "bg-red-50 text-red-600" : "bg-green-50 text-green-700"}`}>
+                          {p.free_pack_redeemed ? "รับแล้ว" : "1 ซอง"}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">🏷️</span>
+                          <span className="text-[11px] text-zinc-700">ซื้อ M1/M3/M4 ราคาป้าย</span>
+                        </div>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${p.price_pack_used >= p.price_pack_quota ? "bg-red-50 text-red-600" : "bg-green-50 text-green-700"}`}>
+                          {p.price_pack_quota - p.price_pack_used}/{p.price_pack_quota} ซอง
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">🎲</span>
+                          <span className="text-[11px] text-zinc-700">ลุ้น MA5 Box</span>
+                        </div>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${p.ma5_slot === true ? "bg-green-50 text-green-700" : p.ma5_slot === false ? "bg-red-50 text-red-600" : "bg-zinc-100 text-zinc-500"}`}>
+                          {p.ma5_slot === true ? "✅ ได้สิทธิ์!" : p.ma5_slot === false ? "❌ ไม่ได้" : "รอสุ่มหน้างาน"}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-[9px] text-zinc-400 text-center mt-3">แสดง QR Code นี้หน้างานเพื่อใช้สิทธิ์</p>
+                  </div>
+                ))}
+              </>
             )}
           </div>
         )}
