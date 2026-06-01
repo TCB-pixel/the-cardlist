@@ -16,7 +16,9 @@ export default function CompleteProfilePage() {
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [birthDate, setBirthDate] = useState("");
+  const [birthDay, setBirthDay] = useState("");
+  const [birthMonth, setBirthMonth] = useState("");
+  const [birthYear, setBirthYear] = useState("");
   const [phone, setPhone] = useState("");
   const [username, setUsername] = useState("");
 
@@ -31,14 +33,15 @@ export default function CompleteProfilePage() {
         .eq("id", session.user.id)
         .single();
 
-      // ถ้ากรอกข้อมูลครบแล้ว ไปหน้า profile เลย
       if (profile?.first_name && profile?.last_name) {
         router.replace("/profile");
         return;
       }
 
-      // ดึงชื่อ LINE มาแสดง
-      setLineDisplayName(profile?.display_name ?? session.user.user_metadata?.full_name ?? "");
+      // ดึงชื่อ LINE จาก display_name หรือ metadata
+      const name = profile?.display_name ?? session.user.user_metadata?.full_name ?? "";
+      // ถ้าชื่อขึ้นต้นด้วย line_ แสดงว่ายังไม่ได้ดึงชื่อจริง ให้แสดงว่าง
+      setLineDisplayName(name.startsWith("line_") ? "" : name);
       setLineAvatar(profile?.avatar_url ?? null);
       setLoading(false);
     }
@@ -52,12 +55,18 @@ export default function CompleteProfilePage() {
     if (!firstName || !lastName) { setError("กรุณากรอกชื่อและนามสกุล"); return; }
     if (!username) { setError("กรุณากรอก username"); return; }
 
+    // validate วันเกิด
+    let birthDate: string | null = null;
+    if (birthDay && birthMonth && birthYear) {
+      if (birthYear.length !== 4) { setError("กรุณากรอกปี ค.ศ. 4 หลัก เช่น 2000"); return; }
+      birthDate = `${birthYear}-${birthMonth.padStart(2, "0")}-${birthDay.padStart(2, "0")}`;
+    }
+
     setSaving(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.replace("/login"); return; }
 
-      // เช็ค username ซ้ำ
       const { data: existing } = await supabase
         .from("profiles")
         .select("id")
@@ -73,7 +82,8 @@ export default function CompleteProfilePage() {
           username,
           first_name: firstName,
           last_name: lastName,
-          birth_date: birthDate || null,
+          display_name: `${firstName} ${lastName}`,
+          birth_date: birthDate,
           phone: phone || null,
         })
         .eq("id", session.user.id);
@@ -87,6 +97,14 @@ export default function CompleteProfilePage() {
     }
   }
 
+  const days = Array.from({ length: 31 }, (_, i) => String(i + 1));
+  const months = [
+    { v: "1", l: "มกราคม" }, { v: "2", l: "กุมภาพันธ์" }, { v: "3", l: "มีนาคม" },
+    { v: "4", l: "เมษายน" }, { v: "5", l: "พฤษภาคม" }, { v: "6", l: "มิถุนายน" },
+    { v: "7", l: "กรกฎาคม" }, { v: "8", l: "สิงหาคม" }, { v: "9", l: "กันยายน" },
+    { v: "10", l: "ตุลาคม" }, { v: "11", l: "พฤศจิกายน" }, { v: "12", l: "ธันวาคม" },
+  ];
+
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -97,16 +115,10 @@ export default function CompleteProfilePage() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      {/* Header */}
       <div className="flex flex-col items-center text-center px-6 pt-10 pb-6">
         {lineAvatar ? (
-          <Image
-            src={lineAvatar}
-            alt={lineDisplayName}
-            width={80}
-            height={80}
-            className="w-20 h-20 rounded-2xl object-cover mb-4"
-          />
+          <Image src={lineAvatar} alt={lineDisplayName || "LINE"} width={80} height={80}
+            className="w-20 h-20 rounded-2xl object-cover mb-4" />
         ) : (
           <div className="w-20 h-20 rounded-2xl bg-[#06C755] flex items-center justify-center mb-4">
             <svg width="36" height="36" viewBox="0 0 24 24" fill="white">
@@ -115,16 +127,15 @@ export default function CompleteProfilePage() {
           </div>
         )}
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-sm font-bold text-zinc-900">{lineDisplayName}</span>
+          {lineDisplayName && (
+            <span className="text-sm font-bold text-zinc-900">{lineDisplayName}</span>
+          )}
           <span className="text-[10px] bg-[#06C755] text-white px-2 py-0.5 rounded-full font-semibold">LINE</span>
         </div>
         <h1 className="text-xl font-bold text-zinc-900 mt-3">กรอกข้อมูลเพิ่มเติม</h1>
-        <p className="text-sm text-zinc-400 mt-1.5 leading-relaxed">
-          กรอกข้อมูลเพื่อสมบูรณ์การสมัครสมาชิก
-        </p>
+        <p className="text-sm text-zinc-400 mt-1.5">กรอกข้อมูลเพื่อสมบูรณ์การสมัครสมาชิก</p>
       </div>
 
-      {/* Form */}
       <div className="flex-1 px-6 pb-10">
         <form onSubmit={handleSave} className="space-y-4">
 
@@ -133,27 +144,15 @@ export default function CompleteProfilePage() {
               <label className="text-[11px] font-semibold text-zinc-500 tracking-wide block mb-1.5">
                 ชื่อ <span className="text-red-400">*</span>
               </label>
-              <input
-                type="text"
-                className="input"
-                placeholder="ชื่อจริง"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                required
-              />
+              <input type="text" className="input" placeholder="ชื่อจริง"
+                value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
             </div>
             <div>
               <label className="text-[11px] font-semibold text-zinc-500 tracking-wide block mb-1.5">
                 นามสกุล <span className="text-red-400">*</span>
               </label>
-              <input
-                type="text"
-                className="input"
-                placeholder="นามสกุล"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                required
-              />
+              <input type="text" className="input" placeholder="นามสกุล"
+                value={lastName} onChange={(e) => setLastName(e.target.value)} required />
             </div>
           </div>
 
@@ -161,40 +160,35 @@ export default function CompleteProfilePage() {
             <label className="text-[11px] font-semibold text-zinc-500 tracking-wide block mb-1.5">
               Username <span className="text-red-400">*</span>
             </label>
-            <input
-              type="text"
-              className="input"
-              placeholder="@username"
+            <input type="text" className="input" placeholder="@username"
               value={username}
               onChange={(e) => setUsername(e.target.value.replace(/[^a-z0-9_]/g, ""))}
-              required
-            />
+              required />
             <p className="text-[10px] text-zinc-400 mt-1">ใช้ตัวอักษรภาษาอังกฤษ ตัวเลข หรือ _ เท่านั้น</p>
           </div>
 
+          {/* วันเกิด แบบ dropdown */}
           <div>
-            <label className="text-[11px] font-semibold text-zinc-500 tracking-wide block mb-1.5">
-              วันเกิด
-            </label>
-            <input
-              type="date"
-              className="input"
-              value={birthDate}
-              onChange={(e) => setBirthDate(e.target.value)}
-            />
+            <label className="text-[11px] font-semibold text-zinc-500 tracking-wide block mb-1.5">วันเกิด</label>
+            <div className="grid grid-cols-3 gap-2">
+              <select className="input text-sm" value={birthDay} onChange={(e) => setBirthDay(e.target.value)}>
+                <option value="">วัน</option>
+                {days.map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+              <select className="input text-sm" value={birthMonth} onChange={(e) => setBirthMonth(e.target.value)}>
+                <option value="">เดือน</option>
+                {months.map((m) => <option key={m.v} value={m.v}>{m.l}</option>)}
+              </select>
+              <input type="number" className="input text-sm" placeholder="ปี (ค.ศ.)"
+                value={birthYear} onChange={(e) => setBirthYear(e.target.value)}
+                min="1900" max="2099" />
+            </div>
           </div>
 
           <div>
-            <label className="text-[11px] font-semibold text-zinc-500 tracking-wide block mb-1.5">
-              เบอร์โทรศัพท์
-            </label>
-            <input
-              type="tel"
-              className="input"
-              placeholder="08x-xxx-xxxx"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-            />
+            <label className="text-[11px] font-semibold text-zinc-500 tracking-wide block mb-1.5">เบอร์โทรศัพท์</label>
+            <input type="tel" className="input" placeholder="08x-xxx-xxxx"
+              value={phone} onChange={(e) => setPhone(e.target.value)} />
           </div>
 
           {error && (
@@ -203,11 +197,8 @@ export default function CompleteProfilePage() {
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={saving}
-            className={`btn-primary w-full py-3.5 text-sm mt-2 ${saving ? "opacity-50 cursor-not-allowed" : ""}`}
-          >
+          <button type="submit" disabled={saving}
+            className={`btn-primary w-full py-3.5 text-sm mt-2 ${saving ? "opacity-50 cursor-not-allowed" : ""}`}>
             {saving ? "กำลังบันทึก..." : "บันทึกและเข้าสู่ระบบ"}
           </button>
         </form>
