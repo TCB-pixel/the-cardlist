@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
         lineUserId: profile.line_user_id,
         type: "broadcast",
         data: {
-          message: `✅ ลงทะเบียนเข้างานสำเร็จ!\n\n📍 งาน: ${event?.title ?? "งาน"}\n📅 วันที่: ${event?.date ? new Date(event.date).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" }) : ""}\n📌 สถานที่: ${event?.location ?? ""}\n\n🎫 สิทธิ์ของคุณ:\n• ซื้อ Pokemon M1-M5 ราคาป้าย (จนของหมด)\n\n🔑 QR Code: ${qrCode}\n\nแสดง QR Code ในโปรไฟล์หน้างานได้เลยครับ 🙌`,
+          message: `✅ ลงทะเบียนเข้างานสำเร็จ!\n\n📍 งาน: ${event?.title ?? "งาน"}\n📅 วันที่: ${event?.date ? new Date(event.date).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" }) : ""}\n📌 สถานที่: ${event?.location ?? ""}\n\n🎫 สิทธิ์ของคุณ:\n• ซื้อ Pokemon M1-M5 ราคาป้าย 1 ซอง / คน\n\n🔑 QR Code: ${qrCode}\n\nแสดง QR Code ในโปรไฟล์หน้างานได้เลยครับ 🙌`,
         },
       }),
     });

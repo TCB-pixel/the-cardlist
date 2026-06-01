@@ -144,7 +144,7 @@ export default function EventDetailPage() {
                 <span>🏷️</span><span>ซื้อ Pokemon M1/M2/M3/M4/M5 ราคาป้าย</span>
               </div>
               <div className="flex items-center gap-2 text-[10px] text-zinc-400">
-                <span>⚡</span><span>จนของหมด ไม่จำกัดจำนวน</span>
+                <span>⚡</span><span>1 ซอง / คน (จนของหมด)</span>
               </div>
             </div>
 
