@@ -31,6 +31,8 @@ const NAV: NavGroup[] = [
     items: [
       { href: "/admin/events", label: "จัดการอีเวนต์", permission: "events:view",
         icon: <><rect x="2.5" y="3.5" width="15" height="13" rx="2" stroke="currentColor" strokeWidth="1.3" fill="none"/><line x1="2.5" y1="8" x2="17.5" y2="8" stroke="currentColor" strokeWidth="1.3"/><line x1="7" y1="2" x2="7" y2="5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><line x1="13" y1="2" x2="13" y2="5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></> },
+      { href: "/admin/tickets", label: "บัตรเข้างาน", permission: "events:view",
+        icon: <><rect x="2" y="4" width="16" height="13" rx="2" stroke="currentColor" strokeWidth="1.3" fill="none"/><line x1="2" y1="9" x2="18" y2="9" stroke="currentColor" strokeWidth="1.3"/><circle cx="6" cy="13" r="1" fill="currentColor"/><line x1="9" y1="13" x2="14" y2="13" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></> },
       { href: "/admin/vendor-bookings", label: "จองโต๊ะ Vendor", permission: "events:view",
         icon: <><rect x="2" y="3" width="16" height="14" rx="2" stroke="currentColor" strokeWidth="1.3" fill="none"/><line x1="2" y1="8" x2="18" y2="8" stroke="currentColor" strokeWidth="1.3"/></> },
       ],
