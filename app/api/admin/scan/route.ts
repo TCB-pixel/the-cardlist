@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
       .eq("qr_code", qrCode)
       .single();
 
-    if (error || !data) return NextResponse.json({ error: "ไม่พบ QR Code นี้ในระบบ" }, { status: 404 });
+    if (error || !data) return NextResponse.json({ error: error?.message ?? "ไม่พบ QR Code นี้ในระบบ", code: error?.code, hint: error?.hint }, { status: 404 });
 
     return NextResponse.json({ type: "general", data });
   }
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       .eq("qr_code", qrCode)
       .single();
 
-    if (error || !data) return NextResponse.json({ error: "ไม่พบ QR Code นี้ในระบบ" }, { status: 404 });
+    if (error || !data) return NextResponse.json({ error: error?.message ?? "ไม่พบ QR Code นี้ในระบบ", code: error?.code, hint: error?.hint }, { status: 404 });
     if (data.status !== "approved") return NextResponse.json({ error: "บัตรยังไม่ได้รับการอนุมัติ" }, { status: 400 });
 
     return NextResponse.json({ type: "priority", data });
