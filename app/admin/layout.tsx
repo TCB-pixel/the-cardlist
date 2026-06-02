@@ -37,7 +37,7 @@ const NAV: NavGroup[] = [
         icon: <><rect x="2" y="3" width="16" height="14" rx="2" stroke="currentColor" strokeWidth="1.3" fill="none"/><circle cx="10" cy="10" r="3" stroke="currentColor" strokeWidth="1.3" fill="none"/><line x1="13" y1="7" x2="18" y2="2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></> },
       { href: "/admin/vendor-bookings", label: "จองโต๊ะ Vendor", permission: "events:view",
         icon: <><rect x="2" y="3" width="16" height="14" rx="2" stroke="currentColor" strokeWidth="1.3" fill="none"/><line x1="2" y1="8" x2="18" y2="8" stroke="currentColor" strokeWidth="1.3"/></> },
-      ],
+    ],
   },
   {
     group: "เนื้อหา",
@@ -64,7 +64,8 @@ const NAV: NavGroup[] = [
   },
 ];
 
-function AdminSidebar() {
+// ── Desktop Sidebar ──
+function AdminSidebar({ onClose }: { onClose?: () => void }) {
   const { currentUser, can, logout } = useAdmin();
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
@@ -74,10 +75,18 @@ function AdminSidebar() {
       <div className={`flex items-center gap-3 px-4 py-4 border-b border-zinc-800 ${collapsed ? "justify-center" : ""}`}>
         <Image src="/images/logo-square.jpg" alt="The Cardlist" width={28} height={28} className="invert flex-shrink-0" />
         {!collapsed && (
-          <div>
+          <div className="flex-1 min-w-0">
             <p className="text-[11px] font-bold text-white tracking-widest leading-none">THE CARDLIST</p>
             <p className="text-[9px] text-zinc-500 tracking-wider mt-0.5">ADMIN PANEL</p>
           </div>
+        )}
+        {/* ปุ่มปิด mobile drawer */}
+        {onClose && (
+          <button onClick={onClose} className="text-zinc-400 hover:text-white ml-auto">
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+              <path d="M5 5l10 10M15 5L5 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+          </button>
         )}
       </div>
 
@@ -94,6 +103,7 @@ function AdminSidebar() {
                 const active = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href));
                 return (
                   <Link key={item.href} href={item.href}
+                    onClick={onClose}
                     className={`flex items-center gap-3 px-4 py-2.5 text-xs transition-colors ${active ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"} ${collapsed ? "justify-center" : ""}`}>
                     <svg width="18" height="18" viewBox="0 0 20 20" className="flex-shrink-0">{item.icon}</svg>
                     {!collapsed && <span className="font-medium">{item.label}</span>}
@@ -105,7 +115,6 @@ function AdminSidebar() {
         })}
       </nav>
 
-      {/* Current user */}
       {!collapsed && (
         <div className="px-4 py-3 border-t border-zinc-800">
           <div className="flex items-center gap-2.5">
@@ -139,41 +148,55 @@ function AdminSidebar() {
           </svg>
           {!collapsed && <span>ออกจากระบบ</span>}
         </button>
-        <button onClick={() => setCollapsed(!collapsed)}
-          className={`flex items-center gap-3 w-full px-4 py-2 text-xs text-zinc-500 hover:text-white transition-colors ${collapsed ? "justify-center" : ""}`}>
-          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" className="flex-shrink-0">
-            {collapsed
-              ? <path d="M7 5l5 5-5 5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
-              : <path d="M13 5l-5 5 5 5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>}
-          </svg>
-          {!collapsed && <span>ย่อเมนู</span>}
-        </button>
+        {/* ซ่อนปุ่ม collapse บนมือถือ (onClose แทน) */}
+        {!onClose && (
+          <button onClick={() => setCollapsed(!collapsed)}
+            className={`flex items-center gap-3 w-full px-4 py-2 text-xs text-zinc-500 hover:text-white transition-colors ${collapsed ? "justify-center" : ""}`}>
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" className="flex-shrink-0">
+              {collapsed
+                ? <path d="M7 5l5 5-5 5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+                : <path d="M13 5l-5 5 5 5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>}
+            </svg>
+            {!collapsed && <span>ย่อเมนู</span>}
+          </button>
+        )}
       </div>
     </aside>
   );
 }
 
-function AdminTopBar() {
+// ── Top Bar ──
+function AdminTopBar({ onMenuOpen }: { onMenuOpen: () => void }) {
   const { currentUser, logout } = useAdmin();
   const pathname = usePathname();
   const allItems = NAV.flatMap((g) => g.items);
   const pageLabel = allItems.find((i) => i.href === pathname)?.label ?? "Admin";
 
   return (
-    <div className="bg-white border-b border-zinc-100 px-6 py-3 flex items-center justify-between flex-shrink-0">
-      <div>
-        <h1 className="text-sm font-semibold text-zinc-900">{pageLabel}</h1>
-        <p className="text-[10px] text-zinc-400 mt-0.5">
-          {new Date().toLocaleDateString("th-TH", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
-        </p>
-      </div>
+    <div className="bg-white border-b border-zinc-100 px-4 py-3 flex items-center justify-between flex-shrink-0">
       <div className="flex items-center gap-3">
-        <div className="text-right">
+        {/* Hamburger — มือถือเท่านั้น */}
+        <button onClick={onMenuOpen} className="md:hidden text-zinc-500 hover:text-zinc-900 p-1">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <line x1="2" y1="5" x2="18" y2="5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="2" y1="10" x2="18" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="2" y1="15" x2="18" y2="15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+        </button>
+        <div>
+          <h1 className="text-sm font-semibold text-zinc-900">{pageLabel}</h1>
+          <p className="text-[10px] text-zinc-400 mt-0.5 hidden sm:block">
+            {new Date().toLocaleDateString("th-TH", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="text-right hidden sm:block">
           <p className="text-xs font-semibold text-zinc-900">{currentUser.name}</p>
           <p className="text-[10px] text-zinc-400">{currentUser.email}</p>
         </div>
         <div className="relative">
-          <div className="w-9 h-9 bg-zinc-900 rounded-xl flex items-center justify-center text-white text-sm font-bold">
+          <div className="w-8 h-8 bg-zinc-900 rounded-xl flex items-center justify-center text-white text-sm font-bold">
             {currentUser.avatar}
           </div>
           <span className={`absolute -bottom-1 -right-1 text-[7px] font-bold px-1 py-0.5 rounded-full leading-none ${
@@ -182,10 +205,9 @@ function AdminTopBar() {
             {currentUser.role === "owner" ? "OW" : currentUser.role === "head_staff" ? "HS" : "ST"}
           </span>
         </div>
-        <button onClick={logout}
-          title="ออกจากระบบ"
-          className="w-9 h-9 flex items-center justify-center border border-red-100 rounded-xl text-red-400 hover:bg-red-50 transition-colors">
-          <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+        <button onClick={logout} title="ออกจากระบบ"
+          className="w-8 h-8 flex items-center justify-center border border-red-100 rounded-xl text-red-400 hover:bg-red-50 transition-colors">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
             <path d="M13 5l4 5-4 5M17 10H8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
             <path d="M8 3H4a1 1 0 00-1 1v12a1 1 0 001 1h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
           </svg>
@@ -195,16 +217,42 @@ function AdminTopBar() {
   );
 }
 
+// ── Main Layout ──
 function AdminInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   if (pathname === "/admin/login") return <>{children}</>;
+
   return (
     <div className="flex min-h-screen bg-zinc-50">
-      <AdminSidebar />
-      <main className="flex-1 flex flex-col min-w-0">
-        <AdminTopBar />
+
+      {/* Desktop Sidebar — ซ่อนบน mobile */}
+      <div className="hidden md:flex">
+        <AdminSidebar />
+      </div>
+
+      {/* Mobile Drawer Overlay */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 flex md:hidden">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/60"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          {/* Drawer */}
+          <div className="relative w-64 max-w-[80vw] flex flex-col bg-zinc-900 h-full overflow-y-auto shadow-2xl">
+            <AdminSidebar onClose={() => setMobileMenuOpen(false)} />
+          </div>
+        </div>
+      )}
+
+      {/* Main Content */}
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <AdminTopBar onMenuOpen={() => setMobileMenuOpen(true)} />
         <div className="flex-1 overflow-auto">{children}</div>
       </main>
+
     </div>
   );
 }
