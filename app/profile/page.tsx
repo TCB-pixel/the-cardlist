@@ -116,23 +116,32 @@ function ProfileSkeleton() {
 // ─── QR Code (SVG-based, deterministic from string) ────────────────────────────
 
 function QRCode({ value }: { value: string }) {
-  // Generate a pseudo-random but deterministic grid from the qr_code string
-  const cells = Array.from({ length: 25 }).map((_, i) => {
-    const charCode = value.charCodeAt(i % value.length);
-    return (charCode + i * 7 + Math.floor(i / 5) * 3) % 3 !== 0;
-  });
-  // Always fill corners (finder patterns)
-  const corners = [0,1,2,3,4,5,9,10,14,15,19,20,21,22,23,24];
+  const [dataUrl, setDataUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function generate() {
+      try {
+        const QRCodeLib = await import("qrcode");
+        const url = await QRCodeLib.toDataURL(value, {
+          width: 200,
+          margin: 2,
+          color: { dark: "#09090b", light: "#ffffff" },
+        });
+        setDataUrl(url);
+      } catch {}
+    }
+    if (value) generate();
+  }, [value]);
+
+  if (!dataUrl) {
+    return (
+      <div className="w-40 h-40 mx-auto bg-zinc-100 rounded-2xl animate-pulse" />
+    );
+  }
+
   return (
-    <div className="w-36 h-36 mx-auto bg-white border-2 border-zinc-100 rounded-2xl flex items-center justify-center p-3">
-      <div className="grid grid-cols-5 gap-0.5 w-full h-full">
-        {Array.from({ length: 25 }).map((_, i) => (
-          <div
-            key={i}
-            className={`rounded-sm ${corners.includes(i) || cells[i] ? "bg-zinc-900" : "bg-white border border-zinc-100"}`}
-          />
-        ))}
-      </div>
+    <div className="w-40 h-40 mx-auto bg-white border-2 border-zinc-100 rounded-2xl flex items-center justify-center p-2">
+      <img src={dataUrl} alt="QR Code" className="w-full h-full object-contain" />
     </div>
   );
 }
