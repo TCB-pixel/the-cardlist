@@ -21,15 +21,12 @@ const QUICK_LINKS = [
   { href: "/news",                   label: "ข่าวสาร",   icon: "📰" },
 ];
 
-const NEWS_PREVIEW = [
-  { tag: "TOURNAMENT", title: "Decklist แชมป์ OP Regional Bangkok 2026", date: "16 เม.ย. 2026", slug: "decklist-op-regional-bkk-2026" },
-  { tag: "RELEASE",    title: "กำหนดการวางจำหน่าย Q2 2026 ทุกเกม",       date: "10 เม.ย. 2026", slug: "release-schedule-q2-2026" },
-];
-
 export default function HomePage() {
   const [banners, setBanners] = useState<Banner[]>(DEFAULT_HOME_BANNERS);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [displayName, setDisplayName] = useState("");
+  const [events, setEvents] = useState<any[]>([]);
+  const [news, setNews] = useState<any[]>([]);
 
   useEffect(() => {
     async function init() {
@@ -74,6 +71,27 @@ export default function HomePage() {
             order:              r.order,
           })));
         }
+      } catch {}
+
+      // โหลด events
+      try {
+        const { data: evData } = await supabase
+          .from("events")
+          .select("id, title, location, date, max_slots, booked_slots, event_type")
+          .gte("date", new Date().toISOString().split("T")[0])
+          .order("date", { ascending: true })
+          .limit(3);
+        setEvents(evData ?? []);
+      } catch {}
+
+      // โหลด news
+      try {
+        const { data: newsData } = await supabase
+          .from("news_posts")
+          .select("id, title, slug, tag, published_at")
+          .order("published_at", { ascending: false })
+          .limit(3);
+        setNews(newsData ?? []);
       } catch {}
     }
     init();
@@ -141,29 +159,42 @@ export default function HomePage() {
           <Link href="/events" className="text-[10px] text-zinc-400">ดูทั้งหมด →</Link>
         </div>
         <div className="space-y-2">
-          {[
-            { day: "26", month: "APR", title: "OP Regional Bangkok",  loc: "สยามพารากอน Hall A",  slots: 18, max: 128 },
-            { day: "03", month: "MAY", title: "Pokémon League Cup",   loc: "The Cardlist Store",   slots: 20, max: 32  },
-          ].map((ev, i) => (
-            <Link key={i} href="/events" className="card px-4 py-3 flex gap-3 items-start active:bg-zinc-50 block">
-              <div className="bg-zinc-900 text-white rounded-xl px-2.5 py-2 text-center min-w-[40px] flex-shrink-0">
-                <div className="text-base font-bold leading-none">{ev.day}</div>
-                <div className="text-[8px] text-zinc-400 tracking-wider mt-0.5">{ev.month}</div>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-zinc-900 truncate">{ev.title}</p>
-                <p className="text-[10px] text-zinc-400 mt-0.5">{ev.loc}</p>
-                <div className="mt-2">
-                  <div className="flex justify-between mb-1">
-                    <span className="text-[9px] text-zinc-400">ที่นั่งคงเหลือ {ev.slots} / {ev.max}</span>
-                  </div>
-                  <div className="h-1 bg-zinc-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-zinc-900 rounded-full" style={{ width: `${((ev.max - ev.slots) / ev.max) * 100}%` }} />
-                  </div>
+          {events.length === 0 ? (
+            <div className="card px-4 py-6 text-center">
+              <p className="text-xs text-zinc-400">ยังไม่มีอีเวนต์ที่กำลังมา</p>
+            </div>
+          ) : events.map((ev) => {
+            const d = new Date(ev.date);
+            const day = d.getDate().toString();
+            const month = d.toLocaleDateString("th-TH", { month: "short" }).toUpperCase();
+            const isMeetup = ev.event_type !== "tournament";
+            const pct = ev.max_slots > 0 ? Math.round((ev.booked_slots / ev.max_slots) * 100) : 0;
+            return (
+              <Link key={ev.id} href={`/events/${ev.id}`} className="card px-4 py-3 flex gap-3 items-start active:bg-zinc-50 block">
+                <div className="bg-zinc-900 text-white rounded-xl px-2.5 py-2 text-center min-w-[40px] flex-shrink-0">
+                  <div className="text-base font-bold leading-none">{day}</div>
+                  <div className="text-[8px] text-zinc-400 tracking-wider mt-0.5">{month}</div>
                 </div>
-              </div>
-            </Link>
-          ))}
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-zinc-900 truncate">{ev.title}</p>
+                  <p className="text-[10px] text-zinc-400 mt-0.5">{ev.location}</p>
+                  {isMeetup ? (
+                    <div className="flex gap-1 mt-2">
+                      <span className="text-[9px] bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded">ฟรี</span>
+                      <span className="text-[9px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded">Priority ฿500</span>
+                    </div>
+                  ) : ev.max_slots > 0 ? (
+                    <div className="mt-2">
+                      <span className="text-[9px] text-zinc-400">ที่นั่งคงเหลือ {ev.max_slots - ev.booked_slots} / {ev.max_slots}</span>
+                      <div className="h-1 bg-zinc-100 rounded-full overflow-hidden mt-1">
+                        <div className="h-full bg-zinc-900 rounded-full" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              </Link>
+            );
+          })}
         </div>
       </section>
 
@@ -174,7 +205,11 @@ export default function HomePage() {
           <Link href="/news" className="text-[10px] text-zinc-400">ดูทั้งหมด →</Link>
         </div>
         <div className="space-y-2">
-          {NEWS_PREVIEW.map((n) => (
+          {news.length === 0 ? (
+            <div className="card px-4 py-6 text-center">
+              <p className="text-xs text-zinc-400">ยังไม่มีข่าวสาร</p>
+            </div>
+          ) : news.map((n) => (
             <Link key={n.slug} href={`/news/${n.slug}`} className="card px-4 py-3 flex gap-3 items-center active:bg-zinc-50 block">
               <div className="w-10 h-10 bg-zinc-100 rounded-xl flex-shrink-0 flex items-center justify-center">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -184,9 +219,11 @@ export default function HomePage() {
                 </svg>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[9px] font-semibold tracking-widest text-zinc-400 mb-0.5">{n.tag}</p>
+                <p className="text-[9px] font-semibold tracking-widest text-zinc-400 mb-0.5">{n.tag?.toUpperCase()}</p>
                 <p className="text-xs font-medium text-zinc-900 leading-snug line-clamp-2">{n.title}</p>
-                <p className="text-[10px] text-zinc-400 mt-1">{n.date}</p>
+                <p className="text-[10px] text-zinc-400 mt-1">
+                  {n.published_at ? new Date(n.published_at).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" }) : ""}
+                </p>
               </div>
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="text-zinc-300 flex-shrink-0">
                 <path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>

@@ -11,6 +11,7 @@ export async function GET() {
     redirect_uri: redirectUri,
     state,
     scope: "profile openid email",
+    bot_prompt: "aggressive",
   });
 
   const lineAuthUrl = `https://access.line.me/oauth2/v2.1/authorize?${params.toString()}`;
