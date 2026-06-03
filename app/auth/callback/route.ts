@@ -25,18 +25,26 @@ export async function GET(request: NextRequest) {
     });
 
     const tokenData = await tokenRes.json();
-    if (!tokenData.access_token) {
+
+    if (!tokenRes.ok || !tokenData.access_token) {
+      console.error("LINE token failed:", tokenData);
       return NextResponse.redirect(new URL("/login?error=line_token_failed", request.url));
     }
 
     const profileRes = await fetch("https://api.line.me/v2/profile", {
       headers: { Authorization: `Bearer ${tokenData.access_token}` },
     });
+
     const profile = await profileRes.json();
 
-    const lineUserId = profile.userId;
-    const displayName = profile.displayName || "LINE User";
-    const pictureUrl = profile.pictureUrl || null;
+    if (!profileRes.ok || !profile.userId) {
+      console.error("LINE profile failed:", profile);
+      return NextResponse.redirect(new URL("/login?error=line_profile_failed", request.url));
+    }
+
+    const lineUserId = profile.userId as string;
+    const displayName = (profile.displayName as string) || "LINE User";
+    const pictureUrl = (profile.pictureUrl as string | undefined) || null;
 
     const fakeEmail = `line_${lineUserId}@thecardlist.com`;
     const fakePassword = `line_${lineUserId}_${process.env.LINE_CLIENT_SECRET!.substring(0, 8)}`;
@@ -47,7 +55,9 @@ export async function GET(request: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
-          getAll() { return cookieStore.getAll(); },
+          getAll() {
+            return cookieStore.getAll();
+          },
           setAll(cookiesToSet) {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)
@@ -57,40 +67,70 @@ export async function GET(request: NextRequest) {
       }
     );
 
-    // เช็คว่ามี session อยู่แล้วไหม (Email login ที่อยากผูก LINE)
-    const { data: { session: existingSession } } = await supabase.auth.getSession();
+    const lineProfilePayload = {
+      line_user_id: lineUserId,
+      display_name: displayName,
+      avatar_url: pictureUrl,
+    };
+
+    // กรณีมี session อยู่แล้ว เช่น login ด้วย email อยู่ แล้วต้องการผูก LINE เพิ่ม
+    const {
+      data: { session: existingSession },
+    } = await supabase.auth.getSession();
+
     if (existingSession?.user) {
-      await supabase.from("profiles").update({
-        line_user_id: lineUserId,
-        avatar_url: pictureUrl ?? undefined,
-      }).eq("id", existingSession.user.id);
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update(lineProfilePayload)
+        .eq("id", existingSession.user.id);
+
+      if (updateError) {
+        console.error("Update existing session profile error:", updateError);
+        return NextResponse.redirect(new URL("/login?error=line_profile_update_failed", request.url));
+      }
+
       return NextResponse.redirect(new URL("/profile?linked=line", request.url));
     }
 
-    // ลอง login ก่อน (มี account แล้ว)
+    // ลอง login ก่อน กรณีเคยสมัครด้วย LINE ไว้แล้ว
     const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
       email: fakeEmail,
       password: fakePassword,
     });
 
     if (!signInError && signInData.user) {
+      // จุดสำคัญ: user เดิม login สำเร็จแล้ว ต้อง update line_user_id กลับเข้า profiles ทุกครั้ง
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update(lineProfilePayload)
+        .eq("id", signInData.user.id);
+
+      if (updateError) {
+        console.error("Update signed-in LINE profile error:", updateError);
+        return NextResponse.redirect(new URL("/login?error=line_profile_update_failed", request.url));
+      }
+
       const { data: existingProfile } = await supabase
         .from("profiles")
         .select("first_name, last_name")
         .eq("id", signInData.user.id)
         .single();
 
-      const isComplete = existingProfile?.first_name && existingProfile?.last_name;
-      return NextResponse.redirect(new URL(isComplete ? "/profile" : "/profile/complete", request.url));
+      const isComplete = Boolean(existingProfile?.first_name && existingProfile?.last_name);
+
+      return NextResponse.redirect(
+        new URL(isComplete ? "/profile" : "/profile/complete", request.url)
+      );
     }
 
-    // สร้าง account ใหม่
+    // สร้าง account ใหม่ กรณียังไม่เคย login ด้วย LINE นี้
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email: fakeEmail,
       password: fakePassword,
       options: {
         data: {
           full_name: displayName,
+          display_name: displayName,
           avatar_url: pictureUrl,
           line_user_id: lineUserId,
         },
@@ -102,7 +142,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL("/login?error=signup_failed", request.url));
     }
 
-    // *** Sign in ทันทีหลัง signUp เพื่อให้ได้ session ***
+    // Sign in ทันทีหลัง signUp เพื่อให้ browser ได้ session
     const { error: signInAfterSignUpError } = await supabase.auth.signInWithPassword({
       email: fakeEmail,
       password: fakePassword,
@@ -113,14 +153,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL("/login?error=signin_failed", request.url));
     }
 
-    await supabase.from("profiles").upsert({
-      id: signUpData.user.id,
-      line_user_id: lineUserId,
-      display_name: displayName,
-      username: `line_${lineUserId.substring(0, 8)}`,
-      avatar_url: pictureUrl,
-      email: fakeEmail,
-    });
+    const { error: upsertProfileError } = await supabase.from("profiles").upsert(
+      {
+        id: signUpData.user.id,
+        username: `line_${lineUserId.substring(0, 8)}`,
+        ...lineProfilePayload,
+      },
+      { onConflict: "id" }
+    );
+
+    if (upsertProfileError) {
+      console.error("Upsert new LINE profile error:", upsertProfileError);
+      return NextResponse.redirect(new URL("/login?error=line_profile_upsert_failed", request.url));
+    }
 
     return NextResponse.redirect(new URL("/profile/complete", request.url));
   } catch (err) {
