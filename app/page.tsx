@@ -28,11 +28,27 @@ const NEWS_PREVIEW = [
 
 export default function HomePage() {
   const [banners, setBanners] = useState<Banner[]>(DEFAULT_HOME_BANNERS);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [displayName, setDisplayName] = useState("");
 
   useEffect(() => {
-    async function loadBanners() {
+    async function init() {
+      const supabase = createClient();
+
+      // เช็ค session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setIsLoggedIn(true);
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("display_name, username")
+          .eq("id", session.user.id)
+          .single();
+        setDisplayName(profile?.display_name ?? profile?.username ?? "บัญชีของฉัน");
+      }
+
+      // โหลด banners
       try {
-        const supabase = createClient();
         const { data, error } = await supabase
           .from("banners")
           .select("*")
@@ -58,12 +74,9 @@ export default function HomePage() {
             order:              r.order,
           })));
         }
-        // ถ้า DB ว่าง → ใช้ DEFAULT_HOME_BANNERS ต่อไป
-      } catch {
-        // network error → ใช้ default
-      }
+      } catch {}
     }
-    loadBanners();
+    init();
   }, []);
 
   return (
@@ -73,13 +86,25 @@ export default function HomePage() {
         <div className="flex items-center justify-between px-4 h-12">
           <Image src="/images/logo-long.jpg" alt="The Cardlist" width={130} height={42} className="h-7 w-auto object-contain" />
           <div className="flex items-center gap-2">
-            <Link href="/login"    className="text-[11px] border border-zinc-200 rounded-xl px-3 py-1.5 text-zinc-700">Log in</Link>
-            <Link href="/register" className="btn-primary py-1.5">สมัคร</Link>
+            {isLoggedIn ? (
+              <Link href="/profile"
+                className="flex items-center gap-2 text-[11px] border border-zinc-200 rounded-xl px-3 py-1.5 text-zinc-700">
+                <div className="w-4 h-4 bg-zinc-900 rounded-full flex items-center justify-center text-white text-[8px] font-bold">
+                  {displayName[0]?.toUpperCase() ?? "U"}
+                </div>
+                <span className="max-w-[80px] truncate">{displayName}</span>
+              </Link>
+            ) : (
+              <>
+                <Link href="/login"    className="text-[11px] border border-zinc-200 rounded-xl px-3 py-1.5 text-zinc-700">Log in</Link>
+                <Link href="/register" className="btn-primary py-1.5">สมัคร</Link>
+              </>
+            )}
           </div>
         </div>
       </header>
 
-      {/* Hero Banner — ดึงจาก Supabase */}
+      {/* Hero Banner */}
       <HeroBanner banners={banners} intervalMs={4000} />
 
       {/* Quick links */}
