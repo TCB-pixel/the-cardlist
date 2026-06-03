@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -147,6 +147,37 @@ function QRCode({ value }: { value: string }) {
 }
 
 // ─── Main Component ────────────────────────────────────────────────────────────
+
+function Barcode({ value }: { value: string }) {
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  useEffect(() => {
+    async function generate() {
+      try {
+        const JsBarcode = (await import("jsbarcode")).default;
+        if (svgRef.current) {
+          JsBarcode(svgRef.current, value, {
+            format: "CODE128",
+            width: 1.8,
+            height: 50,
+            displayValue: true,
+            fontSize: 10,
+            margin: 6,
+            background: "#ffffff",
+            lineColor: "#09090b",
+          });
+        }
+      } catch {}
+    }
+    if (value) generate();
+  }, [value]);
+
+  return (
+    <div className="w-full bg-white border border-zinc-100 rounded-xl flex items-center justify-center py-2 px-2 mt-2">
+      <svg ref={svgRef} className="w-full" />
+    </div>
+  );
+}
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -639,10 +670,11 @@ export default function ProfilePage() {
                     <p className="text-[10px] text-zinc-400 mb-4">
                       {(g.events as any)?.date ? formatDate((g.events as any).date) : ""} · {(g.events as any)?.location ?? ""}
                     </p>
-                    <div className="flex justify-center mb-4">
+                    <div className="flex justify-center mb-2">
                       <QRCode value={g.qr_code} />
                     </div>
-                    <p className="text-[10px] text-center text-zinc-400 font-mono mb-3">{g.qr_code}</p>
+                    <Barcode value={g.qr_code} />
+                    <p className="text-[10px] text-center text-zinc-400 font-mono mt-2 mb-3">{g.qr_code}</p>
                     {/* สิทธิ์ */}
                     <div className="bg-zinc-50 rounded-xl p-3 space-y-2">
                       <p className="text-[10px] font-semibold text-zinc-500 tracking-widest uppercase">สิทธิ์ของคุณ</p>
@@ -675,10 +707,11 @@ export default function ProfilePage() {
                     </p>
                     {p.status === "approved" && (
                       <>
-                        <div className="flex justify-center mb-4">
+                        <div className="flex justify-center mb-2">
                           <QRCode value={p.qr_code} />
                         </div>
-                        <p className="text-[10px] text-center text-zinc-400 font-mono mb-3">{p.qr_code}</p>
+                        <Barcode value={p.qr_code} />
+                        <p className="text-[10px] text-center text-zinc-400 font-mono mt-2 mb-3">{p.qr_code}</p>
                       </>
                     )}
                     {/* สิทธิ์ */}
