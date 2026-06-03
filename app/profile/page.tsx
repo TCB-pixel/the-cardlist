@@ -254,20 +254,30 @@ export default function ProfilePage() {
       setBookings((bookingsData as unknown as BookingWithEvent[]) ?? []);
 
       // 6) General registrations
-      const { data: genData } = await supabase
+      const { data: genRawData } = await supabase
         .from("general_registrations")
-        .select("id, qr_code, pack_used, events(title, date, location)")
+        .select("id, qr_code, pack_used, event_id")
         .eq("user_id", userId)
         .order("created_at", { ascending: false });
-      setGenRegs((genData as unknown as GenReg[]) ?? []);
+
+      const genWithEvents = await Promise.all((genRawData ?? []).map(async (g: any) => {
+        const { data: ev } = await supabase.from("events").select("title, date, location").eq("id", g.event_id).single();
+        return { ...g, events: ev };
+      }));
+      setGenRegs((genWithEvents as unknown as GenReg[]) ?? []);
 
       // 7) Priority tickets
-      const { data: priorityData } = await supabase
+      const { data: priorityRawData } = await supabase
         .from("priority_tickets")
-        .select("id, qr_code, status, free_pack_redeemed, price_pack_quota, price_pack_used, ma5_slot, events(title, date, location)")
+        .select("id, qr_code, status, free_pack_redeemed, price_pack_quota, price_pack_used, ma5_slot, event_id")
         .eq("user_id", userId)
         .order("created_at", { ascending: false });
-      setPriorityTickets((priorityData as unknown as PriorityTicket[]) ?? []);
+
+      const priorityWithEvents = await Promise.all((priorityRawData ?? []).map(async (p: any) => {
+        const { data: ev } = await supabase.from("events").select("title, date, location").eq("id", p.event_id).single();
+        return { ...p, events: ev };
+      }));
+      setPriorityTickets((priorityWithEvents as unknown as PriorityTicket[]) ?? []);
 
     } catch (err: any) {
       setFetchError(err?.message ?? "โหลดข้อมูลไม่สำเร็จ");
