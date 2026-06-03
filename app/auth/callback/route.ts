@@ -60,7 +60,6 @@ export async function GET(request: NextRequest) {
     // เช็คว่ามี session อยู่แล้วไหม (Email login ที่อยากผูก LINE)
     const { data: { session: existingSession } } = await supabase.auth.getSession();
     if (existingSession?.user) {
-      // มี session อยู่แล้ว → ผูก LINE กับ account ที่ login อยู่
       await supabase.from("profiles").update({
         line_user_id: lineUserId,
         avatar_url: pictureUrl ?? undefined,
@@ -75,7 +74,6 @@ export async function GET(request: NextRequest) {
     });
 
     if (!signInError && signInData.user) {
-      // มี account แล้ว → เช็คว่ากรอกข้อมูลครบยัง
       const { data: existingProfile } = await supabase
         .from("profiles")
         .select("first_name, last_name")
@@ -104,6 +102,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL("/login?error=signup_failed", request.url));
     }
 
+    // *** Sign in ทันทีหลัง signUp เพื่อให้ได้ session ***
+    const { error: signInAfterSignUpError } = await supabase.auth.signInWithPassword({
+      email: fakeEmail,
+      password: fakePassword,
+    });
+
+    if (signInAfterSignUpError) {
+      console.error("SignIn after signUp error:", signInAfterSignUpError);
+      return NextResponse.redirect(new URL("/login?error=signin_failed", request.url));
+    }
+
     await supabase.from("profiles").upsert({
       id: signUpData.user.id,
       line_user_id: lineUserId,
@@ -113,7 +122,6 @@ export async function GET(request: NextRequest) {
       email: fakeEmail,
     });
 
-    // ไปหน้ากรอกข้อมูลเพิ่มเติม
     return NextResponse.redirect(new URL("/profile/complete", request.url));
   } catch (err) {
     console.error("LINE callback error:", err);
