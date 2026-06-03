@@ -23,13 +23,14 @@ export default function CompleteProfilePage() {
 
   useEffect(() => {
     async function check() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.replace("/login"); return; }
+      // ใช้ getUser() แทน getSession() — ปลอดภัยกว่าและได้ข้อมูลที่ verified
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) { router.replace("/login"); return; }
 
       const { data: profile } = await supabase
         .from("profiles")
         .select("*")
-        .eq("id", session.user.id)
+        .eq("id", user.id)
         .single();
 
       if (profile?.first_name && profile?.last_name) {
@@ -37,7 +38,7 @@ export default function CompleteProfilePage() {
         return;
       }
 
-      const name = profile?.display_name ?? session.user.user_metadata?.full_name ?? "";
+      const name = profile?.display_name ?? user.user_metadata?.full_name ?? "";
       setLineDisplayName(name.startsWith("line_") ? "" : name);
       setLineAvatar(profile?.avatar_url ?? null);
       setLoading(false);
@@ -58,10 +59,9 @@ export default function CompleteProfilePage() {
 
     setSaving(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.replace("/login"); return; }
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) { router.replace("/login"); return; }
 
-      // สร้าง username อัตโนมัติจากชื่อ-นามสกุล + random
       const base = `${firstName}${lastName}`.toLowerCase().replace(/[^a-z0-9]/g, "");
       const suffix = Math.floor(Math.random() * 9000 + 1000);
       const autoUsername = `${base}${suffix}`;
@@ -76,7 +76,7 @@ export default function CompleteProfilePage() {
           birth_date: birthDate,
           phone: phone || null,
         })
-        .eq("id", session.user.id);
+        .eq("id", user.id);
 
       if (updateErr) throw updateErr;
       router.replace("/profile");
@@ -105,7 +105,6 @@ export default function CompleteProfilePage() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      {/* Header */}
       <div className="flex flex-col items-center text-center px-6 pt-10 pb-6">
         {lineAvatar ? (
           <Image src={lineAvatar} alt={lineDisplayName || "LINE"} width={80} height={80}
@@ -129,7 +128,6 @@ export default function CompleteProfilePage() {
 
       <div className="flex-1 px-6 pb-10">
         <form onSubmit={handleSave} className="space-y-4">
-
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-[11px] font-semibold text-zinc-500 tracking-wide block mb-1.5">
