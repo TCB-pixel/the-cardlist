@@ -57,6 +57,17 @@ export async function GET(request: NextRequest) {
       }
     );
 
+    // เช็คว่ามี session อยู่แล้วไหม (Email login ที่อยากผูก LINE)
+    const { data: { session: existingSession } } = await supabase.auth.getSession();
+    if (existingSession?.user) {
+      // มี session อยู่แล้ว → ผูก LINE กับ account ที่ login อยู่
+      await supabase.from("profiles").update({
+        line_user_id: lineUserId,
+        avatar_url: pictureUrl ?? undefined,
+      }).eq("id", existingSession.user.id);
+      return NextResponse.redirect(new URL("/profile?linked=line", request.url));
+    }
+
     // ลอง login ก่อน (มี account แล้ว)
     const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
       email: fakeEmail,

@@ -198,6 +198,7 @@ export default function ProfilePage() {
   const [loggingOut, setLoggingOut] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
+  const [showLineBanner, setShowLineBanner] = useState(false);
   const [installed, setInstalled] = useState(false);
 
   // ── PWA ──
@@ -245,6 +246,8 @@ export default function ProfilePage() {
         .single();
       if (profileErr) throw profileErr;
       setProfile(profileData);
+      // แสดง banner ผูก LINE ถ้ายังไม่มี line_user_id
+      if (!profileData?.line_user_id) setShowLineBanner(true);
 
       // 3) Orders (with items + product name for summary)
       const { data: ordersData, error: ordersErr } = await supabase
