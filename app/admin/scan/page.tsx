@@ -124,7 +124,7 @@ export default function StaffScannerPage() {
       const msgs: Record<string, string> = {
         pack_used: "✅ ใช้สิทธิ์ซื้อ Pack แล้ว!",
         free_pack_redeemed: "✅ รับ Pokemon Booster Pack M2 JP ฟรีแล้ว!",
-        free_pack_used: `✅ บันทึกแล้ว`,
+        free_pack_used: "✅ ใช้สิทธิ์ซื้อ Booster Pack M1-M5 ราคาป้าย 5 ซองแล้ว!",
       };
       setRedeemSuccess(msgs[field] ?? "✅ บันทึกแล้ว");
       setTimeout(() => setRedeemSuccess(null), 3000);
@@ -270,7 +270,7 @@ export default function StaffScannerPage() {
                 )}
               </div>
               <div className="flex items-center justify-between p-3 bg-zinc-800 rounded-xl">
-                <div className="flex items-center gap-2"><span>🏷️</span><div><p className="text-xs font-semibold">ซื้อ M1/M3/M4 ราคาป้าย</p><p className="text-[10px] text-zinc-400">{result.free_pack_used}/{result.free_pack_quota} ซอง</p></div></div>
+                <div className="flex items-center gap-2"><span>🏷️</span><div><p className="text-xs font-semibold">สิทธิ์ซื้อ Booster Pack M1-M5 ราคาป้าย</p><p className="text-[10px] text-zinc-400">{(result.free_pack_used ?? 0) >= (result.free_pack_quota ?? 5) ? "ใช้สิทธิ์แล้ว" : "ยังไม่ได้ใช้"}</p></div></div>
                 {(result.free_pack_used ?? 0) >= (result.free_pack_quota ?? 5) ? (
                   <span className="text-[10px] bg-red-900 text-red-400 px-2 py-1 rounded-full font-semibold">ครบแล้ว</span>
                 ) : (
