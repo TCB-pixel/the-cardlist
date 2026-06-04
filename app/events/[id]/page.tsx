@@ -97,8 +97,8 @@ export default function PriorityTicketPage() {
       qr_code: qrCode,
       charge_id: chargeIdParam,
       free_pack_redeemed: false,
-      price_pack_quota: 5,
-      price_pack_used: 0,
+      free_pack_quota: 5,
+      free_pack_used: 0,
       ma5_slot: null, // จะ assign ตอน scan หน้างาน
     });
 
@@ -177,7 +177,7 @@ export default function PriorityTicketPage() {
                 <span className="text-sm">🎁</span>
               </div>
               <div>
-                <p className="text-xs font-semibold text-green-900">ต่อที่ 1 — Pokemon M2 (JP) ฟรี 1 ซอง</p>
+                <p className="text-xs font-semibold text-green-900">🎁 Booster Pack M1-M5 ฟรี 5 ซอง</p>
                 <p className="text-[10px] text-green-700 mt-0.5">รับได้หน้างาน แสดง QR Code</p>
               </div>
             </div>
@@ -187,7 +187,7 @@ export default function PriorityTicketPage() {
                 <span className="text-sm">🏷️</span>
               </div>
               <div>
-                <p className="text-xs font-semibold text-blue-900">ต่อที่ 2 — ซื้อ M1/M3/M4 ราคาป้าย 5 ซอง</p>
+                <p className="text-xs font-semibold text-blue-900">🌑 ลุ้นสิทธิ์ซื้อ Booster Box เงามืดคุกคาม MSRP</p>
                 <p className="text-[10px] text-blue-700 mt-0.5">สิทธิ์ต่อคน ใช้ได้วันงานเท่านั้น</p>
               </div>
             </div>
@@ -197,7 +197,7 @@ export default function PriorityTicketPage() {
                 <span className="text-sm">🎲</span>
               </div>
               <div>
-                <p className="text-xs font-semibold text-amber-900">ต่อที่ 3 — ลุ้นสิทธิ์ซื้อ MA5 Box ราคาป้าย</p>
+                <p className="text-xs font-semibold text-amber-900">⚡ ลุ้นสิทธิ์ซื้อ Ascend Heroes ETB ฿2,190</p>
                 <p className="text-[10px] text-amber-700 mt-0.5">มี 24 slot จาก 100 คน สุ่มหน้างาน</p>
               </div>
             </div>
@@ -304,7 +304,7 @@ export default function PriorityTicketPage() {
         </div>
         <div className="flex justify-between">
           <span className="text-[11px] text-zinc-400">สิทธิ์</span>
-          <span className="text-[11px] font-semibold text-green-700">M2 ฟรี + ราคาป้าย 5 ซอง + ลุ้น MA5</span>
+          <span className="text-[11px] font-semibold text-green-700">Booster Pack M1-M5 ฟรี 5 ซอง + ลุ้น 3 รางวัล</span>
         </div>
       </div>
 

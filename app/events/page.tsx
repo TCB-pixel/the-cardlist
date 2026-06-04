@@ -128,7 +128,7 @@ export default function EventsPage() {
                       {ev.event_type !== "tournament" && (
                         <div className="absolute top-3 right-3 flex gap-1">
                           <span className="text-[9px] bg-green-500/90 text-white px-2 py-0.5 rounded-full font-semibold backdrop-blur-sm">ฟรี</span>
-                          <span className="text-[9px] bg-amber-500/90 text-white px-2 py-0.5 rounded-full font-semibold backdrop-blur-sm">฿500</span>
+                          <span className="text-[9px] bg-amber-500/90 text-white px-2 py-0.5 rounded-full font-semibold backdrop-blur-sm">฿690</span>
                         </div>
                       )}
                     </div>
@@ -199,7 +199,7 @@ export default function EventsPage() {
                         </div>
                         <div className="flex-1 bg-amber-50 rounded-xl px-3 py-2 text-center">
                           <p className="text-[9px] text-zinc-400 mb-0.5">Priority Guest</p>
-                          <p className="text-xs font-bold text-amber-600">฿500</p>
+                          <p className="text-xs font-bold text-amber-600">฿690</p>
                         </div>
                       </div>
                     )}

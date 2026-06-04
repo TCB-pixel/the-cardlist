@@ -44,12 +44,12 @@ export default function EventTicketPage() {
     setUploading(true);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push("/login"); return; }
+      const { data: { user: sessionUser }, error: sessionErr } = await supabase.auth.getUser();
+      if (sessionErr || !sessionUser) { router.push("/login"); return; }
 
       // อัพโหลดสลิป
       const ext = slip.name.split(".").pop();
-      const fileName = `ticket_${session.user.id}_${Date.now()}.${ext}`;
+      const fileName = `ticket_${sessionUser.id}_${Date.now()}.${ext}`;
       const { error: uploadErr } = await supabase.storage
         .from("slips")
         .upload(fileName, slip);
@@ -62,14 +62,14 @@ export default function EventTicketPage() {
       const { data: ticket, error: ticketErr } = await supabase
         .from("event_tickets")
         .insert({
-          user_id: session.user.id,
+          user_id: sessionUser.id,
           event_id: id,
           status: "pending",
           slip_url: urlData.publicUrl,
           qr_code: qrCode,
           free_pack_redeemed: false,
-          price_pack_quota: 5,
-          price_pack_used: 0,
+          free_pack_quota: 5,
+          free_pack_used: 0,
         })
         .select()
         .single();
