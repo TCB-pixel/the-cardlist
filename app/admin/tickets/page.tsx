@@ -8,7 +8,7 @@ const STATUS_STYLE: Record<string, string> = { pending: "bg-amber-50 text-amber-
 
 async function notifyLineTicket(lineUserId: string, ticket: any) {
   if (!lineUserId) return;
-  await fetch("/api/line-notify", {
+  await fetch("/api/notify", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -24,7 +24,7 @@ async function notifyLineTicket(lineUserId: string, ticket: any) {
 
 async function notifyLineTicketRejected(lineUserId: string, ticket: any) {
   if (!lineUserId) return;
-  await fetch("/api/line-notify", {
+  await fetch("/api/notify", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
