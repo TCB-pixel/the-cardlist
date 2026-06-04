@@ -33,13 +33,13 @@ export default function HomePage() {
       const supabase = createClient();
 
       // เช็ค session
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
         setIsLoggedIn(true);
         const { data: profile } = await supabase
           .from("profiles")
           .select("display_name, username")
-          .eq("id", session.user.id)
+          .eq("id", user.id)
           .single();
         setDisplayName(profile?.display_name ?? profile?.username ?? "บัญชีของฉัน");
       }
@@ -181,7 +181,7 @@ export default function HomePage() {
                   {isMeetup ? (
                     <div className="flex gap-1 mt-2">
                       <span className="text-[9px] bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded">ฟรี</span>
-                      <span className="text-[9px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded">Priority ฿500</span>
+                      <span className="text-[9px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded">Priority ฿690</span>
                     </div>
                   ) : ev.max_slots > 0 ? (
                     <div className="mt-2">
