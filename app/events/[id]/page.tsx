@@ -106,6 +106,9 @@ export default function EventDetailPage() {
             <div className="flex items-center gap-2 text-[11px] text-zinc-600">
               <span>🛍️</span><span>สิทธิ์ซื้อ Pokemon Booster Pack M1-M5 ราคาป้าย 1 ซอง จนกว่าของจะหมด</span>
             </div>
+            <div className="flex items-center gap-2 text-[11px] text-zinc-600">
+              <span>🎲</span><span>ลุ้นสิทธิ์ซื้อ Pokemon Chaos Rising ETB ราคา ฿1,590 (1 สิทธิ์)</span>
+            </div>
           </div>
           <div className="px-4 pb-4">
             {genReg ? (
