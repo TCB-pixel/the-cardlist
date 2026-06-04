@@ -97,8 +97,8 @@ export default function PriorityTicketPage() {
       qr_code: qrCode,
       charge_id: chargeIdParam,
       free_pack_redeemed: false,
-      price_pack_quota: 5,
-      price_pack_used: 0,
+      free_pack_quota: 5,
+      free_pack_used: 0,
       ma5_slot: null, // จะ assign ตอน scan หน้างาน
     });
 
@@ -177,38 +177,38 @@ export default function PriorityTicketPage() {
                 <span className="text-sm">🎁</span>
               </div>
               <div>
-                <p className="text-xs font-semibold text-green-900">สิทธิ์ที่ 1 — Booster Pack M1-M5 ฟรี 5 ซอง</p>
+                <p className="text-xs font-semibold text-green-900">🎁 Booster Pack M1-M5 ฟรี 5 ซอง</p>
                 <p className="text-[10px] text-green-700 mt-0.5">รับได้หน้างาน แสดง QR Code</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3 bg-zinc-50 rounded-2xl p-4">
-              <div className="w-8 h-8 bg-zinc-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                <span className="text-sm">🌑</span>
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-zinc-900">สิทธิ์ที่ 2 — ลุ้นซื้อ Booster Box เงามืดคุกคาม MSRP</p>
-                <p className="text-[10px] text-zinc-600 mt-0.5">20 สิทธิ์ จาก 100 คน สุ่มหน้างาน</p>
               </div>
             </div>
 
             <div className="flex items-start gap-3 bg-blue-50 rounded-2xl p-4">
               <div className="w-8 h-8 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                <span className="text-sm">⚡</span>
+                <span className="text-sm">🌑</span>
               </div>
               <div>
-                <p className="text-xs font-semibold text-blue-900">สิทธิ์ที่ 3 — ลุ้นซื้อ Ascend Heroes ETB ฿2,190</p>
-                <p className="text-[10px] text-blue-700 mt-0.5">1 รางวัล จาก 100 คน (ราคาตลาด ฿7,000)</p>
+                <p className="text-xs font-semibold text-blue-900">ลุ้นสิทธิ์ซื้อ Booster Box เงามืดคุกคาม ราคา MSRP</p>
+                <p className="text-[10px] text-blue-700 mt-0.5">20 สิทธิ์ จาก 100 คน สุ่มหน้างาน</p>
               </div>
             </div>
 
             <div className="flex items-start gap-3 bg-amber-50 rounded-2xl p-4">
               <div className="w-8 h-8 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                <span className="text-sm">⚡</span>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-amber-900">ลุ้นสิทธิ์ซื้อ Ascend Heroes ETB ฿2,190</p>
+                <p className="text-[10px] text-amber-700 mt-0.5">1 รางวัล สุ่มหน้างาน</p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 bg-indigo-50 rounded-2xl p-4">
+              <div className="w-8 h-8 bg-indigo-100 rounded-xl flex items-center justify-center flex-shrink-0">
                 <span className="text-sm">🔵</span>
               </div>
               <div>
-                <p className="text-xs font-semibold text-amber-900">สิทธิ์ที่ 4 — ลุ้นซื้อ M5 Abyss Eye ฿1,490</p>
-                <p className="text-[10px] text-amber-700 mt-0.5">1 รางวัล จาก 100 คน (ราคาตลาด ฿4,500)</p>
+                <p className="text-xs font-semibold text-indigo-900">ลุ้นสิทธิ์ซื้อ M5 Abyss Eye ฿1,490</p>
+                <p className="text-[10px] text-indigo-700 mt-0.5">1 รางวัล สุ่มหน้างาน</p>
               </div>
             </div>
           </div>
@@ -314,7 +314,7 @@ export default function PriorityTicketPage() {
         </div>
         <div className="flex justify-between">
           <span className="text-[11px] text-zinc-400">สิทธิ์</span>
-          <span className="text-[11px] font-semibold text-green-700">Pack ฟรี 5 ซอง + ลุ้นของรางวัล 3 รายการ</span>
+          <span className="text-[11px] font-semibold text-green-700">Booster Pack M1-M5 ฟรี 5 ซอง + ลุ้น 3 รางวัล</span>
         </div>
       </div>
 

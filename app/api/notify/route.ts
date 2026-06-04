@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
   let message = "";
 
   if (type === "ticket_approved") {
-    message = `🎫 บัตรเข้างานได้รับการอนุมัติแล้ว!\n\n📍 งาน: ${data.eventTitle}\n🎁 สิทธิ์ของคุณ:\n• Pokemon M2 ฟรี 1 ซอง\n• ซื้อ Pokemon Pack ราคาป้าย 5 ซอง\n\n🔑 QR Code: ${data.qrCode}\n\nแสดง QR Code ในโปรไฟล์เพื่อรับสิทธิ์หน้างานได้เลยครับ 🙌`;
+    message = `🎫 บัตร Priority Guest ได้รับการยืนยันแล้ว!\n\n📍 งาน: ${data.eventTitle}\n\n🎁 สิทธิ์ของคุณ:\n• Booster Pack M1-M5 ฟรี 5 ซอง\n• ลุ้นสิทธิ์ซื้อ Booster Box เงามืดคุกคาม (20 สิทธิ์)\n• ลุ้นสิทธิ์ซื้อ Ascend Heroes ETB ฿2,190 (1 รางวัล)\n• ลุ้นสิทธิ์ซื้อ M5 Abyss Eye ฿1,490 (1 รางวัล)\n\n🔑 QR Code: ${data.qrCode}\n\nแสดง QR Code หน้างานเพื่อรับสิทธิ์ได้เลยครับ 🙌`;
   } else if (type === "ticket_rejected") {
     message = `❌ บัตรเข้างาน ${data.eventTitle} ไม่ได้รับการอนุมัติ\n\nกรุณาติดต่อ The Cardlist เพื่อตรวจสอบครับ`;
   } else if (type === "order_approved") {
