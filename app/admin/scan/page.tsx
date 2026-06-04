@@ -7,8 +7,8 @@ type ScanResult = {
   event: { title: string; date: string };
   pack_used?: number;
   free_pack_redeemed?: boolean;
-  price_pack_quota?: number;
-  price_pack_used?: number;
+  free_pack_quota?: number;
+  free_pack_used?: number;
   ma5_slot?: boolean | null;
   status?: string;
   ticketId: string;
@@ -98,8 +98,8 @@ export default function StaffScannerPage() {
           event: { title: d.events?.title ?? "—", date: d.events?.date ?? "" },
           status: d.status,
           free_pack_redeemed: d.free_pack_redeemed,
-          price_pack_quota: d.price_pack_quota,
-          price_pack_used: d.price_pack_used,
+          free_pack_quota: d.free_pack_quota ?? 5,
+          free_pack_used: d.free_pack_used ?? 0,
           ma5_slot: d.ma5_slot,
         });
       }
@@ -123,8 +123,8 @@ export default function StaffScannerPage() {
       setResult({ ...result, [field]: value } as ScanResult);
       const msgs: Record<string, string> = {
         pack_used: "✅ ใช้สิทธิ์ซื้อ Pack แล้ว!",
-        free_pack_redeemed: "✅ รับ M2 ฟรีแล้ว!",
-        price_pack_used: `✅ ใช้สิทธิ์ซื้อ Pack ${value}/${result.price_pack_quota} แล้ว`,
+        free_pack_redeemed: "✅ รับ Booster Pack M1-M5 ฟรี 5 ซองแล้ว!",
+        free_pack_used: `✅ บันทึกแล้ว`,
       };
       setRedeemSuccess(msgs[field] ?? "✅ บันทึกแล้ว");
       setTimeout(() => setRedeemSuccess(null), 3000);
@@ -270,13 +270,13 @@ export default function StaffScannerPage() {
                 )}
               </div>
               <div className="flex items-center justify-between p-3 bg-zinc-800 rounded-xl">
-                <div className="flex items-center gap-2"><span>🏷️</span><div><p className="text-xs font-semibold">ซื้อ M1/M3/M4 ราคาป้าย</p><p className="text-[10px] text-zinc-400">{result.price_pack_used}/{result.price_pack_quota} ซอง</p></div></div>
-                {(result.price_pack_used ?? 0) >= (result.price_pack_quota ?? 5) ? (
+                <div className="flex items-center gap-2"><span>🏷️</span><div><p className="text-xs font-semibold">ซื้อ M1/M3/M4 ราคาป้าย</p><p className="text-[10px] text-zinc-400">{result.free_pack_used}/{result.free_pack_quota} ซอง</p></div></div>
+                {(result.free_pack_used ?? 0) >= (result.free_pack_quota ?? 5) ? (
                   <span className="text-[10px] bg-red-900 text-red-400 px-2 py-1 rounded-full font-semibold">ครบแล้ว</span>
                 ) : (
-                  <button onClick={() => redeem("price_pack_used", (result.price_pack_used ?? 0) + 1)} disabled={redeeming === "price_pack_used"}
+                  <button onClick={() => redeem("free_pack_used", (result.free_pack_used ?? 0) + 1)} disabled={redeeming === "free_pack_used"}
                     className="text-[10px] bg-blue-600 text-white px-3 py-1.5 rounded-full font-bold disabled:opacity-50">
-                    {redeeming === "price_pack_used" ? "..." : "+1 ซอง"}
+                    {redeeming === "free_pack_used" ? "..." : "+1 ซอง"}
                   </button>
                 )}
               </div>
