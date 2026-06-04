@@ -177,7 +177,7 @@ export default function PriorityTicketPage() {
                 <span className="text-sm">🎁</span>
               </div>
               <div>
-                <p className="text-xs font-semibold text-green-900">🎁 Booster Pack M1-M5 ฟรี 5 ซอง</p>
+                <p className="text-xs font-semibold text-green-900">🎁 Pokemon Booster Pack M2 JP ฟรี</p>
                 <p className="text-[10px] text-green-700 mt-0.5">รับได้หน้างาน แสดง QR Code</p>
               </div>
             </div>

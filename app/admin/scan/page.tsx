@@ -123,7 +123,7 @@ export default function StaffScannerPage() {
       setResult({ ...result, [field]: value } as ScanResult);
       const msgs: Record<string, string> = {
         pack_used: "✅ ใช้สิทธิ์ซื้อ Pack แล้ว!",
-        free_pack_redeemed: "✅ รับ Booster Pack M1-M5 ฟรี 5 ซองแล้ว!",
+        free_pack_redeemed: "✅ รับ Pokemon Booster Pack M2 JP ฟรีแล้ว!",
         free_pack_used: `✅ บันทึกแล้ว`,
       };
       setRedeemSuccess(msgs[field] ?? "✅ บันทึกแล้ว");

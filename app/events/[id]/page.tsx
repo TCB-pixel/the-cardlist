@@ -104,7 +104,7 @@ export default function EventDetailPage() {
               <span>✅</span><span>เข้างานได้ไม่จำกัด</span>
             </div>
             <div className="flex items-center gap-2 text-[11px] text-zinc-600">
-              <span>🛍️</span><span>รับสิทธิ์ซื้อ Pokemon Pack ราคาป้าย 1 ซอง/คน</span>
+              <span>🛍️</span><span>สิทธิ์ซื้อ Pokemon Booster Pack M1-M5 ราคาป้าย 1 ซอง จนกว่าของจะหมด</span>
             </div>
           </div>
           <div className="px-4 pb-4">
@@ -133,16 +133,16 @@ export default function EventDetailPage() {
           </div>
           <div className="px-4 py-3 space-y-1.5">
             <div className="flex items-center gap-2 text-[11px] text-zinc-600">
-              <span>🎁</span><span>Booster Pack M1-M5 ฟรี 5 ซอง</span>
+              <span>🎁</span><span>Pokemon Booster Pack M2 JP ฟรี</span>
             </div>
             <div className="flex items-center gap-2 text-[11px] text-zinc-600">
-              <span>🌑</span><span>ลุ้นสิทธิ์ซื้อ Booster Box เงามืดคุกคาม MSRP (20 สิทธิ์)</span>
+              <span>🛍️</span><span>สิทธิ์ซื้อ Pokemon Booster Pack M1-M5 ราคาป้าย 5 ซอง จนกว่าของจะหมด</span>
             </div>
             <div className="flex items-center gap-2 text-[11px] text-zinc-600">
-              <span>⚡</span><span>ลุ้นสิทธิ์ซื้อ Ascend Heroes ETB ฿2,190 (1 รางวัล)</span>
+              <span>🌑</span><span>ลุ้นซื้อ Pokemon Booster Box M5A เงามืดคุกคาม ราคาป้าย (20 สิทธิ์)</span>
             </div>
             <div className="flex items-center gap-2 text-[11px] text-zinc-600">
-              <span>🔵</span><span>ลุ้นสิทธิ์ซื้อ M5 Abyss Eye ฿1,490 (1 รางวัล)</span>
+              <span>⚡</span><span>ลุ้นสิทธิ์ซื้อ Pokemon ETB Ascend Heroes ราคา ฿2,190 (1 สิทธิ์)</span>
             </div>
           </div>
           <div className="px-4 pb-4">
