@@ -64,8 +64,8 @@ type PriorityTicket = {
   qr_code: string;
   status: string;
   free_pack_redeemed: boolean;
-  price_pack_quota: number;
-  price_pack_used: number;
+  free_pack_quota: number;
+  free_pack_used: number;
   ma5_slot: boolean | null;
   events: { title: string; date: string; location: string } | null;
 };
@@ -302,8 +302,8 @@ export default function ProfilePage() {
 
       // 7) Priority tickets
       const { data: priorityRawData } = await supabase
-        .from("priority_tickets")
-        .select("id, qr_code, status, free_pack_redeemed, price_pack_quota, price_pack_used, ma5_slot, event_id")
+        .from("event_tickets")
+        .select("id, qr_code, status, free_pack_redeemed, free_pack_quota, free_pack_used, ma5_slot, event_id")
         .eq("user_id", userId)
         .order("created_at", { ascending: false });
 
@@ -734,8 +734,8 @@ export default function ProfilePage() {
                           <span className="text-sm">🏷️</span>
                           <span className="text-[11px] text-zinc-700">ซื้อ M1/M3/M4 ราคาป้าย</span>
                         </div>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${p.price_pack_used >= p.price_pack_quota ? "bg-red-50 text-red-600" : "bg-green-50 text-green-700"}`}>
-                          {p.price_pack_quota - p.price_pack_used}/{p.price_pack_quota} ซอง
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${p.free_pack_used >= p.free_pack_quota ? "bg-red-50 text-red-600" : "bg-green-50 text-green-700"}`}>
+                          {p.free_pack_quota - p.free_pack_used}/{p.free_pack_quota} ซอง
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
