@@ -20,7 +20,7 @@ export default function EventTicketPage() {
   const [ticketId, setTicketId] = useState("");
 
   const PROMPTPAY = "0812345678"; // เปลี่ยนเป็นเบอร์จริง
-  const PRICE = 150;
+  const PRICE = 0;
 
   useEffect(() => {
     async function load() {
@@ -68,7 +68,7 @@ export default function EventTicketPage() {
           slip_url: urlData.publicUrl,
           qr_code: qrCode,
           free_pack_redeemed: false,
-          free_pack_quota: 5,
+          free_pack_quota: 0,
           free_pack_used: 0,
         })
         .select()
@@ -164,7 +164,7 @@ export default function EventTicketPage() {
           {/* Ticket Details */}
           <div className="mb-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-bold text-zinc-900">บัตร Special Guest</h2>
+              <h2 className="text-base font-bold text-zinc-900">บัตร General</h2>
               <span className="text-lg font-bold text-zinc-900">฿{PRICE}</span>
             </div>
 
@@ -174,25 +174,35 @@ export default function EventTicketPage() {
                   <span className="text-sm">🎁</span>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-green-900">Pokemon M2 Booster Pack ฟรี 1 ซอง</p>
-                  <p className="text-[10px] text-green-700 mt-0.5">รับได้หน้างาน แสดง QR Code</p>
+                  <p className="text-xs font-semibold text-green-900">✅ เข้างานได้ไม่จำกัด</p>
+                  <p className="text-[10px] text-green-700 mt-0.5">แสดง QR Code ที่หน้างาน</p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3 bg-blue-50 rounded-2xl p-4">
                 <div className="w-8 h-8 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <span className="text-sm">🏷️</span>
+                  <span className="text-sm">🛍️</span>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-blue-900">ซื้อ Pokemon Pack ราคาป้าย ได้ 5 ซอง</p>
+                  <p className="text-xs font-semibold text-blue-900">🛍️ รับสิทธิ์ซื้อ Pokemon Pack ราคาป้าย 1 ซอง/คน</p>
                   <p className="text-[10px] text-blue-700 mt-0.5">สิทธิ์ต่อคน ใช้ได้วันงานเท่านั้น</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 bg-zinc-50 rounded-2xl p-4">
+                <div className="w-8 h-8 bg-zinc-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <span className="text-sm">🌑</span>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-zinc-900">🌑 ลุ้นสิทธิ์ซื้อ Booster Box เงามืดคุกคาม ราคา MSRP</p>
+                  <p className="text-[10px] text-zinc-600 mt-0.5">5 สิทธิ์ จาก General ทั้งหมด สุ่มหน้างาน</p>
                 </div>
               </div>
             </div>
           </div>
 
           <button onClick={() => setStep("payment")} className="btn-primary w-full py-3.5 text-sm">
-            ซื้อบัตร Special Guest
+            ซื้อบัตร General
           </button>
         </div>
         <BottomNav />
@@ -216,7 +226,7 @@ export default function EventTicketPage() {
         <div className="text-center mb-6">
           <p className="text-[11px] text-zinc-400 mb-1">โอนเงินผ่าน PromptPay</p>
           <p className="text-2xl font-bold text-zinc-900 mb-1">฿{PRICE}.00</p>
-          <p className="text-xs text-zinc-400">บัตร Special Guest — {event.title}</p>
+          <p className="text-xs text-zinc-400">บัตร General — {event.title}</p>
         </div>
 
         {/* PromptPay QR */}

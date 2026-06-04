@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
 
   if (qrCode.startsWith("PG-") || qrCode.startsWith("TCK-")) {
     const { data, error } = await supabase
-      .from("priority_tickets")
+      .from("event_tickets")
       .select("*")
       .eq("qr_code", qrCode)
       .single();
@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   const { id, type, field, value, qrCode } = await request.json();
   const supabase = getSupabase();
-  const table = type === "general" ? "general_registrations" : "priority_tickets";
+  const table = type === "general" ? "general_registrations" : "event_tickets";
 
   const { error } = await supabase.from(table).update({ [field]: value }).eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -107,16 +107,24 @@ export async function PATCH(request: NextRequest) {
       const name = profile.display_name ?? "คุณ";
 
       if (type === "general" && field === "pack_used") {
-        message = `✅ ใช้สิทธิ์สำเร็จ!\n\n👤 ${name}\n📍 งาน: ${eventTitle}\n\n🏷️ ซื้อ Pokemon Pack ราคาป้าย 1 ซอง\n✓ สิทธิ์ถูกใช้แล้ว`;
-      } else if (type === "priority" && field === "free_pack_redeemed") {
-        message = `✅ รับของฟรีสำเร็จ!\n\n👤 ${name}\n📍 งาน: ${eventTitle}\n\n🎁 รับ Pokemon M2 (JP) ฟรี 1 ซอง\n✓ สิทธิ์ถูกใช้แล้ว`;
-      } else if (type === "priority" && field === "price_pack_used") {
-        message = `✅ ใช้สิทธิ์ซื้อ Pack สำเร็จ!\n\n👤 ${name}\n📍 งาน: ${eventTitle}\n\n🏷️ ซื้อ M1/M3/M4 ราคาป้าย\n📊 ใช้ไปแล้ว ${value} ซอง`;
-      } else if (type === "priority" && field === "ma5_slot") {
-        if (value === true) {
-          message = `🏆 ยินดีด้วย! ได้สิทธิ์ MA5 Box!\n\n👤 ${name}\n📍 งาน: ${eventTitle}\n\n🎲 คุณได้รับสิทธิ์ซื้อ Pokemon MA5 Box ราคาป้าย\nแจ้ง Staff เพื่อรับสิทธิ์ได้เลยครับ 🙌`;
+        message = `✅ ใช้สิทธิ์สำเร็จ!\n\n👤 ${name}\n📍 งาน: ${eventTitle}\n\n🛍️ ซื้อ Pokemon Pack ราคาป้าย 1 ซอง\n✓ สิทธิ์ถูกใช้แล้ว`;
+      } else if (type === "general" && field === "lottery_result") {
+        if (value === "booster_box") {
+          message = `🌑 ยินดีด้วย! ได้สิทธิ์ Booster Box เงามืดคุกคาม!\n\n👤 ${name}\n📍 งาน: ${eventTitle}\n\nแจ้ง Staff เพื่อซื้อในราคา MSRP ได้เลยครับ 🙌`;
         } else {
-          message = `❌ ไม่ได้รับสิทธิ์ MA5 Box\n\n👤 ${name}\n📍 งาน: ${eventTitle}\n\nขออภัยครับ คุณไม่ได้รับสิทธิ์ซื้อ MA5 Box ในรอบนี้\nยังมีสิทธิ์รับ M2 ฟรี + ซื้อ Booster Pack ราคาป้ายอยู่นะครับ 🙌`;
+          message = `❌ ไม่ได้รับสิทธิ์พิเศษรอบนี้\n\n👤 ${name}\n📍 งาน: ${eventTitle}\n\nขอบคุณที่ร่วมงานนะครับ 🙌`;
+        }
+      } else if (type === "priority" && field === "free_pack_redeemed") {
+        message = `✅ รับ Booster Pack สำเร็จ!\n\n👤 ${name}\n📍 งาน: ${eventTitle}\n\n🎁 Booster Pack M1-M5 ฟรี 5 ซอง\n✓ สิทธิ์ถูกใช้แล้ว`;
+      } else if (type === "priority" && field === "lottery_result") {
+        if (value === "booster_box") {
+          message = `🌑 ยินดีด้วย! ได้สิทธิ์ Booster Box เงามืดคุกคาม!\n\n👤 ${name}\n📍 งาน: ${eventTitle}\n\nแจ้ง Staff เพื่อซื้อในราคา MSRP ได้เลยครับ 🙌`;
+        } else if (value === "etb") {
+          message = `⚡ ยินดีด้วย! ได้สิทธิ์ซื้อ Ascend Heroes ETB ฿2,190!\n\n👤 ${name}\n📍 งาน: ${eventTitle}\n\nแจ้ง Staff เพื่อรับสิทธิ์ได้เลยครับ 🙌`;
+        } else if (value === "abyss_eye") {
+          message = `🔵 ยินดีด้วย! ได้สิทธิ์ซื้อ M5 Abyss Eye ฿1,490!\n\n👤 ${name}\n📍 งาน: ${eventTitle}\n\nแจ้ง Staff เพื่อรับสิทธิ์ได้เลยครับ 🙌`;
+        } else {
+          message = `❌ ไม่ได้รับสิทธิ์พิเศษรอบนี้\n\n👤 ${name}\n📍 งาน: ${eventTitle}\n\nขอบคุณที่ร่วมงานนะครับ 🙌`;
         }
       }
 
