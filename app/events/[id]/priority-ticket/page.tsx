@@ -33,7 +33,7 @@ export default function PriorityTicketPage() {
 
       // นับบัตรที่ขายไปแล้ว
       const { count } = await supabase
-        .from("priority_tickets")
+        .from("event_tickets")
         .select("*", { count: "exact", head: true })
         .eq("event_id", id)
         .neq("status", "rejected");
@@ -86,12 +86,12 @@ export default function PriorityTicketPage() {
   }
 
   async function createTicket(chargeIdParam: string) {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { router.push("/login"); return; }
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) { router.push("/login"); return; }
 
     const qrCode = `PG-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-    const { error: err } = await supabase.from("priority_tickets").insert({
-      user_id: session.user.id,
+    const { error: err } = await supabase.from("event_tickets").insert({
+      user_id: user.id,
       event_id: id,
       status: "approved", // auto approve เพราะ Omise verify แล้ว
       qr_code: qrCode,
@@ -108,11 +108,11 @@ export default function PriorityTicketPage() {
     const { data: profile } = await supabase
       .from("profiles")
       .select("line_user_id, display_name")
-      .eq("id", session.user.id)
+      .eq("id", user.id)
       .single();
 
     if (profile?.line_user_id) {
-      await fetch("/api/line-notify", {
+      await fetch("/api/notify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
