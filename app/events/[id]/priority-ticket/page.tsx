@@ -4,119 +4,10 @@ import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase";
 import BottomNav from "@/components/BottomNav";
-import { loadStripe } from "@stripe/stripe-js";
-import { Elements, CardNumberElement, CardExpiryElement, CardCvcElement, useStripe, useElements } from "@stripe/react-stripe-js";
+
 
 const PRICE = 690;
-const PRICE_CARD = Math.ceil(PRICE * 1.03); // บวก 3% fee
 const MAX_TICKETS = 100;
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
-
-// ─── Card Payment Form ───
-const FIELD_STYLE = {
-  style: {
-    base: {
-      fontSize: "15px",
-      color: "#18181b",
-      fontFamily: "Helvetica Neue, Helvetica, sans-serif",
-      fontSmoothing: "antialiased",
-      "::placeholder": { color: "#9ca3af" },
-    },
-    invalid: { color: "#ef4444", iconColor: "#ef4444" },
-  },
-};
-
-function CardPaymentForm({ clientSecret, onSuccess, onError, priceCard, price }: {
-  clientSecret: string;
-  onSuccess: (paymentIntentId: string) => void;
-  onError: (msg: string) => void;
-  priceCard: number;
-  price: number;
-}) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const [loading, setLoading] = useState(false);
-
-  async function handleSubmit() {
-    if (!stripe || !elements) return;
-    setLoading(true);
-    try {
-      const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: { card: elements.getElement(CardNumberElement)! },
-      });
-      if (error) {
-        onError(error.message ?? "ชำระเงินไม่สำเร็จ");
-      } else if (paymentIntent?.status === "succeeded") {
-        onSuccess(paymentIntent.id);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <div className="w-full max-w-sm space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-purple-500" />
-          <span className="text-sm font-semibold text-zinc-700">Stripe</span>
-        </div>
-        <div className="flex items-center gap-1">
-          {["🟦","JCB","DISC","AMEX","🟠","VISA"].map((b,i) => (
-            <span key={i} className="text-[10px] border border-zinc-200 rounded px-1 py-0.5 text-zinc-500">{b}</span>
-          ))}
-        </div>
-      </div>
-      <p className="text-[11px] text-zinc-400">Secure payment via Stripe.</p>
-
-      {/* Fee note */}
-      <div className="bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
-        <p className="text-[11px] text-amber-700">💳 รวมค่าธรรมเนียม 3% (฿{price} + ฿{priceCard - price} = ฿{priceCard})</p>
-      </div>
-
-      {/* Card Number */}
-      <div>
-        <label className="text-[11px] font-semibold text-zinc-500 tracking-wide block mb-1.5">
-          Card Number <span className="text-red-400">*</span>
-        </label>
-        <div className="border-2 border-[#00a2e8] rounded-xl px-3 py-3 bg-white focus-within:border-purple-500 transition-colors">
-          <CardNumberElement options={FIELD_STYLE} />
-        </div>
-      </div>
-
-      {/* Expiry + CVC */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="text-[11px] font-semibold text-zinc-500 tracking-wide block mb-1.5">
-            Expiry Date <span className="text-red-400">*</span>
-          </label>
-          <div className="border-2 border-zinc-200 rounded-xl px-3 py-3 bg-white focus-within:border-purple-500 transition-colors">
-            <CardExpiryElement options={FIELD_STYLE} />
-          </div>
-        </div>
-        <div>
-          <label className="text-[11px] font-semibold text-zinc-500 tracking-wide block mb-1.5">
-            Card Code (CVC) <span className="text-red-400">*</span>
-          </label>
-          <div className="border-2 border-zinc-200 rounded-xl px-3 py-3 bg-white focus-within:border-purple-500 transition-colors">
-            <CardCvcElement options={FIELD_STYLE} />
-          </div>
-        </div>
-      </div>
-
-      <p className="text-[10px] text-zinc-400 text-center">🔒 ข้อมูลบัตรเข้ารหัสและปลอดภัยด้วย Stripe</p>
-
-      <button
-        onClick={handleSubmit}
-        disabled={loading || !stripe}
-        className={`btn-primary w-full py-3.5 text-sm ${loading ? "opacity-50 cursor-not-allowed" : ""}`}>
-        {loading ? "กำลังชำระเงิน..." : `ชำระ ฿${priceCard}`}
-      </button>
-    </div>
-  );
-}
-
 // ─── Main Page ───
 export default function PriorityTicketPage() {
   const { id } = useParams<{ id: string }>();
@@ -125,12 +16,11 @@ export default function PriorityTicketPage() {
 
   const [event, setEvent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [step, setStep] = useState<"info" | "select" | "promptpay" | "card" | "done">("info");
+  const [step, setStep] = useState<"info" | "promptpay" | "done">("info");
   const [error, setError] = useState("");
   const [ticketsSold, setTicketsSold] = useState(0);
   const [payLoading, setPayLoading] = useState(false);
   const [paymentIntentId, setPaymentIntentId] = useState("");
-  const [clientSecret, setClientSecret] = useState("");
   const [qrImage, setQrImage] = useState<string | null>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -150,7 +40,7 @@ export default function PriorityTicketPage() {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [id]);
 
-  async function handleSelectPayment(method: "promptpay" | "card") {
+  async function handlePayPromptPay() {
     setError("");
     setPayLoading(true);
     try {
@@ -161,9 +51,9 @@ export default function PriorityTicketPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          amount: method === "card" ? PRICE_CARD : PRICE,
+          amount: PRICE,
           description: `Priority Guest Ticket - ${event?.title ?? "Event"}`,
-          paymentMethod: method,
+          paymentMethod: "promptpay",
           email: profile?.email ?? user?.email ?? "guest@thecardlist.com",
         }),
       });
@@ -171,26 +61,20 @@ export default function PriorityTicketPage() {
       if (data.error) throw new Error(data.error);
 
       setPaymentIntentId(data.paymentIntentId);
+      setQrImage(data.qrImage);
+      setStep("promptpay");
 
-      if (method === "promptpay") {
-        setQrImage(data.qrImage);
-        setStep("promptpay");
-        // Poll
-        pollRef.current = setInterval(async () => {
-          const s = await fetch(`/api/stripe/charge?paymentIntentId=${data.paymentIntentId}`);
-          const sd = await s.json();
-          if (sd.status === "succeeded") {
-            clearInterval(pollRef.current!);
-            await createTicket(data.paymentIntentId);
-          } else if (sd.status === "canceled" || sd.status === "requires_payment_method") {
-            clearInterval(pollRef.current!);
-            setError("การชำระเงินล้มเหลว กรุณาลองใหม่");
-          }
-        }, 3000);
-      } else {
-        setClientSecret(data.clientSecret);
-        setStep("card");
-      }
+      pollRef.current = setInterval(async () => {
+        const s = await fetch(`/api/stripe/charge?paymentIntentId=${data.paymentIntentId}`);
+        const sd = await s.json();
+        if (sd.status === "succeeded") {
+          clearInterval(pollRef.current!);
+          await createTicket(data.paymentIntentId);
+        } else if (sd.status === "canceled" || sd.status === "requires_payment_method") {
+          clearInterval(pollRef.current!);
+          setError("การชำระเงินล้มเหลว กรุณาลองใหม่");
+        }
+      }, 3000);
     } catch (err: any) {
       setError(err.message ?? "เกิดข้อผิดพลาด");
     } finally {
@@ -305,67 +189,10 @@ export default function PriorityTicketPage() {
             <p className="text-sm font-bold text-red-700">บัตรหมดแล้ว</p>
           </div>
         ) : (
-          <button onClick={() => setStep("select")}
-            className="btn-primary w-full py-3.5 text-sm">
-            ซื้อบัตร Priority Guest ฿{PRICE}
+          <button onClick={handlePayPromptPay} disabled={payLoading}
+            className={`btn-primary w-full py-3.5 text-sm ${payLoading ? "opacity-50 cursor-not-allowed" : ""}`}>
+            {payLoading ? "กำลังสร้าง QR..." : `ซื้อบัตร Priority Guest ฿${PRICE}`}
           </button>
-        )}
-        {error && <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3"><p className="text-[11px] text-red-600">{error}</p></div>}
-      </div>
-      <BottomNav />
-    </div>
-  );
-
-  // ─── SELECT PAYMENT ───
-  if (step === "select") return (
-    <div className="min-h-screen bg-white flex flex-col pb-20">
-      <header className="sticky top-0 z-40 bg-white border-b border-zinc-100 flex items-center gap-3 px-4 h-12">
-        <button onClick={() => setStep("info")} className="text-zinc-400">
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-            <path d="M12 5l-5 5 5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </button>
-        <span className="text-sm font-semibold text-zinc-900">เลือกวิธีชำระเงิน</span>
-      </header>
-      <div className="px-5 py-6 flex-1 space-y-4">
-        <div className="text-center mb-2">
-          <p className="text-2xl font-bold text-zinc-900">฿{PRICE}</p>
-          <p className="text-xs text-zinc-400 mt-1">Priority Guest — {event?.title}</p>
-        </div>
-
-        <button
-          onClick={() => handleSelectPayment("promptpay")}
-          disabled={payLoading}
-          className="w-full border-2 border-zinc-200 hover:border-zinc-900 rounded-2xl p-4 flex items-center gap-4 transition-all disabled:opacity-50">
-          <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center flex-shrink-0">
-            <span className="text-xl">📱</span>
-          </div>
-          <div className="text-left flex-1">
-            <p className="text-sm font-semibold text-zinc-900">PromptPay</p>
-            <p className="text-[11px] text-zinc-400">สแกน QR จ่ายผ่านแอปธนาคาร</p>
-          </div>
-          <span className="text-sm font-bold text-zinc-900">฿{PRICE}</span>
-        </button>
-
-        <button
-          onClick={() => handleSelectPayment("card")}
-          disabled={payLoading}
-          className="w-full border-2 border-zinc-200 hover:border-zinc-900 rounded-2xl p-4 flex items-center gap-4 transition-all disabled:opacity-50">
-          <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center flex-shrink-0">
-            <span className="text-xl">💳</span>
-          </div>
-          <div className="text-left flex-1">
-            <p className="text-sm font-semibold text-zinc-900">บัตรเครดิต / เดบิต</p>
-            <p className="text-[11px] text-zinc-400">Visa, Mastercard, JCB · รวม fee 3%</p>
-          </div>
-          <span className="text-sm font-bold text-zinc-900">฿{PRICE_CARD}</span>
-        </button>
-
-        {payLoading && (
-          <div className="flex items-center justify-center gap-2 py-4">
-            <div className="w-4 h-4 border-2 border-zinc-200 border-t-zinc-900 rounded-full animate-spin" />
-            <p className="text-xs text-zinc-400">กำลังเตรียมระบบชำระเงิน...</p>
-          </div>
         )}
         {error && <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3"><p className="text-[11px] text-red-600">{error}</p></div>}
       </div>
@@ -411,40 +238,6 @@ export default function PriorityTicketPage() {
             <span className="font-mono text-zinc-500 text-[9px]">{paymentIntentId.slice(0, 16)}...</span>
           </div>
         </div>
-      </div>
-      <BottomNav />
-    </div>
-  );
-
-  // ─── CARD ───
-  if (step === "card") return (
-    <div className="min-h-screen bg-white flex flex-col pb-20">
-      <header className="sticky top-0 z-40 bg-white border-b border-zinc-100 flex items-center gap-3 px-4 h-12">
-        <button onClick={() => setStep("select")} className="text-zinc-400">
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-            <path d="M12 5l-5 5 5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </button>
-        <span className="text-sm font-semibold text-zinc-900">ชำระด้วยบัตร</span>
-      </header>
-      <div className="px-5 py-8 flex-1 flex flex-col items-center">
-        <div className="text-center mb-6">
-          <p className="text-[11px] text-zinc-400 mb-1">ชำระด้วยบัตรเครดิต / เดบิต (รวม fee 3%)</p>
-          <p className="text-3xl font-bold text-zinc-900">฿{PRICE_CARD}</p>
-          <p className="text-xs text-zinc-400 mt-1">Priority Guest — {event?.title}</p>
-        </div>
-        {clientSecret && (
-          <Elements stripe={stripePromise} options={{ clientSecret, locale: "th", appearance: { theme: "stripe" } }}>
-            <CardPaymentForm
-              clientSecret={clientSecret}
-              onSuccess={(piId) => createTicket(piId)}
-              onError={(msg) => setError(msg)}
-              priceCard={PRICE_CARD}
-              price={PRICE}
-            />
-          </Elements>
-        )}
-        {error && <div className="w-full max-w-xs bg-red-50 border border-red-100 rounded-xl px-4 py-3 mt-4"><p className="text-[11px] text-red-600">{error}</p></div>}
       </div>
       <BottomNav />
     </div>
