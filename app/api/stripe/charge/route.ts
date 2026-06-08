@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 
 function getStripe() {
-  return new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2025-05-28.basil" });
+  return new Stripe(process.env.STRIPE_SECRET_KEY!);
 }
 
 // สร้าง PaymentIntent + PromptPay
@@ -12,13 +12,12 @@ export async function POST(request: NextRequest) {
 
   try {
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: amount * 100, // สตางค์
+      amount: amount * 100,
       currency: "thb",
       payment_method_types: ["promptpay"],
       description,
     });
 
-    // ดึง QR code สำหรับ PromptPay
     const qrCode = (paymentIntent.next_action as any)
       ?.promptpay_display_qr_code?.image_url_png ?? null;
 
@@ -46,7 +45,7 @@ export async function GET(request: NextRequest) {
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
     return NextResponse.json({
       paymentIntentId: paymentIntent.id,
-      status: paymentIntent.status, // requires_action, processing, succeeded, canceled
+      status: paymentIntent.status,
       amount: paymentIntent.amount / 100,
     });
   } catch (err: any) {
