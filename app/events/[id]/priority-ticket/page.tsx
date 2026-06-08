@@ -19,11 +19,11 @@ export default function PriorityTicketPage() {
   const [error, setError] = useState("");
   const [ticketsSold, setTicketsSold] = useState(0);
 
-  // Omise
+  // Stripe
   const [payLoading, setPayLoading] = useState(false);
-  const [chargeId, setChargeId] = useState("");
+  const [paymentIntentId, setPaymentIntentId] = useState("");
   const [qrImage, setQrImage] = useState<string | null>(null);
-  const [payStatus, setPayStatus] = useState<"pending" | "successful" | "failed">("pending");
+  const [payStatus, setPayStatus] = useState<"pending" | "succeeded" | "failed">("pending");
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -48,30 +48,29 @@ export default function PriorityTicketPage() {
     setError("");
     setPayLoading(true);
     try {
-      const res = await fetch("/api/omise/charge", {
+      const res = await fetch("/api/stripe/charge", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           amount: PRICE,
           description: `Priority Guest Ticket - ${event?.title ?? "Event"}`,
-          sourceType: "promptpay",
         }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
 
-      setChargeId(data.chargeId);
+      setPaymentIntentId(data.paymentIntentId);
       setQrImage(data.qrImage);
       setStep("payment");
 
       // Poll ทุก 3 วินาที
       pollRef.current = setInterval(async () => {
-        const statusRes = await fetch(`/api/omise/charge?chargeId=${data.chargeId}`);
+        const statusRes = await fetch(`/api/stripe/charge?paymentIntentId=${data.paymentIntentId}`);
         const statusData = await statusRes.json();
-        if (statusData.status === "successful") {
+        if (statusData.status === "succeeded") {
           clearInterval(pollRef.current!);
-          await createTicket(data.chargeId);
-        } else if (statusData.status === "failed") {
+          await createTicket(data.paymentIntentId);
+        } else if (statusData.status === "canceled" || statusData.status === "requires_payment_method") {
           clearInterval(pollRef.current!);
           setPayStatus("failed");
           setError("การชำระเงินล้มเหลว กรุณาลองใหม่");
@@ -93,7 +92,7 @@ export default function PriorityTicketPage() {
     const { error: err } = await supabase.from("event_tickets").insert({
       user_id: user.id,
       event_id: id,
-      status: "approved", // auto approve เพราะ Omise verify แล้ว
+      status: "approved", // auto approve เพราะ Stripe verify แล้ว
       qr_code: qrCode,
       charge_id: chargeIdParam,
       free_pack_redeemed: false,
@@ -283,8 +282,8 @@ export default function PriorityTicketPage() {
             <span className="font-semibold text-zinc-900">฿{PRICE}</span>
           </div>
           <div className="flex justify-between text-[11px]">
-            <span className="text-zinc-400">Charge ID</span>
-            <span className="font-mono text-zinc-500 text-[9px]">{chargeId.slice(0, 16)}...</span>
+            <span className="text-zinc-400">Payment ID</span>
+            <span className="font-mono text-zinc-500 text-[9px]">{paymentIntentId.slice(0, 16)}...</span>
           </div>
         </div>
       </div>
