@@ -41,18 +41,30 @@ function CardPaymentForm({ clientSecret, onSuccess, onError }: {
 
   return (
     <div className="w-full max-w-xs space-y-4">
-      <div className="border border-zinc-200 rounded-2xl px-4 py-3 bg-white">
+      <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-2.5">
+        <p className="text-[11px] text-amber-700">💳 ราคานี้รวมค่าธรรมเนียมบัตรเครดิต 3% แล้ว (฿{PRICE} + ฿{PRICE_CARD - PRICE} = ฿{PRICE_CARD})</p>
+      </div>
+      <div className="border-2 border-zinc-200 rounded-2xl px-4 py-4 bg-white">
+        <p className="text-[10px] text-zinc-400 font-semibold tracking-widest uppercase mb-2">ข้อมูลบัตร</p>
         <CardElement options={{
           style: {
-            base: { fontSize: "14px", color: "#18181b", "::placeholder": { color: "#a1a1aa" } },
+            base: {
+              fontSize: "16px",
+              color: "#18181b",
+              fontFamily: "sans-serif",
+              "::placeholder": { color: "#a1a1aa" },
+            },
+            invalid: { color: "#ef4444" },
           },
+          hidePostalCode: true,
         }} />
       </div>
+      <p className="text-[10px] text-zinc-400 text-center">🔒 ข้อมูลบัตรเข้ารหัสและปลอดภัยด้วย Stripe</p>
       <button
         onClick={handleSubmit}
         disabled={loading || !stripe}
         className={`btn-primary w-full py-3.5 text-sm ${loading ? "opacity-50 cursor-not-allowed" : ""}`}>
-        {loading ? "กำลังชำระเงิน..." : `ชำระ ฿${PRICE_CARD}`}
+        {loading ? "กำลังชำระเงิน..." : `ชำระ ฿${PRICE_CARD} (รวม fee 3%)`}
       </button>
     </div>
   );
