@@ -6,35 +6,53 @@ function getStripe() {
 }
 
 export async function POST(request: NextRequest) {
-  const { amount, description } = await request.json();
+  const { amount, description, paymentMethod, email } = await request.json();
   const stripe = getStripe();
 
   try {
-    // 1. สร้าง PaymentMethod PromptPay
-    const paymentMethod = await stripe.paymentMethods.create({
-      type: "promptpay",
-    });
+    if (paymentMethod === "promptpay") {
+      // PromptPay — confirm ทันที
+      const pm = await stripe.paymentMethods.create({
+        type: "promptpay",
+        billing_details: { email: email ?? "guest@thecardlist.com" },
+      });
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount * 100,
+        currency: "thb",
+        payment_method: pm.id,
+        payment_method_types: ["promptpay"],
+        description,
+        confirm: true,
+        return_url: `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://thecardlistbkk.com"}/payment/complete`,
+      });
 
-    // 2. สร้าง PaymentIntent
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: amount * 100,
-      currency: "thb",
-      payment_method: paymentMethod.id,
-      payment_method_types: ["promptpay"],
-      description,
-      confirm: true,
-      return_url: `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://thecardlistbkk.com"}/payment/complete`,
-    });
+      const qrImage = (paymentIntent.next_action as any)
+        ?.promptpay_display_qr_code?.image_url_png ?? null;
 
-    // 3. ดึง QR image จาก next_action
-    const qrImage = (paymentIntent.next_action as any)
-      ?.promptpay_display_qr_code?.image_url_png ?? null;
+      return NextResponse.json({
+        paymentIntentId: paymentIntent.id,
+        qrImage,
+        status: paymentIntent.status,
+        type: "promptpay",
+      });
 
-    return NextResponse.json({
-      paymentIntentId: paymentIntent.id,
-      qrImage,
-      status: paymentIntent.status,
-    });
+    } else {
+      // Credit Card — สร้าง PaymentIntent แล้วให้ frontend confirm ด้วย card
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount * 100,
+        currency: "thb",
+        payment_method_types: ["card"],
+        description,
+        receipt_email: email ?? undefined,
+      });
+
+      return NextResponse.json({
+        paymentIntentId: paymentIntent.id,
+        clientSecret: paymentIntent.client_secret,
+        status: paymentIntent.status,
+        type: "card",
+      });
+    }
 
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -47,7 +65,6 @@ export async function GET(request: NextRequest) {
   if (!paymentIntentId) return NextResponse.json({ error: "No paymentIntentId" }, { status: 400 });
 
   const stripe = getStripe();
-
   try {
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
     return NextResponse.json({

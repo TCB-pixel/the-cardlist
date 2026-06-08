@@ -95,6 +95,9 @@ export default function PriorityTicketPage() {
     setError("");
     setPayLoading(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: profile } = user ? await supabase.from("profiles").select("email").eq("id", user.id).single() : { data: null };
+
       const res = await fetch("/api/stripe/charge", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -102,6 +105,7 @@ export default function PriorityTicketPage() {
           amount: method === "card" ? PRICE_CARD : PRICE,
           description: `Priority Guest Ticket - ${event?.title ?? "Event"}`,
           paymentMethod: method,
+          email: profile?.email ?? user?.email ?? "guest@thecardlist.com",
         }),
       });
       const data = await res.json();
