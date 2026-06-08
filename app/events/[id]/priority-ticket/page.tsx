@@ -8,6 +8,7 @@ import { loadStripe } from "@stripe/stripe-js";
 import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 
 const PRICE = 690;
+const PRICE_CARD = Math.ceil(PRICE * 1.03); // บวก 3% fee
 const MAX_TICKETS = 100;
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
@@ -51,7 +52,7 @@ function CardPaymentForm({ clientSecret, onSuccess, onError }: {
         onClick={handleSubmit}
         disabled={loading || !stripe}
         className={`btn-primary w-full py-3.5 text-sm ${loading ? "opacity-50 cursor-not-allowed" : ""}`}>
-        {loading ? "กำลังชำระเงิน..." : `ชำระ ฿${PRICE}`}
+        {loading ? "กำลังชำระเงิน..." : `ชำระ ฿${PRICE_CARD}`}
       </button>
     </div>
   );
@@ -98,7 +99,7 @@ export default function PriorityTicketPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          amount: PRICE,
+          amount: method === "card" ? PRICE_CARD : PRICE,
           description: `Priority Guest Ticket - ${event?.title ?? "Event"}`,
           paymentMethod: method,
         }),
@@ -276,10 +277,11 @@ export default function PriorityTicketPage() {
           <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center flex-shrink-0">
             <span className="text-xl">📱</span>
           </div>
-          <div className="text-left">
+          <div className="text-left flex-1">
             <p className="text-sm font-semibold text-zinc-900">PromptPay</p>
             <p className="text-[11px] text-zinc-400">สแกน QR จ่ายผ่านแอปธนาคาร</p>
           </div>
+          <span className="text-sm font-bold text-zinc-900">฿{PRICE}</span>
         </button>
 
         <button
@@ -289,10 +291,11 @@ export default function PriorityTicketPage() {
           <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center flex-shrink-0">
             <span className="text-xl">💳</span>
           </div>
-          <div className="text-left">
+          <div className="text-left flex-1">
             <p className="text-sm font-semibold text-zinc-900">บัตรเครดิต / เดบิต</p>
-            <p className="text-[11px] text-zinc-400">Visa, Mastercard, JCB</p>
+            <p className="text-[11px] text-zinc-400">Visa, Mastercard, JCB · รวม fee 3%</p>
           </div>
+          <span className="text-sm font-bold text-zinc-900">฿{PRICE_CARD}</span>
         </button>
 
         {payLoading && (
@@ -363,8 +366,8 @@ export default function PriorityTicketPage() {
       </header>
       <div className="px-5 py-8 flex-1 flex flex-col items-center">
         <div className="text-center mb-6">
-          <p className="text-[11px] text-zinc-400 mb-1">ชำระด้วยบัตรเครดิต / เดบิต</p>
-          <p className="text-3xl font-bold text-zinc-900">฿{PRICE}</p>
+          <p className="text-[11px] text-zinc-400 mb-1">ชำระด้วยบัตรเครดิต / เดบิต (รวม fee 3%)</p>
+          <p className="text-3xl font-bold text-zinc-900">฿{PRICE_CARD}</p>
           <p className="text-xs text-zinc-400 mt-1">Priority Guest — {event?.title}</p>
         </div>
         {clientSecret && (
