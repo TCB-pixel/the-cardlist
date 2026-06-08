@@ -84,7 +84,7 @@ export default function PriorityTicketPage() {
     }
   }
 
-  async function createTicket(chargeIdParam: string) {
+  async function createTicket(paymentIntentIdParam: string) {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) { router.push("/login"); return; }
 
@@ -94,7 +94,7 @@ export default function PriorityTicketPage() {
       event_id: id,
       status: "approved", // auto approve เพราะ Stripe verify แล้ว
       qr_code: qrCode,
-      charge_id: chargeIdParam,
+      charge_id: paymentIntentIdParam,
       free_pack_redeemed: false,
       free_pack_quota: 5,
       free_pack_used: 0,
@@ -122,7 +122,7 @@ export default function PriorityTicketPage() {
       });
     }
 
-    setPayStatus("successful");
+    setPayStatus("succeeded");
     setStep("done");
   }
 
