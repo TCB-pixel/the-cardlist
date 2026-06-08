@@ -44,20 +44,23 @@ function CardPaymentForm({ clientSecret, onSuccess, onError }: {
       <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-2.5">
         <p className="text-[11px] text-amber-700">💳 ราคานี้รวมค่าธรรมเนียมบัตรเครดิต 3% แล้ว (฿{PRICE} + ฿{PRICE_CARD - PRICE} = ฿{PRICE_CARD})</p>
       </div>
-      <div className="border-2 border-zinc-200 rounded-2xl px-4 py-4 bg-white">
-        <p className="text-[10px] text-zinc-400 font-semibold tracking-widest uppercase mb-2">ข้อมูลบัตร</p>
-        <CardElement options={{
-          style: {
-            base: {
-              fontSize: "16px",
-              color: "#18181b",
-              fontFamily: "sans-serif",
-              "::placeholder": { color: "#a1a1aa" },
+      <div className="border-2 border-zinc-200 rounded-2xl px-4 py-4 bg-white" style={{ minHeight: 56 }}>
+        <p className="text-[10px] text-zinc-400 font-semibold tracking-widest uppercase mb-3">เลขบัตร / MM/YY / CVC</p>
+        <div style={{ minHeight: 24 }}>
+          <CardElement options={{
+            style: {
+              base: {
+                fontSize: "16px",
+                color: "#18181b",
+                fontFamily: "Helvetica Neue, Helvetica, sans-serif",
+                fontSmoothing: "antialiased",
+                "::placeholder": { color: "#9ca3af" },
+              },
+              invalid: { color: "#ef4444", iconColor: "#ef4444" },
             },
-            invalid: { color: "#ef4444" },
-          },
-          hidePostalCode: true,
-        }} />
+            hidePostalCode: true,
+          }} />
+        </div>
       </div>
       <p className="text-[10px] text-zinc-400 text-center">🔒 ข้อมูลบัตรเข้ารหัสและปลอดภัยด้วย Stripe</p>
       <button
@@ -387,7 +390,7 @@ export default function PriorityTicketPage() {
           <p className="text-xs text-zinc-400 mt-1">Priority Guest — {event?.title}</p>
         </div>
         {clientSecret && (
-          <Elements stripe={stripePromise} options={{ clientSecret }}>
+          <Elements stripe={stripePromise} options={{ clientSecret, locale: "th", appearance: { theme: "stripe" } }}>
             <CardPaymentForm
               clientSecret={clientSecret}
               onSuccess={(piId) => createTicket(piId)}
