@@ -5,7 +5,7 @@ import Image from "next/image";
 import { createClient } from "@/lib/supabase";
 import BottomNav from "@/components/BottomNav";
 import { loadStripe } from "@stripe/stripe-js";
-import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import { Elements, CardNumberElement, CardExpiryElement, CardCvcElement, useStripe, useElements } from "@stripe/react-stripe-js";
 
 const PRICE = 690;
 const PRICE_CARD = Math.ceil(PRICE * 1.03); // บวก 3% fee
@@ -13,10 +13,25 @@ const MAX_TICKETS = 100;
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 // ─── Card Payment Form ───
-function CardPaymentForm({ clientSecret, onSuccess, onError }: {
+const FIELD_STYLE = {
+  style: {
+    base: {
+      fontSize: "15px",
+      color: "#18181b",
+      fontFamily: "Helvetica Neue, Helvetica, sans-serif",
+      fontSmoothing: "antialiased",
+      "::placeholder": { color: "#9ca3af" },
+    },
+    invalid: { color: "#ef4444", iconColor: "#ef4444" },
+  },
+};
+
+function CardPaymentForm({ clientSecret, onSuccess, onError, priceCard, price }: {
   clientSecret: string;
   onSuccess: (paymentIntentId: string) => void;
   onError: (msg: string) => void;
+  priceCard: number;
+  price: number;
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -27,7 +42,7 @@ function CardPaymentForm({ clientSecret, onSuccess, onError }: {
     setLoading(true);
     try {
       const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: { card: elements.getElement(CardElement)! },
+        payment_method: { card: elements.getElement(CardNumberElement)! },
       });
       if (error) {
         onError(error.message ?? "ชำระเงินไม่สำเร็จ");
@@ -40,34 +55,63 @@ function CardPaymentForm({ clientSecret, onSuccess, onError }: {
   }
 
   return (
-    <div className="w-full max-w-xs space-y-4">
-      <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-2.5">
-        <p className="text-[11px] text-amber-700">💳 ราคานี้รวมค่าธรรมเนียมบัตรเครดิต 3% แล้ว (฿{PRICE} + ฿{PRICE_CARD - PRICE} = ฿{PRICE_CARD})</p>
-      </div>
-      <div className="border-2 border-zinc-200 rounded-2xl px-4 py-4 bg-white" style={{ minHeight: 56 }}>
-        <p className="text-[10px] text-zinc-400 font-semibold tracking-widest uppercase mb-3">เลขบัตร / MM/YY / CVC</p>
-        <div style={{ minHeight: 24 }}>
-          <CardElement options={{
-            style: {
-              base: {
-                fontSize: "16px",
-                color: "#18181b",
-                fontFamily: "Helvetica Neue, Helvetica, sans-serif",
-                fontSmoothing: "antialiased",
-                "::placeholder": { color: "#9ca3af" },
-              },
-              invalid: { color: "#ef4444", iconColor: "#ef4444" },
-            },
-            hidePostalCode: true,
-          }} />
+    <div className="w-full max-w-sm space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-purple-500" />
+          <span className="text-sm font-semibold text-zinc-700">Stripe</span>
+        </div>
+        <div className="flex items-center gap-1">
+          {["🟦","JCB","DISC","AMEX","🟠","VISA"].map((b,i) => (
+            <span key={i} className="text-[10px] border border-zinc-200 rounded px-1 py-0.5 text-zinc-500">{b}</span>
+          ))}
         </div>
       </div>
+      <p className="text-[11px] text-zinc-400">Secure payment via Stripe.</p>
+
+      {/* Fee note */}
+      <div className="bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+        <p className="text-[11px] text-amber-700">💳 รวมค่าธรรมเนียม 3% (฿{price} + ฿{priceCard - price} = ฿{priceCard})</p>
+      </div>
+
+      {/* Card Number */}
+      <div>
+        <label className="text-[11px] font-semibold text-zinc-500 tracking-wide block mb-1.5">
+          Card Number <span className="text-red-400">*</span>
+        </label>
+        <div className="border-2 border-[#00a2e8] rounded-xl px-3 py-3 bg-white focus-within:border-purple-500 transition-colors">
+          <CardNumberElement options={FIELD_STYLE} />
+        </div>
+      </div>
+
+      {/* Expiry + CVC */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-[11px] font-semibold text-zinc-500 tracking-wide block mb-1.5">
+            Expiry Date <span className="text-red-400">*</span>
+          </label>
+          <div className="border-2 border-zinc-200 rounded-xl px-3 py-3 bg-white focus-within:border-purple-500 transition-colors">
+            <CardExpiryElement options={FIELD_STYLE} />
+          </div>
+        </div>
+        <div>
+          <label className="text-[11px] font-semibold text-zinc-500 tracking-wide block mb-1.5">
+            Card Code (CVC) <span className="text-red-400">*</span>
+          </label>
+          <div className="border-2 border-zinc-200 rounded-xl px-3 py-3 bg-white focus-within:border-purple-500 transition-colors">
+            <CardCvcElement options={FIELD_STYLE} />
+          </div>
+        </div>
+      </div>
+
       <p className="text-[10px] text-zinc-400 text-center">🔒 ข้อมูลบัตรเข้ารหัสและปลอดภัยด้วย Stripe</p>
+
       <button
         onClick={handleSubmit}
         disabled={loading || !stripe}
         className={`btn-primary w-full py-3.5 text-sm ${loading ? "opacity-50 cursor-not-allowed" : ""}`}>
-        {loading ? "กำลังชำระเงิน..." : `ชำระ ฿${PRICE_CARD} (รวม fee 3%)`}
+        {loading ? "กำลังชำระเงิน..." : `ชำระ ฿${priceCard}`}
       </button>
     </div>
   );
@@ -395,6 +439,8 @@ export default function PriorityTicketPage() {
               clientSecret={clientSecret}
               onSuccess={(piId) => createTicket(piId)}
               onError={(msg) => setError(msg)}
+              priceCard={PRICE_CARD}
+              price={PRICE}
             />
           </Elements>
         )}
