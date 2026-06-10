@@ -57,6 +57,7 @@ type GenReg = {
   qr_code: string;
   pack_used: number;
   pack_paid: boolean;
+  event_id: string;
   events: { title: string; date: string; location: string } | null;
 };
 
