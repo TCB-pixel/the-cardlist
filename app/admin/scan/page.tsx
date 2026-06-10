@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 
 type ScanResult = {
   type: "general" | "priority";
+  pack_paid?: boolean;
   user: { name: string; avatar: string; qr_code: string };
   event: { title: string; date: string };
   pack_used?: number;
@@ -84,6 +85,7 @@ export default function StaffScannerPage() {
             qr_code: qrCode,
           },
           event: { title: d.events?.title ?? "—", date: d.events?.date ?? "" },
+          pack_paid: d.pack_paid ?? false,
           pack_used: d.pack_used ?? 0,
         });
       } else {
@@ -248,6 +250,19 @@ export default function StaffScannerPage() {
                   {(result.pack_used ?? 0) >= 1 ? "ใช้แล้ว" : "ยังไม่ใช้"}
                 </span>
               </div>
+              {/* pack_paid badge */}
+              {result.pack_paid && (
+                <div className="flex items-center gap-2 bg-green-900/30 border border-green-700/30 rounded-xl px-3 py-2 mb-2">
+                  <span className="text-green-400 text-sm">✅</span>
+                  <p className="text-[11px] text-green-400 font-semibold">ชำระ ฿49 ล่วงหน้าแล้ว — ให้ซองได้เลย</p>
+                </div>
+              )}
+              {!result.pack_paid && (
+                <div className="flex items-center gap-2 bg-zinc-800/50 border border-zinc-700/30 rounded-xl px-3 py-2 mb-2">
+                  <span className="text-zinc-400 text-sm">💰</span>
+                  <p className="text-[11px] text-zinc-400">ยังไม่ได้ชำระล่วงหน้า — รับเงินหน้างาน ฿49</p>
+                </div>
+              )}
               <button onClick={() => redeem("pack_used", 1)} disabled={redeeming === "pack_used" || (result.pack_used ?? 0) >= 1}
                 className={`w-full py-3 rounded-xl text-sm font-bold ${(result.pack_used ?? 0) >= 1 ? "bg-zinc-800 text-zinc-600 cursor-not-allowed" : "bg-white text-zinc-900"} disabled:opacity-50`}>
                 {(result.pack_used ?? 0) >= 1 ? "ใช้สิทธิ์ไปแล้ว ✓" : redeeming === "pack_used" ? "กำลังบันทึก..." : "✓ Redeem สิทธิ์"}
