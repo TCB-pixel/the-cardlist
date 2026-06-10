@@ -56,6 +56,7 @@ type GenReg = {
   id: string;
   qr_code: string;
   pack_used: number;
+  pack_paid: boolean;
   events: { title: string; date: string; location: string } | null;
 };
 
@@ -290,7 +291,7 @@ export default function ProfilePage() {
       // 6) General registrations
       const { data: genRawData } = await supabase
         .from("general_registrations")
-        .select("id, qr_code, pack_used, event_id")
+        .select("id, qr_code, pack_used, pack_paid, event_id")
         .eq("user_id", userId)
         .order("created_at", { ascending: false });
 
@@ -690,6 +691,27 @@ export default function ProfilePage() {
                           {g.pack_used >= 1 ? "ใช้แล้ว" : "1 ซอง"}
                         </span>
                       </div>
+                    </div>
+                    {/* pack_paid status + ปุ่มซื้อ */}
+                    <div className="mt-3">
+                      {g.pack_paid ? (
+                        <div className="flex items-center justify-center gap-2 bg-green-50 rounded-xl px-3 py-2">
+                          <span className="text-green-600 text-sm">✅</span>
+                          <p className="text-[11px] text-green-700 font-semibold">ชำระ ฿49 แล้ว — รับซองได้หน้างาน</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-center gap-2 bg-amber-50 rounded-xl px-3 py-2">
+                            <span className="text-amber-600 text-sm">💰</span>
+                            <p className="text-[11px] text-amber-700">ยังไม่ได้ซื้อ Booster Pack ล่วงหน้า</p>
+                          </div>
+                          <button
+                            onClick={() => router.push(`/events/${g.event_id}/ticket`)}
+                            className="w-full py-2.5 rounded-xl text-xs font-bold bg-zinc-900 text-white hover:bg-zinc-800 transition-colors">
+                            🛍️ ซื้อ Booster Pack ราคาป้าย ฿49
+                          </button>
+                        </div>
+                      )}
                     </div>
                     <p className="text-[9px] text-zinc-400 text-center mt-3">แสดง QR Code นี้หน้างานเพื่อใช้สิทธิ์</p>
                   </div>
