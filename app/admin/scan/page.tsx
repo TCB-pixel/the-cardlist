@@ -124,6 +124,7 @@ export default function StaffScannerPage() {
     if (res.ok) {
       setResult({ ...result, [field]: value } as ScanResult);
       const msgs: Record<string, string> = {
+        pack_paid: "✅ รับเงินแล้ว — พร้อม Redeem ซอง",
         pack_used: "✅ ใช้สิทธิ์ซื้อ Pack แล้ว!",
         free_pack_redeemed: "✅ รับ Pokemon Booster Pack M2 JP ฟรีแล้ว!",
         free_pack_used: "✅ ใช้สิทธิ์ซื้อ Booster Pack M1-M5 ราคาป้าย 5 ซองแล้ว!",
@@ -258,9 +259,17 @@ export default function StaffScannerPage() {
                 </div>
               )}
               {!result.pack_paid && (
-                <div className="flex items-center gap-2 bg-zinc-800/50 border border-zinc-700/30 rounded-xl px-3 py-2 mb-2">
-                  <span className="text-zinc-400 text-sm">💰</span>
-                  <p className="text-[11px] text-zinc-400">ยังไม่ได้ชำระล่วงหน้า — รับเงินหน้างาน ฿49</p>
+                <div className="bg-zinc-800/50 border border-zinc-700/30 rounded-xl px-3 py-2 mb-2 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-zinc-400 text-sm">💰</span>
+                    <p className="text-[11px] text-zinc-400">ยังไม่ได้ชำระล่วงหน้า — รับเงินสด ฿49 หน้างาน</p>
+                  </div>
+                  <button
+                    onClick={() => redeem("pack_paid", true)}
+                    disabled={redeeming === "pack_paid"}
+                    className="w-full py-2 rounded-xl text-xs font-bold bg-green-600 text-white disabled:opacity-50">
+                    {redeeming === "pack_paid" ? "กำลังบันทึก..." : "✅ รับเงินแล้ว ฿49"}
+                  </button>
                 </div>
               )}
               <button onClick={() => redeem("pack_used", 1)} disabled={redeeming === "pack_used" || (result.pack_used ?? 0) >= 1}
