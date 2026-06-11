@@ -138,8 +138,8 @@ export default function AdminTicketsPage() {
                     <p className="text-[10px] text-zinc-400">{t.events?.date ? new Date(t.events.date).toLocaleDateString("th-TH") : ""}</p>
                   </td>
                   <td className="px-5 py-3.5">
-                    <p className="text-xs font-semibold text-zinc-900">Special Guest</p>
-                    <p className="text-[10px] text-zinc-400">฿150</p>
+                    <p className="text-xs font-semibold text-zinc-900">Priority Guest</p>
+                    <p className="text-[10px] text-zinc-400">฿690</p>
                   </td>
                   <td className="px-5 py-3.5">
                     {t.profiles?.line_user_id ? (
@@ -200,11 +200,11 @@ export default function AdminTicketsPage() {
               <div className="bg-zinc-50 rounded-xl p-3 mb-4 space-y-1.5">
                 <div className="flex justify-between">
                   <span className="text-[11px] text-zinc-400">บัตร</span>
-                  <span className="text-[11px] font-semibold text-zinc-900">Special Guest ฿150</span>
+                  <span className="text-[11px] font-semibold text-zinc-900">Priority Guest ฿690</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[11px] text-zinc-400">สิทธิ์</span>
-                  <span className="text-[11px] font-semibold text-green-700">M2 ฟรี 1 + ราคาป้าย 5 ซอง</span>
+                  <span className="text-[11px] font-semibold text-green-700">M2 JP ฟรี + Booster Pack 5 ซอง + ลุ้น 2 รางวัล</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[11px] text-zinc-400">QR Code</span>
