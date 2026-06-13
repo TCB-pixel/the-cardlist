@@ -1,14 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAdmin } from "@/lib/admin-context";
 import { AdminRole, AdminUser, ROLE_LABEL, ROLE_COLOR, ROLE_BADGE, MANAGEABLE_ROLES, can } from "@/lib/rbac";
-
-const INIT_STAFF: AdminUser[] = [
-  { id: "1", name: "Thanakorn C.", email: "owner@thecardlist.com", role: "owner", avatar: "T", joinedAt: "1 ม.ค. 2025", lastLogin: "วันนี้ 09:00 น.", active: true },
-  { id: "2", name: "Siriporn M.", email: "head@thecardlist.com", role: "head_staff", avatar: "S", joinedAt: "15 ก.พ. 2025", lastLogin: "เมื่อวาน 18:30 น.", active: true },
-  { id: "3", name: "Natthapat K.", email: "staff1@thecardlist.com", role: "staff", avatar: "N", joinedAt: "1 มี.ค. 2025", lastLogin: "วันนี้ 11:00 น.", active: true },
-  { id: "4", name: "Wirut S.", email: "staff2@thecardlist.com", role: "staff", avatar: "W", joinedAt: "10 เม.ย. 2025", lastLogin: "3 วันที่แล้ว", active: false },
-];
 
 const EMPTY_FORM = { name: "", email: "", role: "staff" as AdminRole, active: true };
 
@@ -28,17 +21,36 @@ const PERMISSION_MATRIX: { label: string; owner: boolean; head_staff: boolean; s
 
 export default function AdminStaffPage() {
   const { currentUser, can: canDo } = useAdmin();
-  const [staff, setStaff] = useState<AdminUser[]>(INIT_STAFF);
+  const [staff, setStaff] = useState<AdminUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<AdminUser | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [errorMsg, setErrorMsg] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
   const [activeTab, setActiveTab] = useState<"members" | "permissions">("members");
   const [filterRole, setFilterRole] = useState<"all" | AdminRole>("all");
+  const [createdInfo, setCreatedInfo] = useState<{ email: string; password: string } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const manageableRoles = MANAGEABLE_ROLES[currentUser.role];
-
   const filtered = staff.filter((s) => filterRole === "all" || s.role === filterRole);
+
+  useEffect(() => { loadStaff(); }, []);
+
+  async function loadStaff() {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/staff");
+      const data = await res.json();
+      if (res.ok) setStaff(data.staff || []);
+    } catch {
+      /* ignore */
+    } finally {
+      setLoading(false);
+    }
+  }
 
   function canManage(target: AdminUser): boolean {
     if (target.id === currentUser.id) return false;
@@ -52,40 +64,75 @@ export default function AdminStaffPage() {
   function openAdd() {
     setEditing(null);
     setForm(EMPTY_FORM);
+    setErrorMsg("");
     setShowModal(true);
   }
 
   function openEdit(s: AdminUser) {
     setEditing(s);
     setForm({ name: s.name, email: s.email, role: s.role, active: s.active });
+    setErrorMsg("");
     setShowModal(true);
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!form.name || !form.email) return;
     if (!canAssignRole(form.role)) return;
-    if (editing) {
-      setStaff((prev) => prev.map((s) => s.id === editing.id ? { ...s, ...form } : s));
-    } else {
-      setStaff((prev) => [...prev, {
-        ...form,
-        id: Date.now().toString(),
-        avatar: form.name[0].toUpperCase(),
-        joinedAt: new Date().toLocaleDateString("th-TH"),
-        lastLogin: "ยังไม่ได้เข้าสู่ระบบ",
-      }]);
+    setSaving(true);
+    setErrorMsg("");
+    try {
+      if (editing) {
+        const res = await fetch("/api/admin/staff", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: editing.id, name: form.name, role: form.role, active: form.active }),
+        });
+        const data = await res.json();
+        if (!res.ok) { setErrorMsg(data.error || "บันทึกไม่สำเร็จ"); return; }
+        setShowModal(false);
+        await loadStaff();
+      } else {
+        const res = await fetch("/api/admin/staff", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        });
+        const data = await res.json();
+        if (!res.ok) { setErrorMsg(data.error || "เพิ่มสมาชิกไม่สำเร็จ"); return; }
+        setShowModal(false);
+        setCreatedInfo({ email: data.member.email, password: data.tempPassword });
+        await loadStaff();
+      }
+    } finally {
+      setSaving(false);
     }
-    setShowModal(false);
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (!deleteTarget) return;
-    setStaff((prev) => prev.filter((s) => s.id !== deleteTarget.id));
+    await fetch("/api/admin/staff", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: deleteTarget.id }),
+    });
     setDeleteTarget(null);
+    await loadStaff();
   }
 
-  function toggleActive(id: string) {
-    setStaff((prev) => prev.map((s) => s.id === id ? { ...s, active: !s.active } : s));
+  async function toggleActive(member: AdminUser) {
+    await fetch("/api/admin/staff", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: member.id, active: !member.active }),
+    });
+    await loadStaff();
+  }
+
+  function copyPassword() {
+    if (!createdInfo) return;
+    navigator.clipboard.writeText(createdInfo.password);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
   }
 
   const inputCls = "w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2.5 text-sm text-zinc-900 outline-none focus:border-zinc-400 transition-colors";
@@ -156,7 +203,11 @@ export default function AdminStaffPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((member) => (
+                {loading ? (
+                  <tr><td colSpan={6} className="px-5 py-10 text-center text-xs text-zinc-400">กำลังโหลด...</td></tr>
+                ) : filtered.length === 0 ? (
+                  <tr><td colSpan={6} className="px-5 py-10 text-center text-xs text-zinc-400">ยังไม่มีสมาชิกทีม</td></tr>
+                ) : filtered.map((member) => (
                   <tr key={member.id} className="border-b border-zinc-50 hover:bg-zinc-50 last:border-none">
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-3">
@@ -201,7 +252,7 @@ export default function AdminStaffPage() {
                             </button>
                           )}
                           {canDo("staff:edit") && (
-                            <button onClick={() => toggleActive(member.id)}
+                            <button onClick={() => toggleActive(member)}
                               className={`text-xs border rounded-lg px-2.5 py-1 transition-colors ${member.active ? "text-amber-600 border-amber-100 hover:bg-amber-50" : "text-green-600 border-green-100 hover:bg-green-50"}`}>
                               {member.active ? "ระงับ" : "เปิดใช้"}
                             </button>
@@ -302,7 +353,9 @@ export default function AdminStaffPage() {
               </div>
               <div>
                 <label className={labelCls}>อีเมล *</label>
-                <input type="email" className={inputCls} placeholder="email@thecardlist.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                <input type="email" className={inputCls} placeholder="email@thecardlist.com" value={form.email} disabled={!!editing}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                {editing && <p className="text-[10px] text-zinc-400 mt-1">ไม่สามารถแก้อีเมลของสมาชิกที่มีอยู่แล้วได้</p>}
               </div>
               <div>
                 <label className={labelCls}>Role</label>
@@ -338,11 +391,51 @@ export default function AdminStaffPage() {
                   <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${form.active ? "left-7" : "left-1"}`}></span>
                 </button>
               </div>
+              {errorMsg && <p className="text-[11px] text-red-500 bg-red-50 rounded-lg px-3 py-2">{errorMsg}</p>}
             </div>
             <div className="flex gap-2 px-6 py-4 border-t border-zinc-100">
               <button onClick={() => setShowModal(false)} className="flex-1 border border-zinc-200 text-xs font-semibold text-zinc-700 py-2.5 rounded-xl hover:bg-zinc-50">ยกเลิก</button>
-              <button onClick={handleSave} className="flex-1 bg-zinc-900 text-white text-xs font-semibold py-2.5 rounded-xl hover:bg-zinc-700">
-                {editing ? "บันทึก" : "เพิ่มสมาชิกทีม"}
+              <button onClick={handleSave} disabled={saving} className="flex-1 bg-zinc-900 text-white text-xs font-semibold py-2.5 rounded-xl hover:bg-zinc-700 disabled:opacity-50">
+                {saving ? "กำลังบันทึก..." : editing ? "บันทึก" : "เพิ่มสมาชิกทีม"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Temp password result modal */}
+      {createdInfo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" />
+          <div className="relative bg-white rounded-2xl w-full max-w-sm mx-4 p-6">
+            <div className="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
+              <svg width="22" height="22" viewBox="0 0 20 20" fill="none"><path d="M4 10l4 4 8-8" stroke="#16a34a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </div>
+            <p className="text-sm font-bold text-zinc-900 text-center mb-1">เพิ่มสมาชิกสำเร็จ</p>
+            <p className="text-[11px] text-zinc-400 text-center mb-4">ส่งอีเมลและรหัสผ่านนี้ให้พนักงานเพื่อเข้าสู่ระบบ</p>
+
+            <div className="space-y-2 mb-3">
+              <div className="bg-zinc-50 border border-zinc-100 rounded-xl px-3 py-2">
+                <p className="text-[10px] text-zinc-400">อีเมล</p>
+                <p className="text-xs font-semibold text-zinc-900 break-all">{createdInfo.email}</p>
+              </div>
+              <div className="bg-zinc-50 border border-zinc-100 rounded-xl px-3 py-2">
+                <p className="text-[10px] text-zinc-400">รหัสผ่านชั่วคราว</p>
+                <p className="text-sm font-mono font-bold text-zinc-900 tracking-wide">{createdInfo.password}</p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-2 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 mb-4">
+              <span className="text-amber-500 text-xs leading-none mt-0.5">⚠</span>
+              <p className="text-[10px] text-amber-700 leading-relaxed">รหัสผ่านนี้จะแสดงเพียงครั้งเดียว คัดลอกเก็บไว้ก่อนปิดหน้าต่าง พนักงานสามารถเปลี่ยนรหัสผ่านเองได้ภายหลัง</p>
+            </div>
+
+            <div className="flex gap-2">
+              <button onClick={copyPassword} className="flex-1 border border-zinc-200 text-xs font-semibold text-zinc-700 py-2.5 rounded-xl hover:bg-zinc-50">
+                {copied ? "คัดลอกแล้ว ✓" : "คัดลอกรหัสผ่าน"}
+              </button>
+              <button onClick={() => { setCreatedInfo(null); setCopied(false); }} className="flex-1 bg-zinc-900 text-white text-xs font-semibold py-2.5 rounded-xl hover:bg-zinc-700">
+                เสร็จสิ้น
               </button>
             </div>
           </div>
