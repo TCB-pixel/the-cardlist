@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useAdmin } from "@/lib/admin-context";
 import { AdminRole, AdminUser, ROLE_LABEL, ROLE_COLOR, ROLE_BADGE, MANAGEABLE_ROLES, can } from "@/lib/rbac";
 
-const EMPTY_FORM = { name: "", email: "", role: "staff" as AdminRole, active: true };
+const EMPTY_FORM = { name: "", email: "", role: "staff" as AdminRole, active: true, password: "" };
 
 const PERMISSION_MATRIX: { label: string; owner: boolean; head_staff: boolean; staff: boolean }[] = [
   { label: "ดู Dashboard",               owner: true,  head_staff: true,  staff: true  },
@@ -31,7 +31,7 @@ export default function AdminStaffPage() {
   const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
   const [activeTab, setActiveTab] = useState<"members" | "permissions">("members");
   const [filterRole, setFilterRole] = useState<"all" | AdminRole>("all");
-  const [createdInfo, setCreatedInfo] = useState<{ email: string; password: string } | null>(null);
+  const [createdInfo, setCreatedInfo] = useState<{ email: string; password: string; reset?: boolean } | null>(null);
   const [copied, setCopied] = useState(false);
 
   const manageableRoles = MANAGEABLE_ROLES[currentUser.role];
@@ -70,7 +70,7 @@ export default function AdminStaffPage() {
 
   function openEdit(s: AdminUser) {
     setEditing(s);
-    setForm({ name: s.name, email: s.email, role: s.role, active: s.active });
+    setForm({ name: s.name, email: s.email, role: s.role, active: s.active, password: "" });
     setErrorMsg("");
     setShowModal(true);
   }
@@ -85,11 +85,12 @@ export default function AdminStaffPage() {
         const res = await fetch("/api/admin/staff", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: editing.id, name: form.name, role: form.role, active: form.active }),
+          body: JSON.stringify({ id: editing.id, name: form.name, role: form.role, active: form.active, password: form.password || undefined }),
         });
         const data = await res.json();
         if (!res.ok) { setErrorMsg(data.error || "บันทึกไม่สำเร็จ"); return; }
         setShowModal(false);
+        if (data.password) setCreatedInfo({ email: data.member.email, password: data.password, reset: true });
         await loadStaff();
       } else {
         const res = await fetch("/api/admin/staff", {
@@ -100,7 +101,7 @@ export default function AdminStaffPage() {
         const data = await res.json();
         if (!res.ok) { setErrorMsg(data.error || "เพิ่มสมาชิกไม่สำเร็จ"); return; }
         setShowModal(false);
-        setCreatedInfo({ email: data.member.email, password: data.tempPassword });
+        setCreatedInfo({ email: data.member.email, password: data.password });
         await loadStaff();
       }
     } finally {
@@ -358,6 +359,18 @@ export default function AdminStaffPage() {
                 {editing && <p className="text-[10px] text-zinc-400 mt-1">ไม่สามารถแก้อีเมลของสมาชิกที่มีอยู่แล้วได้</p>}
               </div>
               <div>
+                <label className={labelCls}>{editing ? "รีเซ็ตรหัสผ่าน" : "รหัสผ่าน"}</label>
+                <input type="text" className={inputCls}
+                  placeholder={editing ? "เว้นว่างถ้าไม่เปลี่ยน" : "เว้นว่างให้ระบบสุ่มให้"}
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })} />
+                <p className="text-[10px] text-zinc-400 mt-1">
+                  {editing
+                    ? "พิมพ์รหัสใหม่เพื่อรีเซ็ต (อย่างน้อย 6 ตัวอักษร) แล้วบอกพนักงาน"
+                    : "พิมพ์รหัสที่ต้องการ หรือเว้นว่างให้ระบบสุ่มรหัสที่ปลอดภัยให้"}
+                </p>
+              </div>
+              <div>
                 <label className={labelCls}>Role</label>
                 <div className="space-y-2">
                   {(["owner", "head_staff", "staff"] as AdminRole[]).map((role) => {
@@ -411,7 +424,7 @@ export default function AdminStaffPage() {
             <div className="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
               <svg width="22" height="22" viewBox="0 0 20 20" fill="none"><path d="M4 10l4 4 8-8" stroke="#16a34a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </div>
-            <p className="text-sm font-bold text-zinc-900 text-center mb-1">เพิ่มสมาชิกสำเร็จ</p>
+            <p className="text-sm font-bold text-zinc-900 text-center mb-1">{createdInfo.reset ? "รีเซ็ตรหัสผ่านสำเร็จ" : "เพิ่มสมาชิกสำเร็จ"}</p>
             <p className="text-[11px] text-zinc-400 text-center mb-4">ส่งอีเมลและรหัสผ่านนี้ให้พนักงานเพื่อเข้าสู่ระบบ</p>
 
             <div className="space-y-2 mb-3">

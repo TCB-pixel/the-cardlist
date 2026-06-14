@@ -8,6 +8,8 @@ const admin = createClient(
   { auth: { autoRefreshToken: false, persistSession: false } }
 );
 
+const MIN_PW = 6; // ความยาวรหัสผ่านขั้นต่ำของ Supabase
+
 const TH_MONTHS = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
 function fmtDate(iso: string | null): string {
   if (!iso) return "—";
@@ -40,7 +42,7 @@ function toAdminUser(r: Row) {
   };
 }
 
-// สุ่มรหัสผ่านชั่วคราว (ตัดตัวอักษรที่สับสน เช่น 0/O, 1/l/I ออก)
+// สุ่มรหัสผ่านชั่วคราว (ตัดตัวอักษรที่สับสน เช่น 0/O, 1/l/I ออก) — ใช้เมื่อเว้นว่าง
 function genPassword(len = 12): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
   const a = new Uint32Array(len);
@@ -59,20 +61,29 @@ export async function GET() {
   return NextResponse.json({ staff: (data as Row[]).map(toAdminUser) });
 }
 
-// ---------- POST : เพิ่มสมาชิก + สร้าง Auth user + รหัสผ่านชั่วคราว ----------
+// ---------- POST : เพิ่มสมาชิก + สร้าง Auth user + ตั้ง/สุ่มรหัสผ่าน ----------
 export async function POST(req: Request) {
   try {
-    const { name, email, role, active } = await req.json();
+    const { name, email, role, active, password } = await req.json();
     if (!name || !email || !role) {
       return NextResponse.json({ error: "กรอกข้อมูลไม่ครบ" }, { status: 400 });
     }
 
-    const tempPassword = genPassword();
+    // ถ้าพิมพ์รหัสเองมา -> ต้องยาวอย่างน้อย MIN_PW / ถ้าเว้นว่าง -> สุ่มให้
+    let finalPassword: string;
+    if (password) {
+      if (String(password).length < MIN_PW) {
+        return NextResponse.json({ error: `รหัสผ่านต้องยาวอย่างน้อย ${MIN_PW} ตัวอักษร` }, { status: 400 });
+      }
+      finalPassword = String(password);
+    } else {
+      finalPassword = genPassword();
+    }
 
     // 1) สร้าง login (อีเมล + รหัสผ่าน) — email_confirm: true เพื่อใช้งานได้ทันที
     const { data: authData, error: authErr } = await admin.auth.admin.createUser({
       email,
-      password: tempPassword,
+      password: finalPassword,
       email_confirm: true,
       user_metadata: { name, role },
     });
@@ -88,44 +99,70 @@ export async function POST(req: Request) {
       .single();
 
     if (dbErr) {
-      // ถ้าบันทึก DB ไม่ผ่าน ลบ Auth user ทิ้ง (กัน user ค้าง)
-      await admin.auth.admin.deleteUser(authData.user.id);
+      await admin.auth.admin.deleteUser(authData.user.id); // rollback
       return NextResponse.json({ error: dbErr.message }, { status: 400 });
     }
 
-    return NextResponse.json({ member: toAdminUser(row as Row), tempPassword });
+    // คืนรหัสผ่านที่ตั้งไว้กลับไปให้หน้าจอแสดง (ก๊อปส่งพนักงาน)
+    return NextResponse.json({ member: toAdminUser(row as Row), password: finalPassword });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "เกิดข้อผิดพลาด" }, { status: 500 });
   }
 }
 
-// ---------- PATCH : แก้ไขชื่อ/role/สถานะ ----------
+// ---------- PATCH : แก้ไขชื่อ/role/สถานะ + รีเซ็ตรหัสผ่าน (ถ้าส่ง password มา) ----------
 export async function PATCH(req: Request) {
   try {
-    const { id, name, role, active } = await req.json();
+    const { id, name, role, active, password } = await req.json();
     if (!id) return NextResponse.json({ error: "ไม่พบ id" }, { status: 400 });
+
+    // ตรวจรหัสผ่านก่อน (ถ้ามีการตั้งใหม่)
+    if (password && String(password).length < MIN_PW) {
+      return NextResponse.json({ error: `รหัสผ่านต้องยาวอย่างน้อย ${MIN_PW} ตัวอักษร` }, { status: 400 });
+    }
 
     const update: Record<string, unknown> = {};
     if (name !== undefined) update.name = name;
     if (role !== undefined) update.role = role;
     if (active !== undefined) update.active = active;
 
-    const { data: row, error } = await admin
-      .from("admin_staff")
-      .update(update)
-      .eq("id", id)
-      .select("*")
-      .single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    let row: Row;
+    if (Object.keys(update).length > 0) {
+      const { data, error } = await admin
+        .from("admin_staff")
+        .update(update)
+        .eq("id", id)
+        .select("*")
+        .single();
+      if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+      row = data as Row;
+    } else {
+      const { data, error } = await admin.from("admin_staff").select("*").eq("id", id).single();
+      if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+      row = data as Row;
+    }
 
-    // ถ้าระงับ/เปิดบัญชี ให้ ban/unban ใน Auth ด้วย เพื่อบล็อกการ login จริง
-    if (active !== undefined && (row as Row).user_id) {
-      await admin.auth.admin.updateUserById((row as Row).user_id as string, {
-        ban_duration: active ? "none" : "876000h", // ~100 ปี = ระงับ
+    // ระงับ/เปิดบัญชี -> ban/unban ใน Auth ด้วย
+    if (active !== undefined && row.user_id) {
+      await admin.auth.admin.updateUserById(row.user_id, {
+        ban_duration: active ? "none" : "876000h",
       });
     }
 
-    return NextResponse.json({ member: toAdminUser(row as Row) });
+    // รีเซ็ตรหัสผ่าน (ถ้าส่งมา)
+    let changedPassword: string | undefined;
+    if (password && row.user_id) {
+      const { error: pwErr } = await admin.auth.admin.updateUserById(row.user_id, {
+        password: String(password),
+      });
+      if (pwErr) return NextResponse.json({ error: pwErr.message }, { status: 400 });
+      changedPassword = String(password);
+    }
+
+    return NextResponse.json({
+      member: toAdminUser(row),
+      ...(changedPassword ? { password: changedPassword } : {}),
+    });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "เกิดข้อผิดพลาด" }, { status: 500 });
   }
