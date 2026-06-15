@@ -67,6 +67,7 @@ export default function ShopPage() {
   const [search, setSearch]               = useState("");
   const [cart, setCart]                   = useState<CartItem[]>([]);
   const [showCart, setShowCart]           = useState(false);
+  const [toast, setToast]                 = useState<string | null>(null);
 
   // ── Fetch products from Supabase ──
   useEffect(() => {
@@ -108,6 +109,8 @@ export default function ShopPage() {
       if (ex) return prev.map((i) => i.id === p.id ? { ...i, qty: i.qty + 1 } : i);
       return [...prev, { id: p.id, name: p.name, price: p.price, qty: 1 }];
     });
+    setToast(p.name);
+    setTimeout(() => setToast(null), 2000);
   }
 
   function removeFromCart(id: string) {
@@ -283,17 +286,44 @@ export default function ShopPage() {
               </div>
               {cart.length > 0 && (
                 <button
-                  onClick={() => {
-                    localStorage.setItem("cardlist_cart", JSON.stringify(
-                      cart.map(i => ({ ...i, image_url: products.find(p => p.id === i.id)?.image_url }))
-                    ));
-                    window.location.href = "/checkout";
+                  onClick={async () => {
+                    try {
+                      const res = await fetch("/api/stripe/checkout", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          items: cart.map(i => ({
+                            id: i.id,
+                            name: i.name,
+                            price: i.price,
+                            qty: i.qty,
+                            image_url: products.find(p => p.id === i.id)?.image_url ?? null,
+                          })),
+                        }),
+                      });
+                      const data = await res.json();
+                      if (data.url) window.location.href = data.url;
+                      else alert("เกิดข้อผิดพลาด กรุณาลองใหม่");
+                    } catch {
+                      alert("เกิดข้อผิดพลาด กรุณาลองใหม่");
+                    }
                   }}
                   className="btn-primary w-full py-3.5 text-center text-sm font-semibold">
-                  ดำเนินการสั่งซื้อ →
+                  ชำระเงินผ่าน Stripe →
                 </button>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast notification */}
+      {toast && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[100] animate-bounce-in">
+          <div className="bg-zinc-900 text-white text-xs font-semibold px-4 py-2.5 rounded-2xl shadow-lg flex items-center gap-2 whitespace-nowrap">
+            <span>🛒</span>
+            <span>เพิ่ม "{toast.length > 20 ? toast.slice(0, 20) + "..." : toast}" ลงตะกร้าแล้ว</span>
+            <span className="text-green-400">✓</span>
           </div>
         </div>
       )}
