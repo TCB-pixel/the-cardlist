@@ -139,7 +139,7 @@ export default function EventDetailPage() {
               <span>🎁</span><span>Pokemon Booster Pack M2 JP ฟรี</span>
             </div>
             <div className="flex items-center gap-2 text-[11px] text-zinc-600">
-              <span>🛍️</span><span>ฟรี!!!ซอง Pokemon Booster Pack M1-M5 ราคาป้าย 5 ซอง จนกว่าของจะหมด</span>
+              <span>🛍️</span><span>ฟรี!!!ซอง Pokemon Booster Pack M1-M5 จนกว่าของจะหมด</span>
             </div>
             <div className="flex items-center gap-2 text-[11px] text-zinc-600">
               <span>🌑</span><span>ลุ้นซื้อ Pokemon Booster Box M5A เงามืดคุกคาม ราคาป้าย (20 สิทธิ์)</span>
