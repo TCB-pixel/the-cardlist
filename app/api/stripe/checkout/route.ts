@@ -1,170 +1,56 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { createClient } from "@supabase/supabase-js";
 
 function getStripe() {
   return new Stripe(process.env.STRIPE_SECRET_KEY!);
 }
 
-function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+// สร้าง Checkout Session
+export async function POST(request: NextRequest) {
+  const { items } = await request.json();
+  const stripe = getStripe();
+
+  try {
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card", "promptpay"],
+      line_items: items.map((item: any) => ({
+        price_data: {
+          currency: "thb",
+          product_data: {
+            name: item.name,
+            ...(item.image_url ? { images: [item.image_url] } : {}),
+          },
+          unit_amount: item.price * 100,
+        },
+        quantity: item.qty,
+      })),
+      mode: "payment",
+      success_url: `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://thecardlistbkk.com"}/shop/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://thecardlistbkk.com"}/shop`,
+    });
+
+    return NextResponse.json({ url: session.url });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
 }
 
-export async function POST(request: NextRequest) {
-  const body = await request.text();
-  const sig = request.headers.get("stripe-signature")!;
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+// ดึง session status
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const sessionId = searchParams.get("session_id");
+  if (!sessionId) return NextResponse.json({ error: "No session_id" }, { status: 400 });
 
-  let event: Stripe.Event;
+  const stripe = getStripe();
   try {
-    event = getStripe().webhooks.constructEvent(body, sig, webhookSecret);
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    return NextResponse.json({
+      amount_total: session.amount_total,
+      customer_email: session.customer_email,
+      payment_status: session.payment_status,
+      status: session.status,
+    });
   } catch (err: any) {
-    console.error("Webhook signature error:", err.message);
-    return NextResponse.json({ error: err.message }, { status: 400 });
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
-
-  if (event.type === "payment_intent.succeeded") {
-    const pi = event.data.object as Stripe.PaymentIntent;
-    const description = pi.description ?? "";
-    const supabase = getSupabase();
-
-    // ─── Priority Guest Ticket ───
-    if (description.includes("Priority Guest Ticket")) {
-      // เช็คว่าสร้าง ticket ไปแล้วหรือยัง
-      const { data: existing } = await supabase
-        .from("event_tickets")
-        .select("id")
-        .eq("charge_id", pi.id)
-        .single();
-
-      if (existing) {
-        console.log("Ticket already exists for:", pi.id);
-        return NextResponse.json({ ok: true });
-      }
-
-      // หา event ล่าสุด
-      const { data: ev } = await supabase
-        .from("events")
-        .select("id, title")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
-
-      // หา user จาก email ที่จ่าย
-      const email = pi.receipt_email ?? "";
-      let userId: string | null = null;
-
-      if (email) {
-        const { data: { users } } = await supabase.auth.admin.listUsers();
-        const user = users.find((u) => u.email === email);
-        if (user) userId = user.id;
-      }
-
-      if (!userId) {
-        console.error("Cannot find user for email:", email);
-        return NextResponse.json({ error: "User not found" }, { status: 200 });
-      }
-
-      // สร้าง QR Code
-      const qrCode = `PG-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-
-      const { error: insertErr } = await supabase.from("event_tickets").insert({
-        user_id: userId,
-        event_id: ev?.id,
-        status: "approved",
-        qr_code: qrCode,
-        charge_id: pi.id,
-        free_pack_redeemed: false,
-        free_pack_quota: 5,
-        free_pack_used: 0,
-        ma5_slot: null,
-      });
-
-      if (insertErr) {
-        console.error("Insert ticket error:", insertErr);
-        return NextResponse.json({ error: insertErr.message }, { status: 500 });
-      }
-
-      // ส่ง LINE notify
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("line_user_id")
-        .eq("id", userId)
-        .single();
-
-      if (profile?.line_user_id) {
-        await fetch(`${process.env.NEXT_PUBLIC_SITE_URL ?? "https://thecardlistbkk.com"}/api/notify`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            lineUserId: profile.line_user_id,
-            type: "ticket_approved",
-            data: { eventTitle: ev?.title ?? "งาน", qrCode },
-          }),
-        });
-      }
-
-      console.log("✅ Priority ticket created:", qrCode);
-    }
-
-    // ─── Shop Order ───
-    else if (description.includes("Shop Order") || pi.metadata?.type === "shop") {
-      const email = pi.receipt_email ?? "";
-      let userId: string | null = null;
-
-      if (email) {
-        const { data: { users } } = await supabase.auth.admin.listUsers();
-        const user = users.find((u) => u.email === email);
-        if (user) userId = user.id;
-      }
-
-      // parse items จาก metadata
-      let items: any[] = [];
-      try {
-        items = JSON.parse(pi.metadata?.items ?? "[]");
-      } catch {}
-
-      if (userId && items.length > 0) {
-        // สร้าง order
-        const { data: order, error: orderErr } = await supabase
-          .from("orders")
-          .insert({
-            user_id: userId,
-            total_amount: pi.amount / 100,
-            status: "paid",
-            payment_id: pi.id,
-          })
-          .select("id")
-          .single();
-
-        if (!orderErr && order) {
-          // insert order_items
-          await supabase.from("order_items").insert(
-            items.map((item: any) => ({
-              order_id: order.id,
-              product_id: item.id,
-              name: item.name,
-              price: item.price,
-              qty: item.qty,
-            }))
-          );
-
-          // ตัดสต็อก
-          for (const item of items) {
-            await supabase.rpc("decrement_stock", {
-              product_id: item.id,
-              qty: item.qty,
-            });
-          }
-        }
-      }
-
-      console.log("✅ Shop order created for:", email);
-    }
-  }
-
-  return NextResponse.json({ ok: true });
 }
