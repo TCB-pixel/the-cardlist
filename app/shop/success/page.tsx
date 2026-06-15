@@ -1,10 +1,10 @@
 "use client";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
 
-export default function ShopSuccessPage() {
+function SuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const sessionId = searchParams.get("session_id");
@@ -54,16 +54,12 @@ export default function ShopSuccessPage() {
           </div>
         )}
         <div className="flex justify-between">
-          <span className="text-[11px] text-zinc-400">Session ID</span>
-          <span className="text-[11px] font-mono text-zinc-500">{sessionId?.slice(0, 16)}...</span>
-        </div>
-        <div className="flex justify-between">
           <span className="text-[11px] text-zinc-400">สถานะ</span>
           <span className="text-[11px] font-semibold text-green-600">✅ ชำระแล้ว</span>
         </div>
       </div>
 
-      <p className="text-xs text-zinc-400 mb-6">ทีมงานจะติดต่อกลับเพื่อยืนยันคำสั่งซื้อของคุณเร็วๆ นี้</p>
+      <p className="text-xs text-zinc-400 mb-6">ทีมงานจะติดต่อกลับเพื่อยืนยันคำสั่งซื้อเร็วๆ นี้</p>
 
       <div className="w-full max-w-xs space-y-3">
         <Link href="/profile" className="btn-primary w-full py-3.5 text-sm text-center block">
@@ -73,8 +69,19 @@ export default function ShopSuccessPage() {
           ช้อปต่อ
         </Link>
       </div>
-
       <BottomNav />
     </div>
+  );
+}
+
+export default function ShopSuccessPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-zinc-200 border-t-zinc-900 rounded-full animate-spin" />
+      </div>
+    }>
+      <SuccessContent />
+    </Suspense>
   );
 }
