@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase";
 
 const QUICK_ACTIONS = [
   { href: "/admin/products?action=add", label: "เพิ่มสินค้าใหม่", icon: "+" },
@@ -27,8 +26,6 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default function AdminDashboard() {
-  const supabase = createClient();
-
   // Event stats
   const [eventStats, setEventStats] = useState({
     generalTotal: 0,
@@ -44,43 +41,10 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     async function loadStats() {
-      // General registrations
-      const { data: genData } = await supabase
-        .from("general_registrations")
-        .select("id, pack_paid");
-
-      const generalTotal = genData?.length ?? 0;
-      const generalPaidPack = genData?.filter((g) => g.pack_paid === true).length ?? 0;
-      const generalNotPaid = generalTotal - generalPaidPack;
-
-      // Priority tickets
-      const { data: priData } = await supabase
-        .from("event_tickets")
-        .select("id, status");
-
-      const priorityApproved = priData?.filter((t) => t.status === "approved").length ?? 0;
-      const priorityPending = priData?.filter((t) => t.status === "pending").length ?? 0;
-      const priorityRejected = priData?.filter((t) => t.status === "rejected").length ?? 0;
-      const priorityTotal = priorityApproved + priorityPending;
-
-      setEventStats({
-        generalTotal,
-        generalPaidPack,
-        generalNotPaid,
-        priorityApproved,
-        priorityPending,
-        priorityRejected,
-        priorityTotal,
-      });
-
-      // Recent orders
-      const { data: orders } = await supabase
-        .from("orders")
-        .select("id, status, total_amount, created_at, profiles(username)")
-        .order("created_at", { ascending: false })
-        .limit(5);
-      setRecentOrders(orders ?? []);
-
+      const res = await fetch("/api/admin/dashboard-stats");
+      const data = await res.json();
+      if (data.eventStats) setEventStats(data.eventStats);
+      if (data.recentOrders) setRecentOrders(data.recentOrders);
       setLoadingStats(false);
     }
     loadStats();
