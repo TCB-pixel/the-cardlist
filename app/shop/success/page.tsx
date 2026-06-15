@@ -38,7 +38,7 @@ function SuccessContent() {
         </svg>
       </div>
       <h1 className="text-xl font-bold text-zinc-900 mb-2">ชำระเงินสำเร็จ!</h1>
-      <p className="text-sm text-zinc-400 mb-8">ขอบคุณที่สั่งซื้อกับ The Cardlist 🙌</p>
+      <p className="text-sm text-zinc-400 mb-8">ขอบคุณที่สั่งซื้อกับ_The Cardlist 🙌</p>
 
       <div className="bg-zinc-50 rounded-2xl p-4 w-full max-w-xs mb-6 text-left space-y-2">
         {session?.amount_total && (
