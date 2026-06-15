@@ -53,18 +53,12 @@ export async function POST(request: NextRequest) {
         .limit(1)
         .single();
 
-      // หา user จาก email ที่จ่าย
-      const email = pi.receipt_email ?? "";
-      let userId: string | null = null;
-
-      if (email) {
-        const { data: { users } } = await supabase.auth.admin.listUsers();
-        const user = users.find((u) => u.email === email);
-        if (user) userId = user.id;
-      }
+      // ดึง user_id จาก metadata
+      const userId = pi.metadata?.user_id ?? null;
+      const eventId = pi.metadata?.event_id ?? ev?.id;
 
       if (!userId) {
-        console.error("Cannot find user for email:", email);
+        console.error("Cannot find user_id in metadata");
         return NextResponse.json({ error: "User not found" }, { status: 200 });
       }
 
@@ -73,7 +67,7 @@ export async function POST(request: NextRequest) {
 
       const { error: insertErr } = await supabase.from("event_tickets").insert({
         user_id: userId,
-        event_id: ev?.id,
+        event_id: eventId,
         status: "approved",
         qr_code: qrCode,
         charge_id: pi.id,

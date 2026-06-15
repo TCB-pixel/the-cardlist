@@ -51,7 +51,9 @@ export default function PriorityTicketPage() {
           amount: PRICE,
           description: `Priority Guest Ticket - ${event?.title ?? "Event"}`,
           paymentMethod: "promptpay",
-          email: profile?.email ?? user?.email ?? "guest@thecardlist.com",
+          email: profile?.email ?? user?.email ?? undefined,
+          userId: user?.id ?? "",
+          eventId: id,
         }),
       });
       const data = await res.json();
@@ -169,7 +171,7 @@ export default function PriorityTicketPage() {
               <div className="w-8 h-8 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0"><span className="text-sm">🛍️</span></div>
               <div>
                 <p className="text-xs font-semibold text-blue-900">รับฟรี Pokemon Booster Pack M1-M5 จนกว่าของจะหมด</p>
-                <p className="text-[10px] text-blue-700 mt-0.5">ทางทีมงานจะจัดเตรียมซองมาให้รับหน้างาน</p>
+                <p className="text-[10px] text-blue-700 mt-0.5">5 ซอง ราคาป้าย</p>
               </div>
             </div>
             <div className="flex items-start gap-3 bg-zinc-50 rounded-2xl p-4">
