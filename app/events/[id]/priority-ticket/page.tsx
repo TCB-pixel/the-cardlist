@@ -28,12 +28,9 @@ export default function PriorityTicketPage() {
     async function load() {
       const { data } = await supabase.from("events").select("*").eq("id", id).single();
       setEvent(data);
-      const { count } = await supabase
-        .from("event_tickets")
-        .select("*", { count: "exact", head: true })
-        .eq("event_id", id)
-        .neq("status", "rejected");
-      setTicketsSold(count ?? 0);
+      const countRes = await fetch("/api/admin/dashboard-stats");
+      const countData = await countRes.json();
+      setTicketsSold(countData.eventStats?.priorityTotal ?? 0);
       setLoading(false);
     }
     load();
@@ -155,30 +152,37 @@ export default function PriorityTicketPage() {
           </div>
           <div className="space-y-3">
             <div className="flex items-start gap-3 bg-green-50 rounded-2xl p-4">
-              <div className="w-8 h-8 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0"><span className="text-sm">🎁</span></div>
+              <div className="w-8 h-8 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0"><span className="text-sm">✅</span></div>
               <div>
-                <p className="text-xs font-semibold text-green-900">Pokemon Booster Pack M2 JP ฟรี</p>
-                <p className="text-[10px] text-green-700 mt-0.5">รับได้หน้างาน แสดง QR Code</p>
+                <p className="text-xs font-semibold text-green-900">เข้างานฟรี ตลอดทั้ง 2 วัน (20-21 มิ.ย.)</p>
+                <p className="text-[10px] text-green-700 mt-0.5">แสดง QR Code หน้างาน</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 bg-pink-50 rounded-2xl p-4">
+              <div className="w-8 h-8 bg-pink-100 rounded-xl flex items-center justify-center flex-shrink-0"><span className="text-sm">🎁</span></div>
+              <div>
+                <p className="text-xs font-semibold text-pink-900">Pokemon Booster Pack M2 JP ฟรี</p>
+                <p className="text-[10px] text-pink-700 mt-0.5">รับได้หน้างาน แสดง QR Code</p>
               </div>
             </div>
             <div className="flex items-start gap-3 bg-blue-50 rounded-2xl p-4">
               <div className="w-8 h-8 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0"><span className="text-sm">🛍️</span></div>
               <div>
-                <p className="text-xs font-semibold text-blue-900">สิทธิ์ซื้อ Booster Pack M1-M5 ราคาป้าย 5 ซอง</p>
-                <p className="text-[10px] text-blue-700 mt-0.5">จนกว่าของจะหมด</p>
+                <p className="text-xs font-semibold text-blue-900">รับฟรี Pokemon Booster Pack M1-M5 จนกว่าของจะหมด</p>
+                <p className="text-[10px] text-blue-700 mt-0.5">ทางทีมงานจะจัดเตรียมซองมาให้รับหน้างาน</p>
               </div>
             </div>
             <div className="flex items-start gap-3 bg-zinc-50 rounded-2xl p-4">
               <div className="w-8 h-8 bg-zinc-100 rounded-xl flex items-center justify-center flex-shrink-0"><span className="text-sm">🌑</span></div>
               <div>
-                <p className="text-xs font-semibold text-zinc-900">ลุ้นซื้อ Booster Box M5A เงามืดคุกคาม ราคาป้าย</p>
+                <p className="text-xs font-semibold text-zinc-900">ลุ้นซื้อ Pokemon Booster Box M5A เงามืดคุกคาม ราคาป้าย</p>
                 <p className="text-[10px] text-zinc-600 mt-0.5">20 สิทธิ์ สุ่มหน้างาน</p>
               </div>
             </div>
             <div className="flex items-start gap-3 bg-amber-50 rounded-2xl p-4">
               <div className="w-8 h-8 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0"><span className="text-sm">⚡</span></div>
               <div>
-                <p className="text-xs font-semibold text-amber-900">ลุ้นสิทธิ์ซื้อ Pokemon ETB Ascend Heroes ฿2,190</p>
+                <p className="text-xs font-semibold text-amber-900">ลุ้นสิทธิ์ซื้อ Pokemon ETB Ascend Heroes ราคา ฿2,190</p>
                 <p className="text-[10px] text-amber-700 mt-0.5">1 สิทธิ์ สุ่มหน้างาน</p>
               </div>
             </div>
