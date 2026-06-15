@@ -37,7 +37,18 @@ export async function GET() {
     .order("created_at", { ascending: false })
     .limit(5);
 
+  // Shop revenue
+  const { data: shopOrders } = await supabase
+    .from("orders")
+    .select("total_amount, status")
+    .in("status", ["paid", "completed", "shipped"]);
+
+  const shopRevenue = shopOrders?.reduce((sum, o) => sum + (o.total_amount ?? 0), 0) ?? 0;
+  const shopOrderCount = shopOrders?.length ?? 0;
+
   return NextResponse.json({
+    shopRevenue,
+    shopOrderCount,
     eventStats: {
       generalTotal,
       generalPaidPack,

@@ -27,6 +27,7 @@ const STATUS_LABEL: Record<string, string> = {
 
 export default function AdminDashboard() {
   // Event stats
+  const [shopStats, setShopStats] = useState({ revenue: 0, orders: 0 });
   const [eventStats, setEventStats] = useState({
     generalTotal: 0,
     generalPaidPack: 0,
@@ -44,6 +45,7 @@ export default function AdminDashboard() {
       const res = await fetch("/api/admin/dashboard-stats");
       const data = await res.json();
       if (data.eventStats) setEventStats(data.eventStats);
+      if (data.shopRevenue !== undefined) setShopStats({ revenue: data.shopRevenue, orders: data.shopOrderCount ?? 0 });
       if (data.recentOrders) setRecentOrders(data.recentOrders);
       setLoadingStats(false);
     }
@@ -164,6 +166,53 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* ─── Revenue Report ─── */}
+      <div>
+        <h2 className="text-xs font-semibold text-zinc-500 tracking-widest uppercase mb-3">
+          💰 รายได้แยกตามประเภท
+        </h2>
+        <div className="grid grid-cols-3 gap-4">
+          {/* Event Revenue */}
+          <div className="bg-white border border-amber-100 rounded-2xl p-4">
+            <p className="text-[11px] text-zinc-400 font-medium mb-2">🎫 รายได้จาก Event</p>
+            <p className="text-2xl font-bold text-amber-600">
+              ฿{((eventStats.priorityApproved * 690) + (eventStats.generalPaidPack * 49)).toLocaleString()}
+            </p>
+            <div className="mt-2 space-y-0.5">
+              <p className="text-[10px] text-zinc-400">Priority ฿690 × {eventStats.priorityApproved} = ฿{(eventStats.priorityApproved * 690).toLocaleString()}</p>
+              <p className="text-[10px] text-zinc-400">Pack ฿49 × {eventStats.generalPaidPack} = ฿{(eventStats.generalPaidPack * 49).toLocaleString()}</p>
+            </div>
+          </div>
+
+          {/* Shop Revenue */}
+          <div className="bg-white border border-blue-100 rounded-2xl p-4">
+            <p className="text-[11px] text-zinc-400 font-medium mb-2">🛍️ รายได้จาก Shop</p>
+            <p className="text-2xl font-bold text-blue-600">฿{shopStats.revenue.toLocaleString()}</p>
+            <div className="mt-2">
+              <p className="text-[10px] text-zinc-400">{shopStats.orders} คำสั่งซื้อ</p>
+            </div>
+          </div>
+
+          {/* Total Revenue */}
+          <div className="bg-zinc-900 rounded-2xl p-4">
+            <p className="text-[11px] text-zinc-400 font-medium mb-2">รายได้รวมทั้งหมด</p>
+            <p className="text-2xl font-bold text-white">
+              ฿{((eventStats.priorityApproved * 690) + (eventStats.generalPaidPack * 49) + shopStats.revenue).toLocaleString()}
+            </p>
+            <div className="mt-3 space-y-1">
+              <div className="flex justify-between text-[10px]">
+                <span className="text-zinc-400">Event</span>
+                <span className="text-amber-400">฿{((eventStats.priorityApproved * 690) + (eventStats.generalPaidPack * 49)).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-[10px]">
+                <span className="text-zinc-400">Shop</span>
+                <span className="text-blue-400">฿{shopStats.revenue.toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Quick Actions */}
