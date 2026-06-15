@@ -24,12 +24,9 @@ export default function EventDetailPage() {
       const { data: ev } = await supabase.from("events").select("*").eq("id", id).single();
       setEvent(ev);
 
-      const { count } = await supabase
-        .from("event_tickets")
-        .select("*", { count: "exact", head: true })
-        .eq("event_id", id)
-        .neq("status", "rejected");
-      setTicketsSold(count ?? 0);
+      const countRes = await fetch(`/api/admin/dashboard-stats`);
+      const countData = await countRes.json();
+      setTicketsSold(countData.eventStats?.priorityTotal ?? 0);
 
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       setUser(currentUser ?? null);
@@ -101,13 +98,13 @@ export default function EventDetailPage() {
           </div>
           <div className="px-4 py-3 space-y-1.5">
             <div className="flex items-center gap-2 text-[11px] text-zinc-600">
-              <span>✅</span><span>เข้างานได้ไม่จำกัด</span>
+              <span>✅</span><span>เข้างานฟรี ตลอดทั้ง 2 วัน (20-21 มิ.ย.)</span>
             </div>
             <div className="flex items-center gap-2 text-[11px] text-zinc-600">
               <span>🛍️</span><span>สิทธิ์ซื้อ Pokemon Booster Pack M1-M5 ราคาป้าย 1 ซอง จนกว่าของจะหมด</span>
             </div>
             <div className="flex items-center gap-2 text-[11px] text-zinc-600">
-              <span>🎲</span><span>ลุ้นสิทธิ์ซื้อ Pokemon Chaos Rising ETB ราคา ฿2,190 (1 สิทธิ์)!!!</span>
+              <span>🎲</span><span>ลุ้นสิทธิ์ซื้อ Pokemon Chaos Rising ETB ราคา ฿2,190 (1 สิทธิ์)</span>
             </div>
           </div>
           <div className="px-4 pb-4">
@@ -136,10 +133,13 @@ export default function EventDetailPage() {
           </div>
           <div className="px-4 py-3 space-y-1.5">
             <div className="flex items-center gap-2 text-[11px] text-zinc-600">
+              <span>✅</span><span>เข้างานฟรี ตลอดทั้ง 2 วัน (20-21 มิ.ย.)</span>
+            </div>
+            <div className="flex items-center gap-2 text-[11px] text-zinc-600">
               <span>🎁</span><span>Pokemon Booster Pack M2 JP ฟรี</span>
             </div>
             <div className="flex items-center gap-2 text-[11px] text-zinc-600">
-              <span>🛍️</span><span>ฟรี!!!ซอง Pokemon Booster Pack M1-M5 จนกว่าของจะหมด</span>
+              <span>🛍️</span><span>รับฟรี Pokemon Booster Pack M1-M5 จนกว่าของจะหมด</span>
             </div>
             <div className="flex items-center gap-2 text-[11px] text-zinc-600">
               <span>🌑</span><span>ลุ้นซื้อ Pokemon Booster Box M5A เงามืดคุกคาม ราคาป้าย (20 สิทธิ์)</span>
