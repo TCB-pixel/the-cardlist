@@ -33,3 +33,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
+
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const sessionId = searchParams.get("session_id");
+  if (!sessionId) return NextResponse.json({ error: "No session_id" }, { status: 400 });
+
+  const stripe = getStripe();
+  try {
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    return NextResponse.json({
+      amount_total: session.amount_total,
+      customer_email: session.customer_email,
+      payment_status: session.payment_status,
+      status: session.status,
+    });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
