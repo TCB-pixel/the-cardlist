@@ -109,10 +109,28 @@ export default function EventTicketPage() {
     setError("");
     setPayLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const { data: profile } = user
-        ? await supabase.from("profiles").select("email").eq("id", user.id).single()
-        : { data: null };
+      const { data: { user }, error: userErr } = await supabase.auth.getUser();
+      if (userErr || !user) { router.push("/login"); return; }
+
+      let activeRegId = regId;
+      if (!activeRegId) {
+        const { data: existing, error: regErr } = await supabase
+          .from("general_registrations")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("event_id", id)
+          .single();
+
+        if (regErr || !existing?.id) throw new Error("ไม่พบข้อมูลการลงทะเบียน กรุณาลงทะเบียนใหม่อีกครั้ง");
+        activeRegId = existing.id;
+        setRegId(existing.id);
+      }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("email")
+        .eq("id", user.id)
+        .single();
 
       const res = await fetch("/api/stripe/charge", {
         method: "POST",
@@ -121,7 +139,19 @@ export default function EventTicketPage() {
           amount: PACK_PRICE,
           description: `General Pack - ${event?.title ?? "Event"}`,
           paymentMethod: "promptpay",
-          email: profile?.email ?? user?.email ?? "guest@thecardlist.com",
+          email: profile?.email ?? user.email ?? "guest@thecardlist.com",
+
+          // สำคัญ: webhook จะใช้ metadata นี้ในการผูก payment กับ general_registrations
+          metadata: {
+            type: "general_pack",
+            user_id: user.id,
+            reg_id: activeRegId,
+            event_id: id,
+          },
+
+          // เผื่อ endpoint เก่ายังอ่าน field แบบเดิม
+          userId: user.id,
+          eventId: id,
         }),
       });
       const data = await res.json();
@@ -136,27 +166,7 @@ export default function EventTicketPage() {
         const sd = await s.json();
         if (sd.status === "succeeded") {
           clearInterval(pollRef.current!);
-          // อัปเดต pack_paid
-          await supabase
-            .from("general_registrations")
-            .update({ pack_paid: true, pack_payment_id: data.paymentIntentId })
-            .eq("id", regId);
-          // LINE notify
-          const { data: { user: u } } = await supabase.auth.getUser();
-          if (u) {
-            const { data: prof } = await supabase.from("profiles").select("line_user_id").eq("id", u.id).single();
-            if (prof?.line_user_id) {
-              await fetch("/api/notify", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  lineUserId: prof.line_user_id,
-                  type: "broadcast",
-                  data: { message: `✅ ชำระเงินสำเร็จ!\n\n📍 งาน: ${event?.title ?? "งาน"}\n🛍️ สิทธิ์ซื้อ Booster Pack ราคาป้าย 1 ซอง\n\nแสดง QR Code หน้างานเพื่อรับสิทธิ์ครับ 🙌` },
-                }),
-              });
-            }
-          }
+          // DB และ LINE notify ให้ webhook เป็นตัวจัดการหลัก เพื่อกันปัญหาผู้ใช้ปิดหน้าก่อน poll ทำงาน
           setStep("complete");
         } else if (sd.status === "canceled" || sd.status === "requires_payment_method") {
           clearInterval(pollRef.current!);

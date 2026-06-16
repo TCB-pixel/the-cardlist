@@ -104,6 +104,78 @@ export async function POST(request: NextRequest) {
       console.log("✅ Priority ticket created:", qrCode);
     }
 
+    // ─── General Pack ───
+    else if (description.includes("General Pack") || pi.metadata?.type === "general_pack") {
+      const userId = pi.metadata?.user_id ?? null;
+      const regId = pi.metadata?.reg_id ?? null;
+      const eventId = pi.metadata?.event_id ?? null;
+
+      if (!userId || !regId) {
+        console.error("General Pack metadata missing:", { userId, regId, paymentIntentId: pi.id });
+        return NextResponse.json({ ok: true });
+      }
+
+      // กัน webhook ยิงซ้ำ / ผู้ใช้ refresh / Stripe retry
+      const { data: existingReg } = await supabase
+        .from("general_registrations")
+        .select("id, pack_paid, pack_payment_id")
+        .eq("id", regId)
+        .single();
+
+      if (existingReg?.pack_paid) {
+        console.log("General Pack already marked paid:", regId);
+        return NextResponse.json({ ok: true });
+      }
+
+      const { error: updateErr } = await supabase
+        .from("general_registrations")
+        .update({
+          pack_paid: true,
+          pack_payment_id: pi.id,
+        })
+        .eq("id", regId)
+        .eq("user_id", userId);
+
+      if (updateErr) {
+        console.error("General Pack update error:", updateErr);
+        return NextResponse.json({ error: updateErr.message }, { status: 500 });
+      }
+
+      // ส่ง LINE notify หลังชำระเงินสำเร็จ
+      const [{ data: profile }, { data: ev }] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("line_user_id")
+          .eq("id", userId)
+          .single(),
+        eventId
+          ? supabase.from("events").select("title").eq("id", eventId).single()
+          : Promise.resolve({ data: null } as any),
+      ]);
+
+      if (profile?.line_user_id) {
+        await fetch(`${process.env.NEXT_PUBLIC_SITE_URL ?? "https://thecardlistbkk.com"}/api/notify`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lineUserId: profile.line_user_id,
+            type: "broadcast",
+            data: {
+              message: `✅ ชำระเงินสำเร็จ!
+
+📍 งาน: ${ev?.title ?? "งาน"}
+🛍️ สิทธิ์ซื้อ Booster Pack ราคาป้าย 1 ซอง
+
+แสดง QR Code หน้างานเพื่อรับสิทธิ์ครับ 🙌`,
+            },
+          }),
+        });
+      }
+
+      console.log("✅ General Pack paid:", regId);
+    }
+
+
     // ─── Shop Order ───
     else if (description.includes("Shop Order") || pi.metadata?.type === "shop") {
       const email = pi.receipt_email ?? "";

@@ -1,20 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { createClient } from "@supabase/supabase-js";
 
 function getStripe() {
   return new Stripe(process.env.STRIPE_SECRET_KEY!);
 }
 
-function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-}
-
 export async function POST(request: NextRequest) {
-  const { amount, description, paymentMethod, email, userId, eventId, items } = await request.json();
+  const {
+    amount,
+    description,
+    paymentMethod,
+    email,
+    userId,
+    eventId,
+    items,
+    metadata,
+  } = await request.json();
+
   const stripe = getStripe();
 
   try {
@@ -24,6 +26,17 @@ export async function POST(request: NextRequest) {
         billing_details: { email: email ?? "guest@thecardlist.com" },
       });
 
+      const stripeMetadata: Stripe.MetadataParam = {
+        ...(metadata ?? {}),
+        type:
+          metadata?.type ??
+          (description?.includes("Priority Guest") ? "priority_ticket" : "shop"),
+        user_id: metadata?.user_id ?? userId ?? "",
+        event_id: metadata?.event_id ?? eventId ?? "",
+        reg_id: metadata?.reg_id ?? "",
+        items: metadata?.items ?? (items ? JSON.stringify(items) : ""),
+      };
+
       const paymentIntent = await stripe.paymentIntents.create({
         amount: amount * 100,
         currency: "thb",
@@ -31,13 +44,7 @@ export async function POST(request: NextRequest) {
         payment_method_types: ["promptpay"],
         description,
         receipt_email: email ?? undefined,
-        // เก็บ metadata สำคัญ
-        metadata: {
-          type: description.includes("Priority Guest") ? "priority_ticket" : "shop",
-          user_id: userId ?? "",
-          event_id: eventId ?? "",
-          items: items ? JSON.stringify(items) : "",
-        },
+        metadata: stripeMetadata,
         confirm: true,
         return_url: `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://thecardlistbkk.com"}/payment/complete`,
       });
