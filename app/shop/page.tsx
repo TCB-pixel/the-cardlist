@@ -288,10 +288,21 @@ export default function ShopPage() {
                 <button
                   onClick={async () => {
                     try {
+                      // ต้องล็อกอินก่อนชำระเงิน — webhook ใช้ user_id ผูก order
+                      const { data: { user } } = await supabase.auth.getUser();
+                      if (!user) {
+                        alert("กรุณาเข้าสู่ระบบก่อนชำระเงิน");
+                        window.location.href = "/login";
+                        return;
+                      }
+
                       const res = await fetch("/api/stripe/checkout", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
+                          type: "shop",
+                          userId: user.id,
+                          email: user.email ?? null,
                           items: cart.map(i => ({
                             id: i.id,
                             name: i.name,
@@ -303,7 +314,7 @@ export default function ShopPage() {
                       });
                       const data = await res.json();
                       if (data.url) window.location.href = data.url;
-                      else alert("เกิดข้อผิดพลาด กรุณาลองใหม่");
+                      else alert(data.error ?? "เกิดข้อผิดพลาด กรุณาลองใหม่");
                     } catch {
                       alert("เกิดข้อผิดพลาด กรุณาลองใหม่");
                     }

@@ -15,9 +15,6 @@ function getSupabase() {
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://thecardlistbkk.com";
 
-// ─────────────────────────────────────────────────────────────
-// Helper: ส่ง LINE notify (ไม่ throw ถ้า fail เพื่อไม่ให้ webhook พัง)
-// ─────────────────────────────────────────────────────────────
 async function sendLineNotify(payload: Record<string, unknown>) {
   try {
     await fetch(`${SITE_URL}/api/notify`, {
@@ -31,7 +28,7 @@ async function sendLineNotify(payload: Record<string, unknown>) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Priority Guest Ticket ฿690 (ผ่าน PaymentIntent โดยตรง)
+// Priority Guest Ticket ฿690
 // ─────────────────────────────────────────────────────────────
 async function createPriorityTicket(
   supabase: SupabaseClient,
@@ -39,7 +36,12 @@ async function createPriorityTicket(
 ) {
   const { userId, paymentId } = opts;
 
-  // กันยิงซ้ำ: ถ้ามี ticket ที่ผูก charge_id นี้แล้ว ไม่ทำซ้ำ
+  if (!userId) {
+    console.error("Priority: ไม่พบ user_id ใน metadata:", paymentId);
+    return;
+  }
+
+  // กันยิงซ้ำ
   const { data: existing } = await supabase
     .from("event_tickets")
     .select("id")
@@ -51,7 +53,6 @@ async function createPriorityTicket(
     return;
   }
 
-  // หา event ล่าสุดถ้าไม่มี event_id ส่งมา
   const { data: ev } = await supabase
     .from("events")
     .select("id, title")
@@ -59,12 +60,7 @@ async function createPriorityTicket(
     .limit(1)
     .single();
 
-  const eventId = opts.eventId ?? ev?.id ?? null;
-
-  if (!userId) {
-    console.error("Priority: ไม่พบ user_id ใน metadata:", paymentId);
-    return;
-  }
+  const eventId = opts.eventId || ev?.id || null;
 
   const qrCode = `PG-${Date.now()}-${Math.random()
     .toString(36)
@@ -106,7 +102,7 @@ async function createPriorityTicket(
 }
 
 // ─────────────────────────────────────────────────────────────
-// General Pack ฿49 (ผ่าน Checkout Session)
+// General Pack ฿49
 // ─────────────────────────────────────────────────────────────
 async function markGeneralPackPaid(
   supabase: SupabaseClient,
@@ -124,7 +120,7 @@ async function markGeneralPackPaid(
     return;
   }
 
-  // กันยิงซ้ำ / refresh / Stripe retry
+  // กันยิงซ้ำ
   const { data: existingReg } = await supabase
     .from("general_registrations")
     .select("id, pack_paid")
@@ -173,11 +169,12 @@ async function markGeneralPackPaid(
 }
 
 // ─────────────────────────────────────────────────────────────
-// Shop Order (ผ่าน Checkout Session)
+// Shop Order
 // ─────────────────────────────────────────────────────────────
 async function createShopOrder(
   supabase: SupabaseClient,
   opts: {
+    userId: string | null;
     email: string | null;
     itemsJson: string | null;
     amountTotal: number; // หน่วยสตางค์
@@ -186,7 +183,7 @@ async function createShopOrder(
 ) {
   const { email, itemsJson, amountTotal, paymentId } = opts;
 
-  // กันยิงซ้ำ: ถ้ามี order ที่ผูก payment_id นี้แล้ว ไม่ทำซ้ำ
+  // กันยิงซ้ำ
   const { data: existingOrder } = await supabase
     .from("orders")
     .select("id")
@@ -198,8 +195,9 @@ async function createShopOrder(
     return;
   }
 
-  let userId: string | null = null;
-  if (email) {
+  // หา user — ใช้ metadata.user_id ก่อน ถ้าไม่มีค่อย fallback ด้วย email
+  let userId = opts.userId || null;
+  if (!userId && email) {
     const {
       data: { users },
     } = await supabase.auth.admin.listUsers();
@@ -252,41 +250,50 @@ async function createShopOrder(
     });
   }
 
-  console.log("✅ Shop order created for:", email);
+  console.log("✅ Shop order created for:", userId);
 }
 
 // ─────────────────────────────────────────────────────────────
-// แยกประเภทแล้วเรียก handler ตาม metadata.type ของ Checkout Session
+// แยกประเภทตาม type แล้วเรียก handler ที่ตรงกัน
 // ─────────────────────────────────────────────────────────────
-async function handleCheckoutSession(
+async function routeByType(
   supabase: SupabaseClient,
-  session: Stripe.Checkout.Session
+  p: {
+    type: string;
+    userId: string | null;
+    regId: string | null;
+    eventId: string | null;
+    email: string | null;
+    itemsJson: string | null;
+    amountTotal: number;
+    paymentId: string;
+  }
 ) {
-  const type = session.metadata?.type ?? "";
-  const paymentId =
-    typeof session.payment_intent === "string"
-      ? session.payment_intent
-      : session.payment_intent?.id ?? session.id;
+  const t = (p.type || "").toLowerCase();
 
-  if (type === "general_pack") {
-    await markGeneralPackPaid(supabase, {
-      userId: session.metadata?.user_id ?? null,
-      regId: session.metadata?.reg_id ?? null,
-      eventId: session.metadata?.event_id ?? null,
-      paymentId,
+  if (t === "priority" || t === "priority_ticket") {
+    await createPriorityTicket(supabase, {
+      userId: p.userId,
+      eventId: p.eventId,
+      paymentId: p.paymentId,
     });
-  } else if (type === "shop") {
+  } else if (t === "general_pack") {
+    await markGeneralPackPaid(supabase, {
+      userId: p.userId,
+      regId: p.regId,
+      eventId: p.eventId,
+      paymentId: p.paymentId,
+    });
+  } else if (t === "shop") {
     await createShopOrder(supabase, {
-      email:
-        session.customer_details?.email ??
-        session.customer_email ??
-        null,
-      itemsJson: session.metadata?.items ?? null,
-      amountTotal: session.amount_total ?? 0,
-      paymentId,
+      userId: p.userId,
+      email: p.email,
+      itemsJson: p.itemsJson,
+      amountTotal: p.amountTotal,
+      paymentId: p.paymentId,
     });
   } else {
-    console.warn("Checkout session ไม่มี metadata.type ที่รู้จัก:", session.id, type);
+    console.warn("ไม่รู้จัก payment type:", t, p.paymentId);
   }
 }
 
@@ -310,69 +317,79 @@ export async function POST(request: NextRequest) {
 
   try {
     switch (event.type) {
-      // ── Priority Guest ฿690 (PaymentIntent โดยตรง) ──
+      // ── PaymentIntent โดยตรง (Priority ฿690 ผ่าน PromptPay QR) ──
       case "payment_intent.succeeded": {
         const pi = event.data.object as Stripe.PaymentIntent;
         const description = pi.description ?? "";
+        const type =
+          pi.metadata?.type ||
+          (description.includes("Priority Guest") ? "priority" : "");
 
-        // รับเฉพาะ Priority เท่านั้น — General/Shop ย้ายไปใช้ Checkout แล้ว
-        if (
-          description.includes("Priority Guest Ticket") ||
-          pi.metadata?.type === "priority"
-        ) {
-          await createPriorityTicket(supabase, {
-            userId: pi.metadata?.user_id ?? null,
-            eventId: pi.metadata?.event_id ?? null,
-            paymentId: pi.id,
-          });
-        }
+        await routeByType(supabase, {
+          type,
+          userId: pi.metadata?.user_id || null,
+          regId: pi.metadata?.reg_id || null,
+          eventId: pi.metadata?.event_id || null,
+          email: pi.receipt_email || null,
+          itemsJson: pi.metadata?.items || null,
+          amountTotal: pi.amount,
+          paymentId: pi.id,
+        });
         break;
       }
 
-      // ── Checkout เสร็จ: เช็ก payment_status ก่อน เพราะ PromptPay เป็น async ──
+      // ── Checkout เสร็จ: เช็ก payment_status ก่อน (PromptPay เป็น async) ──
       case "checkout.session.completed": {
-        const session = event.data.object as Stripe.Checkout.Session;
-        if (session.payment_status === "paid") {
-          await handleCheckoutSession(supabase, session);
-        } else {
-          // PromptPay ยังไม่จ่าย → รอ async_payment_succeeded
-          console.log(
-            "Checkout completed แต่ยังไม่จ่าย (รอ async):",
-            session.id,
-            session.payment_status
-          );
+        const s = event.data.object as Stripe.Checkout.Session;
+        if (s.payment_status !== "paid") {
+          console.log("Checkout completed แต่ยังไม่จ่าย (รอ async):", s.id, s.payment_status);
+          break;
         }
+        await routeByType(supabase, sessionParams(s));
         break;
       }
 
       // ── PromptPay จ่ายสำเร็จแบบ delayed ──
       case "checkout.session.async_payment_succeeded": {
-        const session = event.data.object as Stripe.Checkout.Session;
-        await handleCheckoutSession(supabase, session);
+        const s = event.data.object as Stripe.Checkout.Session;
+        await routeByType(supabase, sessionParams(s));
         break;
       }
 
       // ── PromptPay จ่ายไม่สำเร็จ / หมดเวลา ──
       case "checkout.session.async_payment_failed": {
-        const session = event.data.object as Stripe.Checkout.Session;
-        console.warn(
-          "Checkout async payment failed:",
-          session.id,
-          session.metadata?.type
-        );
-        // ปล่อยให้ลูกค้าเริ่ม checkout ใหม่ได้ ไม่ต้องอัปเดตอะไร
+        const s = event.data.object as Stripe.Checkout.Session;
+        console.warn("Checkout async payment failed:", s.id, s.metadata?.type);
         break;
       }
 
       default:
-        // event อื่นที่เรา subscribe แต่ไม่ได้ใช้
         break;
     }
   } catch (err: any) {
-    // คืน 500 เพื่อให้ Stripe retry — idempotency guard กันการทำซ้ำไว้แล้ว
+    // คืน 500 ให้ Stripe retry — idempotency guard กันทำซ้ำไว้แล้ว
     console.error("Webhook handler error:", err?.message ?? err);
     return NextResponse.json({ error: "handler failed" }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });
+}
+
+// แปลง Checkout Session → พารามิเตอร์มาตรฐานสำหรับ routeByType
+function sessionParams(s: Stripe.Checkout.Session) {
+  const paymentId =
+    typeof s.payment_intent === "string"
+      ? s.payment_intent
+      : s.payment_intent?.id ?? s.id;
+
+  return {
+    type: s.metadata?.type ?? "",
+    userId: s.metadata?.user_id || null,
+    regId: s.metadata?.reg_id || null,
+    eventId: s.metadata?.event_id || null,
+    email: s.customer_details?.email ?? s.customer_email ?? null,
+    itemsJson: s.metadata?.items || null,
+    amountTotal: s.amount_total ?? 0,
+    paymentId,
+  };
 }
