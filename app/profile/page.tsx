@@ -885,67 +885,73 @@ export default function ProfilePage() {
                 <p className="text-[11px] text-zinc-400 mt-1">ลงทะเบียนเข้างานเพื่อรับคูปองจากพาร์ทเนอร์</p>
                 <Link href="/events" className="mt-4 inline-block btn-primary px-6 py-2.5">ดูอีเวนต์</Link>
               </div>
-            ) : coupons.length === 0 ? (
-              <div className="card px-5 py-10 text-center">
-                <p className="text-sm text-zinc-400">ยังไม่มีคูปองในขณะนี้</p>
-              </div>
             ) : (
-              coupons.map((c) => {
-                const remaining = Math.max(0, (c.usage_limit || 0) - (c.used_count || 0));
-                const isFull = remaining <= 0;
-                const isUsed = c.status === "used";
-                const discount = c.discount_type === "percent" ? `${c.discount_value}%` : `฿${c.discount_value}`;
-                return (
-                  <div key={c.code} className={`card px-5 py-5 ${isUsed ? "opacity-60" : ""}`}>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-[10px] bg-pink-100 text-pink-700 px-2 py-0.5 rounded-full font-semibold">🎟️ {c.partner_name}</span>
-                      {isUsed ? (
-                        <span className="text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded-full font-semibold">ใช้แล้ว</span>
-                      ) : isFull ? (
-                        <span className="text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded-full font-semibold">สิทธิ์เต็มแล้ว</span>
+              <>
+                {/* คูปอง Photopia (ดิจิทัล · สตาฟกดใช้บนจอลูกค้า) */}
+                {coupons.map((c) => {
+                  const remaining = Math.max(0, (c.usage_limit || 0) - (c.used_count || 0));
+                  const isFull = remaining <= 0;
+                  const isUsed = c.status === "used";
+                  const discount = c.discount_type === "percent" ? `${c.discount_value}%` : `฿${c.discount_value}`;
+                  const banner = c.partner_name === "Photopia" ? "/coupons/photopia.png" : null;
+                  return (
+                    <div key={c.code} className="rounded-2xl overflow-hidden border border-zinc-200 bg-white shadow-sm">
+                      {banner ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={banner} alt={c.title} className={`w-full h-auto block ${isUsed ? "grayscale opacity-60" : ""}`} />
                       ) : (
-                        <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">เหลือ {remaining}/{c.usage_limit} สิทธิ์</span>
+                        <div className="px-5 pt-5">
+                          <span className="text-[10px] bg-pink-100 text-pink-700 px-2 py-0.5 rounded-full font-semibold">🎟️ {c.partner_name}</span>
+                          <div className="flex items-baseline gap-1.5 mt-2">
+                            <span className="text-2xl font-extrabold text-zinc-900">{discount}</span>
+                            <span className="text-xs text-zinc-400">ส่วนลด</span>
+                          </div>
+                          <p className="text-xs font-semibold text-zinc-900">{c.title}</p>
+                        </div>
                       )}
-                    </div>
 
-                    <div className="flex items-baseline gap-1.5 mb-0.5">
-                      <span className="text-2xl font-extrabold text-zinc-900">{discount}</span>
-                      <span className="text-xs text-zinc-400">ส่วนลด</span>
-                    </div>
-                    <p className="text-xs font-semibold text-zinc-900">{c.title}</p>
-                    {c.subtitle && <p className="text-[10px] text-zinc-400">{c.subtitle}</p>}
-
-                    {/* ปุ่มให้สตาฟกดใช้สิทธิ์ */}
-                    {isUsed ? (
-                      <div className="w-full mt-4 rounded-xl bg-green-50 py-3.5 flex items-center justify-center gap-2">
-                        <span className="text-green-600 text-base">✅</span>
-                        <span className="text-sm font-bold text-green-700">ใช้สิทธิ์แล้ว</span>
+                      <div className="px-4 py-3 border-t border-zinc-100">
+                        {isUsed ? (
+                          <div className="flex items-center justify-center gap-2 py-1.5">
+                            <span className="text-green-600 text-base">✅</span>
+                            <span className="text-sm font-bold text-green-700">ใช้สิทธิ์แล้ว</span>
+                          </div>
+                        ) : isFull ? (
+                          <div className="text-center text-sm font-bold text-zinc-400 py-1.5">สิทธิ์เต็ม 200 ใบแล้ว</div>
+                        ) : (
+                          <>
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-[11px] text-zinc-400">เหลือ {remaining}/{c.usage_limit} สิทธิ์</span>
+                              <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">พร้อมใช้</span>
+                            </div>
+                            <button
+                              onClick={() => redeemCoupon(c)}
+                              disabled={redeeming === c.code}
+                              className="w-full rounded-xl bg-pink-600 py-3.5 text-base font-bold text-white active:scale-[0.99] disabled:opacity-50"
+                            >
+                              {redeeming === c.code ? "กำลังใช้สิทธิ์..." : "ให้สตาฟกดใช้สิทธิ์"}
+                            </button>
+                            <p className="text-[9px] text-zinc-400 text-center mt-2">ยื่นจอนี้ให้สตาฟที่บูธ {c.partner_name} กดใช้สิทธิ์</p>
+                          </>
+                        )}
                       </div>
-                    ) : isFull ? (
-                      <div className="w-full mt-4 rounded-xl bg-zinc-100 py-3.5 text-center text-sm font-bold text-zinc-400">
-                        สิทธิ์เต็ม 200 ใบแล้ว
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => redeemCoupon(c)}
-                        disabled={redeeming === c.code}
-                        className="w-full mt-4 rounded-xl bg-pink-600 py-4 text-base font-bold text-white active:scale-[0.99] disabled:opacity-50"
-                      >
-                        {redeeming === c.code ? "กำลังใช้สิทธิ์..." : "ให้สตาฟกดใช้สิทธิ์"}
-                      </button>
-                    )}
+                    </div>
+                  );
+                })}
 
-                    <p className="text-[9px] text-zinc-400 text-center mt-2">
-                      {isUsed
-                        ? "คูปองนี้ถูกใช้ไปแล้ว"
-                        : isFull
-                        ? "สิทธิ์ถูกใช้ครบแล้ว"
-                        : `ยื่นจอนี้ให้สตาฟที่บูธ ${c.partner_name} กดใช้สิทธิ์`}
-                    </p>
-                    {c.terms && <p className="text-[9px] text-zinc-400 text-center mt-3 leading-relaxed">{c.terms}</p>}
-                  </div>
-                );
-              })
+                {/* คูปองกระดาษ (รับที่จุดลงทะเบียน · โชว์ภาพอย่างเดียว) */}
+                <div className="rounded-2xl overflow-hidden border border-zinc-200 bg-white shadow-sm">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/coupons/restaurant.jpg" alt="คูปองส่วนลดร้านอาหาร ฿100" className="w-full h-auto block" />
+                  <p className="text-[10px] text-zinc-400 text-center py-2">🧾 คูปองกระดาษ · รับได้ที่จุดลงทะเบียนหน้างาน</p>
+                </div>
+
+                <div className="rounded-2xl overflow-hidden border border-zinc-200 bg-white shadow-sm">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/coupons/loft.jpg" alt="LOFT ส่วนลด ฿200" className="w-full h-auto block" />
+                  <p className="text-[10px] text-zinc-400 text-center py-2">🧾 คูปองกระดาษ · รับได้ที่จุดลงทะเบียนหน้างาน</p>
+                </div>
+              </>
             )}
           </div>
         )}
