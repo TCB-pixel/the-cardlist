@@ -14,7 +14,7 @@ export default function EventTicketPage() {
 
   const [event, setEvent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [step, setStep] = useState<"info" | "done" | "pack" | "qr" | "complete">("info");
+  const [step, setStep] = useState<"info" | "done" | "qr" | "complete">("info");
   const [registering, setRegistering] = useState(false);
   const [error, setError] = useState("");
   const [qrCode, setQrCode] = useState("");
@@ -171,7 +171,7 @@ export default function EventTicketPage() {
         } else if (sd.status === "canceled" || sd.status === "requires_payment_method") {
           clearInterval(pollRef.current!);
           setError("การชำระเงินล้มเหลว กรุณาลองใหม่");
-          setStep("pack");
+          setStep("done");
         }
       }, 3000);
     } catch (err: any) {
@@ -201,22 +201,26 @@ export default function EventTicketPage() {
       <div className="w-full max-w-xs space-y-3 mb-6">
         <p className="text-sm font-semibold text-zinc-700 text-left">ต้องการใช้สิทธิ์ซื้อ Booster Pack ราคาป้ายตอนนี้ไหม?</p>
 
+        {error && <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3 text-left"><p className="text-[11px] text-red-600">{error}</p></div>}
+
         <button
-          onClick={() => setStep("pack")}
-          className="w-full border-2 border-zinc-900 rounded-2xl p-4 flex items-center gap-4 hover:bg-zinc-50 transition-all">
+          onClick={handleBuyPack}
+          disabled={payLoading}
+          className={`w-full border-2 border-zinc-900 rounded-2xl p-4 flex items-center gap-4 transition-all ${payLoading ? "opacity-50 cursor-not-allowed" : "hover:bg-zinc-50"}`}>
           <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center flex-shrink-0">
             <span className="text-xl">🛍️</span>
           </div>
           <div className="text-left flex-1">
             <p className="text-sm font-semibold text-zinc-900">ซื้อ Booster Pack ราคาป้าย</p>
-            <p className="text-[11px] text-zinc-400">จ่าย ฿49 ผ่าน PromptPay ตอนนี้เลย</p>
+            <p className="text-[11px] text-zinc-400">{payLoading ? "กำลังสร้าง QR PromptPay..." : "จ่าย ฿49 ผ่าน PromptPay ตอนนี้เลย"}</p>
           </div>
           <span className="text-sm font-bold text-zinc-900">฿49</span>
         </button>
 
         <button
           onClick={() => router.push("/profile")}
-          className="w-full border border-zinc-200 rounded-2xl p-4 flex items-center gap-4 hover:bg-zinc-50 transition-all">
+          disabled={payLoading}
+          className={`w-full border border-zinc-200 rounded-2xl p-4 flex items-center gap-4 transition-all ${payLoading ? "opacity-40 cursor-not-allowed" : "hover:bg-zinc-50"}`}>
           <div className="w-10 h-10 bg-zinc-50 rounded-xl flex items-center justify-center flex-shrink-0">
             <span className="text-xl">⏭️</span>
           </div>
@@ -224,50 +228,6 @@ export default function EventTicketPage() {
             <p className="text-sm font-semibold text-zinc-700">ไม่ซื้อตอนนี้</p>
             <p className="text-[11px] text-zinc-400">ยังซื้อได้หน้างานวันจริง</p>
           </div>
-        </button>
-      </div>
-      <BottomNav />
-    </div>
-  );
-
-  // ─── PACK — ยืนยันซื้อ ───
-  if (step === "pack") return (
-    <div className="min-h-screen bg-white flex flex-col pb-20">
-      <header className="sticky top-0 z-40 bg-white border-b border-zinc-100 flex items-center gap-3 px-4 h-12">
-        <button onClick={() => setStep("done")} className="text-zinc-400">
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-            <path d="M12 5l-5 5 5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </button>
-        <span className="text-sm font-semibold text-zinc-900">ซื้อ Booster Pack ราคาป้าย</span>
-      </header>
-      <div className="px-5 py-6 flex-1 space-y-4">
-        <div className="bg-blue-50 rounded-2xl p-4">
-          <p className="text-sm font-bold text-blue-900">🛍️ Pokemon Booster Pack ราคาป้าย 1 ซอง</p>
-          <p className="text-[11px] text-blue-700 mt-1">รับหน้างาน แสดง QR Code ที่ Staff</p>
-        </div>
-        <div className="bg-zinc-50 rounded-2xl p-4 space-y-2">
-          <div className="flex justify-between text-[11px]">
-            <span className="text-zinc-400">งาน</span>
-            <span className="font-semibold text-zinc-900">{event?.title}</span>
-          </div>
-          <div className="flex justify-between text-[11px]">
-            <span className="text-zinc-400">สินค้า</span>
-            <span className="font-semibold text-zinc-900">Booster Pack ราคาป้าย 1 ซอง</span>
-          </div>
-          <div className="flex justify-between text-sm font-bold">
-            <span className="text-zinc-700">ยอดชำระ</span>
-            <span className="text-zinc-900">฿{PACK_PRICE}</span>
-          </div>
-        </div>
-
-        {error && <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3"><p className="text-[11px] text-red-600">{error}</p></div>}
-
-        <button
-          onClick={handleBuyPack}
-          disabled={payLoading}
-          className={`btn-primary w-full py-3.5 text-sm ${payLoading ? "opacity-50 cursor-not-allowed" : ""}`}>
-          {payLoading ? "กำลังสร้าง QR..." : `จ่าย ฿${PACK_PRICE} ผ่าน PromptPay`}
         </button>
       </div>
       <BottomNav />
