@@ -132,10 +132,10 @@ export default function AdminTicketsPage() {
   }
 
   const TABS: { key: typeof filter; label: string; count: number }[] = [
+    { key: "all", label: "ทั้งหมด", count: counts.all },
     { key: "pending", label: "รอยืนยัน", count: counts.pending },
     { key: "approved", label: "อนุมัติแล้ว", count: counts.approved },
     { key: "rejected", label: "ปฏิเสธ", count: counts.rejected },
-    { key: "all", label: "ทั้งหมด", count: counts.all },
   ];
 
   return (
@@ -191,7 +191,9 @@ export default function AdminTicketsPage() {
               {loading ? (
                 <tr><td colSpan={7} className="px-4 py-16 text-center text-sm text-zinc-400">กำลังโหลด...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-16 text-center text-sm text-zinc-400">ไม่มีรายการ</td></tr>
+                <tr><td colSpan={7} className="px-4 py-16 text-center text-sm text-zinc-400">
+                  {filter === "all" ? "ไม่มีรายการ" : `ไม่มีรายการในสถานะ "${STATUS_LABEL[filter] ?? filter}"`}
+                </td></tr>
               ) : (
                 filtered.map((r) => (
                   <tr key={`${r.source}-${r.id}`} className="border-b border-zinc-50 last:border-0 hover:bg-zinc-50/50">
