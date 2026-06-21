@@ -7,7 +7,8 @@ import { NextResponse } from "next/server";
 // วางไฟล์: app/api/admin/tickets/route.ts
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ALLOWED_ROLES = ["owner", "admin", "staff", "moderator"];
+// ตารางทีมงานที่เป็นไปได้ (เผื่อ schema ต่างเวอร์ชัน) — เป็นทีมงานก็เข้าได้หมด ทุก role
+const ADMIN_TABLES = ["admin_staff", "admin_users"];
 
 function svc() {
   return createClient(
@@ -19,7 +20,22 @@ function svc() {
 
 type Svc = ReturnType<typeof svc>;
 
-// ตรวจสิทธิ์: รับ access_token จาก Authorization: Bearer แล้วเช็ค role ใน profiles
+// เช็คว่าเป็นทีมงานไหม — match ด้วย id หรือ email, active ต้องไม่เป็น false
+async function isTeamMember(supabase: Svc, userId: string, email?: string | null): Promise<boolean> {
+  const filters = [`id.eq.${userId}`];
+  if (email) filters.push(`email.eq.${email}`);
+  const orFilter = filters.join(",");
+
+  for (const table of ADMIN_TABLES) {
+    const { data, error } = await supabase.from(table).select("*").or(orFilter).limit(1);
+    if (error) continue;              // ตารางไม่มี/คอลัมน์ไม่ตรง → ลองตารางถัดไป
+    const row: any = data?.[0];
+    if (row && row.active !== false) return true;   // เจอ และไม่ได้ถูกปิดใช้งาน
+  }
+  return false;
+}
+
+// ตรวจสิทธิ์: รับ access_token จาก Authorization: Bearer แล้วเช็คว่าอยู่ในทีมงาน
 async function getAdminUser(
   req: Request,
   supabase: Svc
@@ -31,11 +47,9 @@ async function getAdminUser(
   const { data: { user }, error } = await supabase.auth.getUser(token);
   if (error || !user) return { ok: false, res: NextResponse.json({ error: "unauthorized" }, { status: 401 }) };
 
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  const role = String(profile?.role || "").toLowerCase();
-  if (!ALLOWED_ROLES.includes(role)) {
-    return { ok: false, res: NextResponse.json({ error: "forbidden" }, { status: 403 }) };
-  }
+  const allowed = await isTeamMember(supabase, user.id, user.email);
+  if (!allowed) return { ok: false, res: NextResponse.json({ error: "forbidden" }, { status: 403 }) };
+
   return { ok: true, userId: user.id };
 }
 

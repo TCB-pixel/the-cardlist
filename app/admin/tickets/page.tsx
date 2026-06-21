@@ -53,7 +53,15 @@ export default function AdminTicketsPage() {
     try {
       const res = await fetch("/api/admin/tickets", { headers: await authHeader() });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error === "forbidden" ? "บัญชีนี้ไม่มีสิทธิ์ (role ไม่ใช่ owner/admin/staff)" : data.error || "โหลดข้อมูลไม่สำเร็จ");
+      if (!res.ok) {
+        const msg =
+          data.error === "forbidden"
+            ? "บัญชีนี้ไม่อยู่ในรายชื่อทีมงาน (admin_staff) หรือถูกปิดใช้งาน"
+            : data.error === "unauthorized"
+            ? "เซสชันหมดอายุ — กรุณาเข้าสู่ระบบใหม่"
+            : data.error || "โหลดข้อมูลไม่สำเร็จ";
+        throw new Error(msg);
+      }
       setRows(data.tickets ?? []);
     } catch (e: any) {
       setErr(e?.message ?? "เกิดข้อผิดพลาด");
