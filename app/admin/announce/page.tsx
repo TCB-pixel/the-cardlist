@@ -27,7 +27,6 @@ type SavedWinner = { key: string; name: string; prize: string };
 const LS_WINNERS = "cardlist:lastWinners";
 
 const TEMPLATES = [
-  { label: "ใกล้เริ่มกิจกรรม", text: "📢 The Cardlist 2nd Meetup\nอีก 15 นาทีจะเริ่มกิจกรรมบนเวทีแล้ว มารวมตัวกันที่หน้าเวทีได้เลยครับ!" },
   { label: "ประกาศผู้โชคดี", text: "🎉 ยินดีด้วยครับ! คุณเป็นผู้โชคดีจากการสุ่มรางวัลใน The Cardlist 2nd Meetup\nรับรางวัลได้ที่จุดลงทะเบียน แสดงข้อความนี้กับทีมงานได้เลย" },
   { label: "ขอบคุณหลังจบงาน", text: "ขอบคุณที่มาร่วมงาน The Cardlist 2nd Meetup นะครับ 🙏\nแล้วพบกันใหม่ครั้งหน้า ติดตามข่าวสารได้ที่เพจของเราเลย!" },
 ];
