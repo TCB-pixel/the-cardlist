@@ -64,6 +64,9 @@ export async function GET(req: Request) {
     supabase.from("general_registrations").select("*").order("created_at", { ascending: false }),
   ]);
 
+  if (priRes.error) console.error("event_tickets error:", priRes.error.message);
+  if (genRes.error) console.error("general_registrations error:", genRes.error.message);
+
   const priRows: any[] = priRes.data ?? [];
   const genRows: any[] = genRes.data ?? [];
 
@@ -71,17 +74,29 @@ export async function GET(req: Request) {
   const userIds = Array.from(new Set([...priRows, ...genRows].map((r) => r.user_id).filter(Boolean)));
   const eventIds = Array.from(new Set([...priRows, ...genRows].map((r) => r.event_id).filter(Boolean)));
 
-  const [profilesRes, eventsRes] = await Promise.all([
-    userIds.length
-      ? supabase.from("profiles").select("id, username, display_name, avatar_url, line_user_id, email").in("id", userIds)
-      : Promise.resolve({ data: [] as any[] }),
-    eventIds.length
-      ? supabase.from("events").select("id, title, date").in("id", eventIds)
-      : Promise.resolve({ data: [] as any[] }),
+  // ดึงเป็น batch ละ 200 กัน URL ยาวเกินลิมิตเมื่อมีผู้ใช้จำนวนมาก
+  async function fetchIn(table: string, cols: string, ids: string[]) {
+    const out: any[] = [];
+    for (let i = 0; i < ids.length; i += 200) {
+      const chunk = ids.slice(i, i + 200);
+      const { data, error } = await supabase.from(table).select(cols).in("id", chunk);
+      if (error) {
+        console.error(`enrich ${table} error:`, error.message); // เห็นได้ใน server log ถ้าพัง
+        continue;
+      }
+      if (data) out.push(...data);
+    }
+    return out;
+  }
+
+  // หมายเหตุ: ตัด "email" ออก เพราะ profiles ไม่มีคอลัมน์นี้ (email อยู่ที่ auth.users)
+  const [profilesData, eventsData] = await Promise.all([
+    userIds.length ? fetchIn("profiles", "id, username, display_name, avatar_url, line_user_id", userIds) : Promise.resolve([] as any[]),
+    eventIds.length ? fetchIn("events", "id, title, date", eventIds) : Promise.resolve([] as any[]),
   ]);
 
-  const pMap = new Map((profilesRes.data ?? []).map((p: any) => [p.id, p]));
-  const eMap = new Map((eventsRes.data ?? []).map((e: any) => [e.id, e]));
+  const pMap = new Map(profilesData.map((p: any) => [p.id, p]));
+  const eMap = new Map(eventsData.map((e: any) => [e.id, e]));
 
   const norm = (r: any, source: "priority" | "general") => {
     const p: any = pMap.get(r.user_id) || {};
@@ -96,7 +111,7 @@ export async function GET(req: Request) {
       event_id: r.event_id,
       display_name: p.display_name || p.username || "—",
       username: p.username || "",
-      email: p.email || "",
+      email: "",
       avatar_url: p.avatar_url || "",
       line_user_id: p.line_user_id || "",
       line_linked: !!p.line_user_id,
