@@ -1,21 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { createClient } from "@supabase/supabase-js";
 
 function getStripe() {
   return new Stripe(process.env.STRIPE_SECRET_KEY!);
 }
 
-function getAdminSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  );
-}
-
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://thecardlistbkk.com";
+
+// GET — ใช้โดยหน้า /shop/success เพื่อแสดงสรุปคำสั่งซื้อ
+export async function GET(request: NextRequest) {
+  try {
+    const sessionId = request.nextUrl.searchParams.get("session_id");
+    if (!sessionId) {
+      return NextResponse.json({ error: "missing session_id" }, { status: 400 });
+    }
+    const stripe = getStripe();
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    return NextResponse.json({
+      amount_total: session.amount_total,
+      customer_email:
+        session.customer_details?.email ?? session.customer_email ?? null,
+      payment_status: session.payment_status,
+    });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,47 +43,16 @@ export async function POST(request: NextRequest) {
     }
 
     const stripe = getStripe();
-    const supabase = getAdminSupabase();
 
-    // ราคารวม (บาท)
-    const subtotalBaht = items.reduce(
-      (sum: number, it: any) => sum + Number(it.price) * Number(it.qty),
-      0
-    );
-
-    // 1) สร้างออเดอร์สถานะ pending ไว้ก่อน (กันปัญหา metadata 500 ตัวอักษรของ Stripe)
-    const { data: order, error: orderErr } = await supabase
-      .from("orders")
-      .insert({
-        user_id: userId,
-        email,
-        amount_total: subtotalBaht * 100, // เก็บเป็นสตางค์
-        currency: "thb",
-        status: "pending",
-        payment_status: "unpaid",
-      })
-      .select("id")
-      .single();
-
-    if (orderErr || !order) {
-      return NextResponse.json(
-        { error: "สร้างคำสั่งซื้อไม่สำเร็จ: " + (orderErr?.message ?? "") },
-        { status: 500 }
-      );
-    }
-
-    // 2) บันทึกรายการสินค้าในออเดอร์
-    const itemRows = items.map((it: any) => ({
-      order_id: order.id,
-      product_id: it.id ?? null,
+    // เก็บ items แบบกระชับลง metadata (Stripe จำกัด 500 ตัวอักษร/ฟิลด์)
+    const compactItems = items.map((it: any) => ({
+      id: it.id,
       name: it.name,
-      price: Number(it.price), // บาท
+      price: Number(it.price),
       qty: Number(it.qty),
-      image_url: it.image_url ?? null,
     }));
-    await supabase.from("order_items").insert(itemRows);
+    const itemsJson = JSON.stringify(compactItems);
 
-    // 3) สร้าง Stripe Checkout Session พร้อม "เก็บที่อยู่จัดส่ง"
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card", "promptpay"],
@@ -94,25 +74,13 @@ export async function POST(request: NextRequest) {
       phone_number_collection: { enabled: true },
       metadata: {
         type: "shop",
-        order_id: order.id,
         user_id: userId ?? "",
         email: email ?? "",
-      },
-      payment_intent_data: {
-        metadata: {
-          type: "shop",
-          order_id: order.id,
-        },
+        items: itemsJson,
       },
       success_url: `${SITE_URL}/shop/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${SITE_URL}/shop`,
     });
-
-    // 4) ผูก session id กับออเดอร์
-    await supabase
-      .from("orders")
-      .update({ stripe_session_id: session.id })
-      .eq("id", order.id);
 
     return NextResponse.json({ url: session.url });
   } catch (err: any) {
