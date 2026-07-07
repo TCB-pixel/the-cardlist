@@ -1,118 +1,206 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase";
 
-const STATUSES = ["ทั้งหมด", "pending", "paid", "shipped", "completed", "cancelled"];
-const STATUS_LABEL: Record<string, string> = { pending: "รอชำระ", paid: "ชำระแล้ว", shipped: "จัดส่งแล้ว", completed: "สำเร็จ", cancelled: "ยกเลิก" };
-const STATUS_STYLE: Record<string, string> = { pending: "bg-amber-50 text-amber-700", paid: "bg-blue-50 text-blue-700", shipped: "bg-indigo-50 text-indigo-700", completed: "bg-green-50 text-green-700", cancelled: "bg-red-50 text-red-700" };
+type OrderItem = {
+  id: string;
+  name: string;
+  price: number;
+  qty: number;
+};
 
-const ORDERS = [
-  { id: "ORD-2401", member: "thanakorn_c", email: "thanakorn@email.com", item: "Charizard ex SAR × 1", total: 1850, status: "completed", date: "15 เม.ย. 2026" },
-  { id: "ORD-2400", member: "somchai_p", email: "somchai@email.com", item: "Booster Box OP-10 × 1", total: 3200, status: "pending", date: "15 เม.ย. 2026" },
-  { id: "ORD-2399", member: "nattaya_w", email: "nattaya@email.com", item: "Monkey D. Luffy SEC × 1", total: 4200, status: "shipped", date: "14 เม.ย. 2026" },
-  { id: "ORD-2398", member: "priya_k", email: "priya@email.com", item: "Black Lotus LP × 1", total: 120000, status: "pending", date: "13 เม.ย. 2026" },
-  { id: "ORD-2397", member: "alex_t", email: "alex@email.com", item: "Oko Foil × 1", total: 4500, status: "completed", date: "12 เม.ย. 2026" },
-  { id: "ORD-2396", member: "wirut_s", email: "wirut@email.com", item: "Son Goku SPR × 2", total: 1780, status: "shipped", date: "12 เม.ย. 2026" },
-  { id: "ORD-2395", member: "mana_p", email: "mana@email.com", item: "Booster Box SV8a × 1", total: 2800, status: "paid", date: "11 เม.ย. 2026" },
-];
+type Order = {
+  id: string;
+  created_at: string;
+  email: string | null;
+  total_amount: number;
+  status: string;
+  payment_id: string | null;
+  recipient_name: string | null;
+  phone: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
+  district: string | null;
+  province: string | null;
+  postal_code: string | null;
+  tracking_no: string | null;
+  order_items: OrderItem[];
+};
+
+const STATUS_LABEL: Record<string, { text: string; cls: string }> = {
+  paid:      { text: "รอจัดส่ง",   cls: "bg-amber-100 text-amber-700" },
+  shipped:   { text: "จัดส่งแล้ว", cls: "bg-green-100 text-green-700" },
+  cancelled: { text: "ยกเลิก",     cls: "bg-zinc-100 text-zinc-500" },
+  pending:   { text: "รอชำระ",    cls: "bg-zinc-100 text-zinc-500" },
+};
 
 export default function AdminOrdersPage() {
-  const [orders, setOrders] = useState(ORDERS);
-  const [filterStatus, setFilterStatus] = useState("ทั้งหมด");
-  const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState<string | null>(null);
+  const supabase = createClient();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+  const [filter, setFilter] = useState<string>("all");
+  const [trackingDraft, setTrackingDraft] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState<string | null>(null);
 
-  const filtered = orders.filter((o) => {
-    if (filterStatus !== "ทั้งหมด" && o.status !== filterStatus) return false;
-    if (search && !o.id.toLowerCase().includes(search.toLowerCase()) && !o.member.toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
-  });
-
-  function updateStatus(id: string, status: string) {
-    setOrders((prev) => prev.map((o) => o.id === id ? { ...o, status } : o));
-    setSelected(null);
+  async function authedFetch(input: string, init?: RequestInit) {
+    const { data: { session } } = await supabase.auth.getSession();
+    return fetch(input, {
+      ...init,
+      headers: {
+        ...(init?.headers ?? {}),
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session?.access_token ?? ""}`,
+      },
+    });
   }
 
-  const selectedOrder = orders.find((o) => o.id === selected);
+  async function load() {
+    setLoading(true);
+    setErr(null);
+    try {
+      const res = await authedFetch("/api/admin/orders");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "โหลดไม่สำเร็จ");
+      setOrders(data.orders ?? []);
+    } catch (e: any) {
+      setErr(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { load(); }, []);
+
+  async function markShipped(o: Order) {
+    const tracking = (trackingDraft[o.id] ?? o.tracking_no ?? "").trim();
+    setSaving(o.id);
+    try {
+      const res = await authedFetch("/api/admin/orders", {
+        method: "PATCH",
+        body: JSON.stringify({ orderId: o.id, status: "shipped", tracking_no: tracking }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "บันทึกไม่สำเร็จ");
+      await load();
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  const filtered = orders.filter((o) => filter === "all" || o.status === filter);
 
   return (
-    <div className="p-6">
-      {/* Toolbar */}
-      <div className="flex items-center gap-3 mb-5">
-        <div className="flex items-center gap-2 bg-white border border-zinc-200 rounded-xl px-3 py-2 w-60">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="#a1a1aa" strokeWidth="1.2"/><line x1="9.5" y1="9.5" x2="12.5" y2="12.5" stroke="#a1a1aa" strokeWidth="1.2" strokeLinecap="round"/></svg>
-          <input className="bg-transparent text-xs text-zinc-700 placeholder-zinc-400 flex-1 outline-none" placeholder="ค้นหา Order ID, สมาชิก..." value={search} onChange={(e) => setSearch(e.target.value)} />
-        </div>
-        <div className="flex gap-1.5">
-          {STATUSES.map((s) => (
-            <button key={s} onClick={() => setFilterStatus(s)}
-              className={`text-[10px] px-3 py-1.5 rounded-full border font-semibold transition-colors ${filterStatus === s ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 text-zinc-500 bg-white hover:bg-zinc-50"}`}>
-              {s === "ทั้งหมด" ? "ทั้งหมด" : STATUS_LABEL[s]}
-            </button>
-          ))}
-        </div>
+    <div className="p-6 max-w-5xl">
+      <div className="flex items-center justify-between mb-1">
+        <h1 className="text-lg font-bold text-zinc-900">คำสั่งซื้อ</h1>
+        <button onClick={load} className="text-xs text-zinc-500 border border-zinc-200 rounded-lg px-3 py-1.5">
+          ↻ รีเฟรช
+        </button>
+      </div>
+      <p className="text-xs text-zinc-400 mb-4">{orders.length} รายการทั้งหมด</p>
+
+      {/* Filter */}
+      <div className="flex gap-2 mb-4">
+        {[
+          ["all", "ทั้งหมด"],
+          ["paid", "รอจัดส่ง"],
+          ["shipped", "จัดส่งแล้ว"],
+          ["cancelled", "ยกเลิก"],
+        ].map(([key, label]) => (
+          <button key={key} onClick={() => setFilter(key)}
+            className={`text-[11px] px-3 py-1.5 rounded-full border transition-colors ${
+              filter === key ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 text-zinc-500 bg-white"
+            }`}>
+            {label}
+          </button>
+        ))}
       </div>
 
-      <div className="bg-white border border-zinc-100 rounded-2xl overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="bg-zinc-50 border-b border-zinc-100">
-              {["Order ID", "สมาชิก", "สินค้า", "ยอด", "วันที่", "สถานะ", ""].map((h) => (
-                <th key={h} className="text-left text-[10px] font-semibold text-zinc-400 tracking-widest uppercase px-5 py-3">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((o) => (
-              <tr key={o.id} className="border-b border-zinc-50 hover:bg-zinc-50 last:border-none">
-                <td className="px-5 py-3.5 text-xs font-mono font-semibold text-zinc-700">{o.id}</td>
-                <td className="px-5 py-3.5">
-                  <p className="text-xs font-medium text-zinc-900">@{o.member}</p>
-                  <p className="text-[10px] text-zinc-400">{o.email}</p>
-                </td>
-                <td className="px-5 py-3.5 text-xs text-zinc-700">{o.item}</td>
-                <td className="px-5 py-3.5 text-xs font-bold text-zinc-900">฿{o.total.toLocaleString()}</td>
-                <td className="px-5 py-3.5 text-xs text-zinc-500">{o.date}</td>
-                <td className="px-5 py-3.5">
-                  <span className={`text-[9px] font-bold px-2 py-1 rounded-full ${STATUS_STYLE[o.status]}`}>{STATUS_LABEL[o.status]}</span>
-                </td>
-                <td className="px-5 py-3.5">
-                  <button onClick={() => setSelected(o.id)} className="text-xs text-zinc-500 border border-zinc-200 rounded-lg px-2.5 py-1 hover:bg-zinc-50">จัดการ</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {err && (
+        <div className="bg-red-50 border border-red-100 text-red-600 text-xs rounded-xl p-3 mb-4">
+          {err}
+        </div>
+      )}
 
-      {/* Order detail modal */}
-      {selectedOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setSelected(null)} />
-          <div className="relative bg-white rounded-2xl w-full max-w-md mx-4">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100">
-              <h3 className="text-sm font-bold text-zinc-900">{selectedOrder.id}</h3>
-              <button onClick={() => setSelected(null)} className="text-zinc-400 text-lg">✕</button>
-            </div>
-            <div className="px-6 py-4 space-y-3">
-              {[["สมาชิก", `@${selectedOrder.member}`], ["อีเมล", selectedOrder.email], ["สินค้า", selectedOrder.item], ["ยอดรวม", `฿${selectedOrder.total.toLocaleString()}`], ["วันที่", selectedOrder.date]].map(([k, v]) => (
-                <div key={k} className="flex justify-between">
-                  <span className="text-xs text-zinc-400">{k}</span>
-                  <span className="text-xs font-semibold text-zinc-900">{v}</span>
+      {loading ? (
+        <p className="text-sm text-zinc-400 py-10 text-center">กำลังโหลด...</p>
+      ) : filtered.length === 0 ? (
+        <p className="text-sm text-zinc-400 py-10 text-center">ไม่มีคำสั่งซื้อ</p>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map((o) => {
+            const st = STATUS_LABEL[o.status] ?? { text: o.status, cls: "bg-zinc-100 text-zinc-500" };
+            return (
+              <div key={o.id} className="bg-white border border-zinc-100 rounded-2xl p-4">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <p className="text-xs font-mono text-zinc-400">#{o.id.slice(0, 8)}</p>
+                    <p className="text-[11px] text-zinc-400">
+                      {new Date(o.created_at).toLocaleString("th-TH")}
+                    </p>
+                  </div>
+                  <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-full ${st.cls}`}>
+                    {st.text}
+                  </span>
                 </div>
-              ))}
-              <div>
-                <p className="text-xs text-zinc-400 mb-2">อัปเดตสถานะ</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {["pending", "paid", "shipped", "completed", "cancelled"].map((s) => (
-                    <button key={s} onClick={() => updateStatus(selectedOrder.id, s)}
-                      className={`text-xs py-2 rounded-xl border font-semibold transition-colors ${selectedOrder.status === s ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"}`}>
-                      {STATUS_LABEL[s]}
-                    </button>
+
+                {/* Items */}
+                <div className="border-t border-zinc-50 pt-2 space-y-1">
+                  {(o.order_items ?? []).map((it) => (
+                    <div key={it.id} className="flex justify-between text-xs">
+                      <span className="text-zinc-700">{it.name} <span className="text-zinc-400">×{it.qty}</span></span>
+                      <span className="text-zinc-500">฿{(Number(it.price) * it.qty).toLocaleString()}</span>
+                    </div>
                   ))}
+                  <div className="flex justify-between text-xs font-bold pt-1">
+                    <span>รวม</span>
+                    <span>฿{Number(o.total_amount).toLocaleString()}</span>
+                  </div>
                 </div>
+
+                {/* Shipping address */}
+                <div className="bg-zinc-50 rounded-xl p-3 mt-3 text-xs leading-relaxed">
+                  <p className="font-semibold text-zinc-700 mb-0.5">📦 ที่อยู่จัดส่ง</p>
+                  {o.recipient_name || o.address_line1 ? (
+                    <p className="text-zinc-600">
+                      {o.recipient_name}<br />
+                      {o.address_line1} {o.address_line2}<br />
+                      {o.district} {o.province} {o.postal_code}<br />
+                      โทร {o.phone ?? "-"} • {o.email ?? "-"}
+                    </p>
+                  ) : (
+                    <p className="text-red-500">⚠ ไม่มีที่อยู่ (ออเดอร์เก่าก่อนเปิดฟอร์ม — ติดต่อลูกค้า: {o.email ?? "ไม่มีอีเมล"})</p>
+                  )}
+                </div>
+
+                {/* Actions */}
+                {o.status === "paid" && (
+                  <div className="flex gap-2 mt-3">
+                    <input
+                      type="text"
+                      placeholder="เลขพัสดุ (ถ้ามี)"
+                      className="flex-1 text-xs border border-zinc-200 rounded-lg px-3 py-2 outline-none"
+                      value={trackingDraft[o.id] ?? o.tracking_no ?? ""}
+                      onChange={(e) => setTrackingDraft((d) => ({ ...d, [o.id]: e.target.value }))}
+                    />
+                    <button
+                      onClick={() => markShipped(o)}
+                      disabled={saving === o.id}
+                      className="text-xs bg-zinc-900 text-white rounded-lg px-4 py-2 disabled:opacity-40">
+                      {saving === o.id ? "กำลังบันทึก..." : "✓ จัดส่งแล้ว"}
+                    </button>
+                  </div>
+                )}
+                {o.status === "shipped" && o.tracking_no && (
+                  <p className="text-[11px] text-zinc-500 mt-2">🚚 เลขพัสดุ: <span className="font-mono">{o.tracking_no}</span></p>
+                )}
               </div>
-            </div>
-          </div>
+            );
+          })}
         </div>
       )}
     </div>

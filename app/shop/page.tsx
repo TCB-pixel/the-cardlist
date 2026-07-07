@@ -69,6 +69,20 @@ export default function ShopPage() {
   const [showCart, setShowCart]           = useState(false);
   const [toast, setToast]                 = useState<string | null>(null);
 
+  // ── ตะกร้าค้างไว้แม้ refresh (localStorage) ──
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("cardlist_cart");
+      if (saved) setCart(JSON.parse(saved));
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("cardlist_cart", JSON.stringify(cart));
+    } catch { /* ignore */ }
+  }, [cart]);
+
   // ── Fetch products from Supabase ──
   useEffect(() => {
     async function load() {
@@ -89,8 +103,11 @@ export default function ShopPage() {
     return products.filter((p) => {
       if (activeTab !== "All" && p.tcg !== activeTab) return false;
       if (activeCategory !== "ทั้งหมด" && p.category !== activeCategory) return false;
-      if (search && !p.name.toLowerCase().includes(search.toLowerCase()) &&
-          !p.sub.toLowerCase().includes(search.toLowerCase())) return false;
+      if (search) {
+        const q = search.toLowerCase();
+        const hay = `${p.name ?? ""} ${p.sub ?? ""}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
       return true;
     }).sort((a, b) => {
       if (sort === "price_asc")  return a.price - b.price;
@@ -106,7 +123,10 @@ export default function ShopPage() {
   function addToCart(p: Product) {
     setCart((prev) => {
       const ex = prev.find((i) => i.id === p.id);
-      if (ex) return prev.map((i) => i.id === p.id ? { ...i, qty: i.qty + 1 } : i);
+      if (ex) {
+        if (ex.qty >= p.stock) return prev; // ห้ามเกินสต็อก
+        return prev.map((i) => i.id === p.id ? { ...i, qty: i.qty + 1 } : i);
+      }
       return [...prev, { id: p.id, name: p.name, price: p.price, qty: 1 }];
     });
     setToast(p.name);
@@ -313,7 +333,10 @@ export default function ShopPage() {
                         }),
                       });
                       const data = await res.json();
-                      if (data.url) window.location.href = data.url;
+                      if (data.url) {
+                        try { localStorage.removeItem("cardlist_cart"); } catch { /* ignore */ }
+                        window.location.href = data.url;
+                      }
                       else alert(data.error ?? "เกิดข้อผิดพลาด กรุณาลองใหม่");
                     } catch {
                       alert("เกิดข้อผิดพลาด กรุณาลองใหม่");
