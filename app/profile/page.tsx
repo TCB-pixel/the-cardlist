@@ -12,11 +12,11 @@ import BottomNav from "@/components/BottomNav";
 type Order = {
   id: string;
   created_at: string;
-  total: number;
+  total_amount: number;
   status: "pending" | "paid" | "shipped" | "completed" | "cancelled";
   order_items: {
-    quantity: number;
-    products: { name: string } | null;
+    name: string;
+    qty: number;
   }[];
 };
 
@@ -99,8 +99,8 @@ function formatDate(dateStr: string) {
 function formatOrderItems(items: Order["order_items"]) {
   if (!items?.length) return "—";
   const first = items[0];
-  const name = first.products?.name ?? "สินค้า";
-  const qty = first.quantity;
+  const name = first.name ?? "สินค้า";
+  const qty = first.qty;
   const extra = items.length > 1 ? ` +${items.length - 1} รายการ` : "";
   return `${name} × ${qty}${extra}`;
 }
@@ -282,10 +282,10 @@ export default function ProfilePage() {
       const { data: ordersData, error: ordersErr } = await supabase
         .from("orders")
         .select(`
-          id, created_at, total, status,
+          id, created_at, total_amount, status,
           order_items (
-            quantity,
-            products ( name )
+            name,
+            qty
           )
         `)
         .eq("user_id", userId)
@@ -297,10 +297,10 @@ export default function ProfilePage() {
       // 4) Total spend (sum of completed + shipped + paid orders)
       const { data: spendData } = await supabase
         .from("orders")
-        .select("total")
+        .select("total_amount")
         .eq("user_id", userId)
         .in("status", ["completed", "shipped", "paid"]);
-      const spend = (spendData ?? []).reduce((sum, o) => sum + Number(o.total), 0);
+      const spend = (spendData ?? []).reduce((sum, o) => sum + Number(o.total_amount), 0);
       setTotalSpend(spend);
 
       // 5) Bookings with event info
@@ -740,6 +740,7 @@ export default function ProfilePage() {
             )}
             {[
               { label: "แก้ไขโปรไฟล์",       href: "/profile/edit" },
+              { label: "ประวัติการสั่งซื้อ",   href: "/orders" },
               { label: "ที่อยู่จัดส่ง",        href: "/profile/address" },
               { label: "Collection Tracker",   href: "/profile/collection" },
               { label: "Deck Builder",          href: "/profile/decks" },
@@ -787,7 +788,7 @@ export default function ProfilePage() {
                   <p className="text-xs font-medium text-zinc-900">{formatOrderItems(o.order_items)}</p>
                   <div className="flex items-center justify-between mt-2">
                     <p className="text-[10px] text-zinc-400">{formatDate(o.created_at)}</p>
-                    <p className="text-xs font-bold text-zinc-900">฿{Number(o.total).toLocaleString()}</p>
+                    <p className="text-xs font-bold text-zinc-900">฿{Number(o.total_amount).toLocaleString()}</p>
                   </div>
                 </div>
               ))

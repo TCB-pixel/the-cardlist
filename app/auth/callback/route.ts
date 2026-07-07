@@ -153,17 +153,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL("/login?error=signin_failed", request.url));
     }
 
-    const { error: upsertProfileError } = await supabase.from("profiles").upsert(
-      {
-        id: signUpData.user.id,
+    // trigger on_auth_user_created (security definer) สร้าง row ใน profiles ให้อัตโนมัติแล้วตอน signUp
+    // ต้องใช้ update ไม่ใช่ upsert — ตาราง profiles ไม่มี insert policy จึงโดน RLS บล็อกเสมอถ้า insert ตรงนี้
+    const { error: updateNewProfileError } = await supabase
+      .from("profiles")
+      .update({
         username: `line_${lineUserId.substring(0, 8)}`,
         ...lineProfilePayload,
-      },
-      { onConflict: "id" }
-    );
+      })
+      .eq("id", signUpData.user.id);
 
-    if (upsertProfileError) {
-      console.error("Upsert new LINE profile error:", upsertProfileError);
+    if (updateNewProfileError) {
+      console.error("Update new LINE profile error:", updateNewProfileError);
       return NextResponse.redirect(new URL("/login?error=line_profile_upsert_failed", request.url));
     }
 

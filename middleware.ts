@@ -1,8 +1,31 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 
-const ADMIN_EMAILS = ["kritanat.suk@gmail.com"];
+// เช็คสิทธิ์แอดมินจากฐานข้อมูล (admin_users → admin_staff) แทนการ hardcode อีเมล
+// ใช้ service role เพื่อ bypass RLS ตอนเช็ค (เหมือน pattern ใน app/api/admin/orders/route.ts)
+async function isAdminEmail(email: string): Promise<boolean> {
+  const admin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+
+  const { data: au } = await admin
+    .from("admin_users")
+    .select("id")
+    .eq("email", email)
+    .maybeSingle();
+  if (au) return true;
+
+  const { data: st } = await admin
+    .from("admin_staff")
+    .select("id")
+    .eq("email", email)
+    .maybeSingle();
+  return !!st;
+}
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -37,7 +60,8 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(loginUrl);
     }
 
-    if (!ADMIN_EMAILS.includes(user.email?.toLowerCase() ?? "")) {
+    const email = user.email?.toLowerCase() ?? "";
+    if (!email || !(await isAdminEmail(email))) {
       const loginUrl = new URL("/admin/login", request.url);
       loginUrl.searchParams.set("error", "unauthorized");
       return NextResponse.redirect(loginUrl);

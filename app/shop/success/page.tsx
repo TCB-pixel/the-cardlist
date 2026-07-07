@@ -59,10 +59,10 @@ function SuccessContent() {
         </div>
       </div>
 
-      <p className="text-xs text-zinc-400 mb-6">ทีมงานจะติดต่อกลับเพื่อยืนยันคำสั่งซื้อเร็วๆ นี้</p>
+      <p className="text-xs text-zinc-400 mb-6">ระบบจะส่งยืนยันผ่าน LINE และอีเมลอัตโนมัติ</p>
 
       <div className="w-full max-w-xs space-y-3">
-        <Link href="/profile" className="btn-primary w-full py-3.5 text-sm text-center block">
+        <Link href="/orders" className="btn-primary w-full py-3.5 text-sm text-center block">
           ดูประวัติการสั่งซื้อ →
         </Link>
         <Link href="/shop" className="w-full py-3.5 text-sm text-center block border border-zinc-200 rounded-2xl text-zinc-600 hover:bg-zinc-50">
