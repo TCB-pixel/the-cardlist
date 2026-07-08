@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase";
 
 const QUICK_ACTIONS = [
   { href: "/admin/products?action=add", label: "เพิ่มสินค้าใหม่", icon: "+" },
@@ -42,7 +43,11 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     async function loadStats() {
-      const res = await fetch("/api/admin/dashboard-stats");
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/admin/dashboard-stats", {
+        headers: { Authorization: `Bearer ${session?.access_token ?? ""}` },
+      });
       const data = await res.json();
       if (data.eventStats) setEventStats(data.eventStats);
       if (data.shopRevenue !== undefined) setShopStats({ revenue: data.shopRevenue, orders: data.shopOrderCount ?? 0 });

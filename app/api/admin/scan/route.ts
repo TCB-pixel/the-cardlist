@@ -8,6 +8,32 @@ function getSupabase() {
   );
 }
 
+// ตรวจสิทธิ์ผู้เรียก (แอดมินระดับใดก็ได้ — staff สแกนหน้างานได้) — ต้องแนบ Bearer token
+async function requireAdmin(req: NextRequest): Promise<boolean> {
+  const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
+  if (!token) return false;
+  const supabase = getSupabase();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser(token);
+  if (error || !user?.email) return false;
+
+  const { data: au } = await supabase
+    .from("admin_users")
+    .select("active")
+    .eq("email", user.email)
+    .maybeSingle();
+  if (au) return au.active !== false;
+
+  const { data: st } = await supabase
+    .from("admin_staff")
+    .select("active")
+    .eq("email", user.email)
+    .maybeSingle();
+  return !!st && st.active !== false;
+}
+
 async function sendLineNotify(lineUserId: string, message: string) {
   const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
   if (!token || !lineUserId) return;
@@ -19,6 +45,9 @@ async function sendLineNotify(lineUserId: string, message: string) {
 }
 
 export async function GET(request: NextRequest) {
+  if (!(await requireAdmin(request)))
+    return NextResponse.json({ error: "ไม่มีสิทธิ์เข้าถึง" }, { status: 401 });
+
   const { searchParams } = new URL(request.url);
   const qrCode = searchParams.get("qr");
 
@@ -79,6 +108,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  if (!(await requireAdmin(request)))
+    return NextResponse.json({ error: "ไม่มีสิทธิ์เข้าถึง" }, { status: 401 });
+
   const { id, type, field, value, qrCode } = await request.json();
   const supabase = getSupabase();
   const table = type === "general" ? "general_registrations" : "event_tickets";

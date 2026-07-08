@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import { createClient } from "@/lib/supabase";
 
 type ScanResult = {
   type: "general" | "priority";
@@ -32,6 +33,20 @@ export default function StaffScannerPage() {
   const [ma5Animating, setMa5Animating] = useState(false);
 
   useEffect(() => { return () => { stopScanner(); }; }, []);
+
+  // แนบ access_token ให้ /api/admin/scan ตรวจสิทธิ์ได้
+  async function authedFetch(input: string, init?: RequestInit) {
+    const supabase = createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    return fetch(input, {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        ...(init?.headers ?? {}),
+        Authorization: `Bearer ${session?.access_token ?? ""}`,
+      },
+    });
+  }
 
   async function startScanner() {
     setError("");
@@ -70,7 +85,7 @@ export default function StaffScannerPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/admin/scan?qr=${encodeURIComponent(qrCode)}`);
+      const res = await authedFetch(`/api/admin/scan?qr=${encodeURIComponent(qrCode)}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "เกิดข้อผิดพลาด");
 
@@ -116,7 +131,7 @@ export default function StaffScannerPage() {
   async function redeem(field: string, value: any) {
     if (!result) return;
     setRedeeming(field);
-    const res = await fetch("/api/admin/scan", {
+    const res = await authedFetch("/api/admin/scan", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: result.ticketId, type: result.type, field, value }),
@@ -139,12 +154,12 @@ export default function StaffScannerPage() {
     if (ma5Animating || ma5Flipped) return;
     setMa5Animating(true);
 
-    const res = await fetch(`/api/admin/scan?qr=${encodeURIComponent(result!.user.qr_code)}`);
+    const res = await authedFetch(`/api/admin/scan?qr=${encodeURIComponent(result!.user.qr_code)}`);
     const json = await res.json();
     const usedSlots = 0;
     const won = Math.random() < 24 / 100;
 
-    await fetch("/api/admin/scan", {
+    await authedFetch("/api/admin/scan", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: result!.ticketId, type: "priority", field: "ma5_slot", value: won }),

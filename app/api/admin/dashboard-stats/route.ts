@@ -8,7 +8,36 @@ function getSupabase() {
   );
 }
 
-export async function GET() {
+// ตรวจสิทธิ์ผู้เรียก (แอดมินระดับใดก็ได้) — ต้องแนบ Authorization: Bearer <access_token>
+async function requireAdmin(req: Request): Promise<boolean> {
+  const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
+  if (!token) return false;
+  const supabase = getSupabase();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser(token);
+  if (error || !user?.email) return false;
+
+  const { data: au } = await supabase
+    .from("admin_users")
+    .select("active")
+    .eq("email", user.email)
+    .maybeSingle();
+  if (au) return au.active !== false;
+
+  const { data: st } = await supabase
+    .from("admin_staff")
+    .select("active")
+    .eq("email", user.email)
+    .maybeSingle();
+  return !!st && st.active !== false;
+}
+
+export async function GET(req: Request) {
+  if (!(await requireAdmin(req)))
+    return NextResponse.json({ error: "ไม่มีสิทธิ์เข้าถึง" }, { status: 401 });
+
   const supabase = getSupabase();
 
   // General registrations

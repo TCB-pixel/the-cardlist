@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { AdminRole, MANAGEABLE_ROLES } from "@/lib/rbac";
 
 // service role client — bypass RLS (เรียกได้เฉพาะฝั่ง server)
 const admin = createClient(
@@ -50,8 +51,60 @@ function genPassword(len = 12): string {
   return Array.from(a, (n) => chars[n % chars.length]).join("");
 }
 
-// ---------- GET : ดึงรายชื่อทั้งหมด ----------
-export async function GET() {
+// ─────────────────────────────────────────────────────────────────────────────
+// ตรวจสิทธิ์ผู้เรียกฝั่ง server — ต้องแนบ Authorization: Bearer <access_token>
+// (middleware คุ้มเฉพาะหน้า /admin ไม่คุ้ม /api/admin ต้องเช็คในแต่ละ route เอง)
+// ─────────────────────────────────────────────────────────────────────────────
+type Caller = { userId: string; email: string; role: AdminRole };
+
+async function requireAdmin(
+  req: Request
+): Promise<{ ok: true; caller: Caller } | { ok: false; status: number; error: string }> {
+  const authHeader = req.headers.get("authorization") ?? "";
+  const token = authHeader.replace(/^Bearer\s+/i, "");
+  if (!token) return { ok: false, status: 401, error: "ไม่ได้เข้าสู่ระบบ" };
+
+  const {
+    data: { user },
+    error,
+  } = await admin.auth.getUser(token);
+  if (error || !user?.email) return { ok: false, status: 401, error: "token ไม่ถูกต้อง" };
+  const email = user.email;
+
+  // เช็ค admin_users (owner ระดับสูงสุด) ก่อน แล้วค่อย admin_staff
+  const { data: au } = await admin
+    .from("admin_users")
+    .select("role, active")
+    .eq("email", email)
+    .maybeSingle();
+  if (au) {
+    if (au.active === false) return { ok: false, status: 403, error: "บัญชีถูกระงับ" };
+    return { ok: true, caller: { userId: user.id, email, role: au.role as AdminRole } };
+  }
+
+  const { data: st } = await admin
+    .from("admin_staff")
+    .select("role, active")
+    .eq("email", email)
+    .maybeSingle();
+  if (st) {
+    if (st.active === false) return { ok: false, status: 403, error: "บัญชีถูกระงับ" };
+    return { ok: true, caller: { userId: user.id, email, role: st.role as AdminRole } };
+  }
+
+  return { ok: false, status: 403, error: "ไม่มีสิทธิ์เข้าถึง" };
+}
+
+// ผู้เรียก (callerRole) มีสิทธิ์จัดการผู้ใช้ระดับ targetRole ไหม (owner→ทุกระดับ, head_staff→staff)
+function canManageRole(callerRole: AdminRole, targetRole: AdminRole): boolean {
+  return MANAGEABLE_ROLES[callerRole].includes(targetRole);
+}
+
+// ---------- GET : ดึงรายชื่อทั้งหมด (แอดมินทุกระดับดูได้) ----------
+export async function GET(req: Request) {
+  const auth = await requireAdmin(req);
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
+
   const { data, error } = await admin
     .from("admin_staff")
     .select("*")
@@ -64,9 +117,17 @@ export async function GET() {
 // ---------- POST : เพิ่มสมาชิก + สร้าง Auth user + ตั้ง/สุ่มรหัสผ่าน ----------
 export async function POST(req: Request) {
   try {
+    const auth = await requireAdmin(req);
+    if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
+
     const { name, email, role, active, password } = await req.json();
     if (!name || !email || !role) {
       return NextResponse.json({ error: "กรอกข้อมูลไม่ครบ" }, { status: 400 });
+    }
+
+    // ต้องมีสิทธิ์สร้างผู้ใช้ระดับนี้ (กัน head_staff สร้าง owner/head_staff)
+    if (!canManageRole(auth.caller.role, role as AdminRole)) {
+      return NextResponse.json({ error: "ไม่มีสิทธิ์สร้างผู้ใช้ระดับนี้" }, { status: 403 });
     }
 
     // ถ้าพิมพ์รหัสเองมา -> ต้องยาวอย่างน้อย MIN_PW / ถ้าเว้นว่าง -> สุ่มให้
@@ -113,8 +174,32 @@ export async function POST(req: Request) {
 // ---------- PATCH : แก้ไขชื่อ/role/สถานะ + รีเซ็ตรหัสผ่าน (ถ้าส่ง password มา) ----------
 export async function PATCH(req: Request) {
   try {
+    const auth = await requireAdmin(req);
+    if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
+
     const { id, name, role, active, password } = await req.json();
     if (!id) return NextResponse.json({ error: "ไม่พบ id" }, { status: 400 });
+
+    // ดึง target มาก่อนเพื่อเช็คลำดับสิทธิ์
+    const { data: target, error: tErr } = await admin
+      .from("admin_staff")
+      .select("role, user_id")
+      .eq("id", id)
+      .maybeSingle();
+    if (tErr || !target) return NextResponse.json({ error: "ไม่พบสมาชิก" }, { status: 404 });
+
+    // ต้องมีสิทธิ์จัดการ role ปัจจุบันของ target
+    if (!canManageRole(auth.caller.role, target.role as AdminRole)) {
+      return NextResponse.json({ error: "ไม่มีสิทธิ์แก้ไขผู้ใช้รายนี้" }, { status: 403 });
+    }
+    // ถ้ามีการเปลี่ยน role — ต้องมีสิทธิ์กำหนด role ใหม่ด้วย
+    if (role !== undefined && !canManageRole(auth.caller.role, role as AdminRole)) {
+      return NextResponse.json({ error: "ไม่มีสิทธิ์กำหนด role นี้" }, { status: 403 });
+    }
+    // กันปิดใช้งานบัญชีตัวเอง (กันล็อกเอาต์ตัวเอง)
+    if (active === false && target.user_id === auth.caller.userId) {
+      return NextResponse.json({ error: "ปิดใช้งานบัญชีตัวเองไม่ได้" }, { status: 400 });
+    }
 
     // ตรวจรหัสผ่านก่อน (ถ้ามีการตั้งใหม่)
     if (password && String(password).length < MIN_PW) {
@@ -171,17 +256,30 @@ export async function PATCH(req: Request) {
 // ---------- DELETE : ลบสมาชิก + ลบ Auth user ----------
 export async function DELETE(req: Request) {
   try {
+    const auth = await requireAdmin(req);
+    if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
+
     const { id } = await req.json();
     if (!id) return NextResponse.json({ error: "ไม่พบ id" }, { status: 400 });
 
     const { data: row } = await admin
       .from("admin_staff")
-      .select("user_id")
+      .select("user_id, role")
       .eq("id", id)
-      .single();
+      .maybeSingle();
+    if (!row) return NextResponse.json({ error: "ไม่พบสมาชิก" }, { status: 404 });
+
+    // ต้องมีสิทธิ์จัดการ role ของ target (กัน head_staff ลบ owner/head_staff)
+    if (!canManageRole(auth.caller.role, row.role as AdminRole)) {
+      return NextResponse.json({ error: "ไม่มีสิทธิ์ลบผู้ใช้รายนี้" }, { status: 403 });
+    }
+    // กันลบบัญชีตัวเอง
+    if (row.user_id === auth.caller.userId) {
+      return NextResponse.json({ error: "ลบบัญชีตัวเองไม่ได้" }, { status: 400 });
+    }
 
     await admin.from("admin_staff").delete().eq("id", id);
-    if (row?.user_id) await admin.auth.admin.deleteUser(row.user_id);
+    if (row.user_id) await admin.auth.admin.deleteUser(row.user_id);
 
     return NextResponse.json({ ok: true });
   } catch (e: any) {

@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useAdmin } from "@/lib/admin-context";
+import { createClient } from "@/lib/supabase";
 import { AdminRole, AdminUser, ROLE_LABEL, ROLE_COLOR, ROLE_BADGE, MANAGEABLE_ROLES, can } from "@/lib/rbac";
 
 const EMPTY_FORM = { name: "", email: "", role: "staff" as AdminRole, active: true, password: "" };
@@ -39,10 +40,24 @@ export default function AdminStaffPage() {
 
   useEffect(() => { loadStaff(); }, []);
 
+  // แนบ access_token ของ session ไปกับทุก request ให้ /api/admin/staff ตรวจสิทธิ์ได้
+  async function authedFetch(input: string, init?: RequestInit) {
+    const supabase = createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    return fetch(input, {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        ...(init?.headers ?? {}),
+        Authorization: `Bearer ${session?.access_token ?? ""}`,
+      },
+    });
+  }
+
   async function loadStaff() {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/staff");
+      const res = await authedFetch("/api/admin/staff");
       const data = await res.json();
       if (res.ok) setStaff(data.staff || []);
     } catch {
@@ -82,7 +97,7 @@ export default function AdminStaffPage() {
     setErrorMsg("");
     try {
       if (editing) {
-        const res = await fetch("/api/admin/staff", {
+        const res = await authedFetch("/api/admin/staff", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id: editing.id, name: form.name, role: form.role, active: form.active, password: form.password || undefined }),
@@ -93,7 +108,7 @@ export default function AdminStaffPage() {
         if (data.password) setCreatedInfo({ email: data.member.email, password: data.password, reset: true });
         await loadStaff();
       } else {
-        const res = await fetch("/api/admin/staff", {
+        const res = await authedFetch("/api/admin/staff", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(form),
@@ -111,7 +126,7 @@ export default function AdminStaffPage() {
 
   async function handleDelete() {
     if (!deleteTarget) return;
-    await fetch("/api/admin/staff", {
+    await authedFetch("/api/admin/staff", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: deleteTarget.id }),
@@ -121,7 +136,7 @@ export default function AdminStaffPage() {
   }
 
   async function toggleActive(member: AdminUser) {
-    await fetch("/api/admin/staff", {
+    await authedFetch("/api/admin/staff", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: member.id, active: !member.active }),
