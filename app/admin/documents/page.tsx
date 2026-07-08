@@ -40,10 +40,10 @@ type DocData = {
 type Order = {
   id: string;
   created_at: string;
-  total: number;
+  total_amount: number;
   status: string;
   profiles: { display_name: string | null; username: string } | null;
-  order_items: { quantity: number; price: number; products: { name: string } | null }[];
+  order_items: { name: string | null; price: number; qty: number }[];
 };
 
 // ─── Config ────────────────────────────────────────────────────────────────
@@ -304,7 +304,7 @@ export default function DocumentsPage() {
       setLoadingOrders(true);
       const { data } = await supabase
         .from("orders")
-        .select(`id, created_at, total, status, profiles(display_name, username), order_items(quantity, price, products(name))`)
+        .select(`id, created_at, total_amount, status, profiles(display_name, username), order_items(name, price, qty)`)
         .order("created_at", { ascending: false })
         .limit(50);
       setOrders((data as unknown as Order[]) ?? []);
@@ -320,8 +320,8 @@ export default function DocumentsPage() {
     const customerName = order.profiles?.display_name ?? order.profiles?.username ?? "";
     const items: LineItem[] = (order.order_items ?? []).map((oi, i) => ({
       id: i.toString(),
-      description: oi.products?.name ?? "สินค้า",
-      quantity: oi.quantity,
+      description: oi.name ?? "สินค้า",
+      quantity: oi.qty,
       unit_price: Number(oi.price),
     }));
     setDoc(prev => ({
@@ -430,7 +430,7 @@ export default function DocumentsPage() {
                     <option disabled>กำลังโหลด...</option>
                   ) : orders.map(o => (
                     <option key={o.id} value={o.id}>
-                      #{o.id.slice(0,8).toUpperCase()} · {o.profiles?.display_name ?? o.profiles?.username} · ฿{Number(o.total).toLocaleString()}
+                      #{o.id.slice(0,8).toUpperCase()} · {o.profiles?.display_name ?? o.profiles?.username} · ฿{Number(o.total_amount).toLocaleString()}
                     </option>
                   ))}
                 </select>

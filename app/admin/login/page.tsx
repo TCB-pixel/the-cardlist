@@ -3,7 +3,6 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase";
-import { isAdminEmail } from "@/lib/admin-auth";
 import { Suspense } from "react";
 
 function AdminLoginForm() {
@@ -37,13 +36,9 @@ function AdminLoginForm() {
         return;
       }
 
-      // Check admin whitelist on client side too
-      if (!isAdminEmail(data.user?.email)) {
-        await supabase.auth.signOut();
-        setError("บัญชีนี้ไม่มีสิทธิ์เข้าถึง Admin Panel\nกรุณาติดต่อ Owner");
-        return;
-      }
-
+      // สิทธิ์แอดมินตรวจจากฐานข้อมูล (admin_users / admin_staff) ใน middleware
+      // ถ้าไม่มีสิทธิ์ middleware จะเด้งกลับมาที่ /admin/login?error=unauthorized
+      void data;
       router.push(nextPath);
       router.refresh();
     } catch {
