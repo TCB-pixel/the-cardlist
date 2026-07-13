@@ -350,11 +350,29 @@ async function createShopOrder(
     }))
   );
 
+  // ตัดสต็อกทีละชิ้น — decrement_stock คืน false ถ้าสต็อกไม่พอ (แข่งกันซื้อพร้อมกันตอนสต็อกใกล้หมด)
+  // ลูกค้าจ่ายเงินสำเร็จแล้ว ณ จุดนี้ ยกเลิกออเดอร์ไม่ได้ — ต้อง flag ไว้ให้แอดมินตามแพ็คด้วยมือแทน
+  const oversoldItems: string[] = [];
   for (const item of items) {
-    await supabase.rpc("decrement_stock", {
+    const { data: ok, error: decErr } = await supabase.rpc("decrement_stock", {
       product_id: item.id,
       qty: item.qty,
     });
+    if (decErr) {
+      console.error("decrement_stock error:", item.id, decErr);
+    } else if (ok === false) {
+      console.error("⚠️ สต็อกไม่พอตอนตัด (oversold):", item.name, item.id, "qty:", item.qty);
+      oversoldItems.push(`${item.name} x${item.qty}`);
+    }
+  }
+
+  if (oversoldItems.length > 0) {
+    await supabase
+      .from("orders")
+      .update({
+        note: `⚠️ สต็อกไม่พอตอนตัดสต็อก (ลูกค้าจ่ายเงินแล้ว ต้องตรวจสอบสต็อกด้วยมือ): ${oversoldItems.join(", ")}`,
+      })
+      .eq("id", order.id);
   }
 
   // ── ยืนยันคำสั่งซื้อ: อีเมล + LINE (best-effort) ──

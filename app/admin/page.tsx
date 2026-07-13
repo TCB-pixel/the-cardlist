@@ -10,12 +10,6 @@ const QUICK_ACTIONS = [
   { href: "/admin/members", label: "ดูสมาชิก", icon: "→" },
 ];
 
-const STOCK_ALERTS = [
-  { name: "Monkey D. Luffy SEC", tcg: "One Piece", stock: 2 },
-  { name: "Charizard ex SAR", tcg: "Pokémon", stock: 3 },
-  { name: "Black Lotus LP", tcg: "MTG", stock: 1 },
-];
-
 const STATUS_STYLE: Record<string, string> = {
   completed: "bg-green-50 text-green-700",
   shipped:   "bg-blue-50 text-blue-700",
@@ -39,6 +33,16 @@ export default function AdminDashboard() {
     priorityTotal: 0,
   });
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
+  const [inventory, setInventory] = useState({
+    stockValueRetail: 0,
+    stockValueCost: 0,
+    productsMissingCost: 0,
+    lowStock: [] as { id: string; name: string; stock: number }[],
+  });
+  const [profit, setProfit] = useState({ grossProfit: 0, itemsSoldMissingCost: 0 });
+  const [bestSellers, setBestSellers] = useState<
+    { product_id: string; name: string; qtySold: number; revenue: number }[]
+  >([]);
   const [loadingStats, setLoadingStats] = useState(true);
 
   useEffect(() => {
@@ -52,6 +56,9 @@ export default function AdminDashboard() {
       if (data.eventStats) setEventStats(data.eventStats);
       if (data.shopRevenue !== undefined) setShopStats({ revenue: data.shopRevenue, orders: data.shopOrderCount ?? 0 });
       if (data.recentOrders) setRecentOrders(data.recentOrders);
+      if (data.inventory) setInventory(data.inventory);
+      if (data.profit) setProfit(data.profit);
+      if (data.bestSellers) setBestSellers(data.bestSellers);
       setLoadingStats(false);
     }
     loadStats();
@@ -220,6 +227,53 @@ export default function AdminDashboard() {
         </div>
       </div>
 
+      {/* ─── Inventory & Profit ─── */}
+      <div>
+        <h2 className="text-xs font-semibold text-zinc-500 tracking-widest uppercase mb-3">
+          📦 สต็อกและกำไร
+        </h2>
+        <div className="grid grid-cols-3 gap-4">
+          {/* Stock value */}
+          <div className="bg-white border border-zinc-100 rounded-2xl p-4">
+            <p className="text-[11px] text-zinc-400 font-medium mb-2">มูลค่าสต็อกคงเหลือ (ราคาขาย)</p>
+            <p className="text-2xl font-bold text-zinc-900">฿{inventory.stockValueRetail.toLocaleString()}</p>
+            {inventory.productsMissingCost > 0 && (
+              <p className="text-[10px] text-amber-600 mt-2">
+                ⚠️ {inventory.productsMissingCost} รายการยังไม่ได้กรอกราคาทุน
+              </p>
+            )}
+          </div>
+
+          {/* Gross profit */}
+          <div className="bg-white border border-green-100 rounded-2xl p-4">
+            <p className="text-[11px] text-zinc-400 font-medium mb-2">กำไรขั้นต้น (จากออเดอร์ที่จ่ายแล้ว)</p>
+            <p className="text-2xl font-bold text-green-600">฿{profit.grossProfit.toLocaleString()}</p>
+            {profit.itemsSoldMissingCost > 0 && (
+              <p className="text-[10px] text-amber-600 mt-2">
+                ⚠️ {profit.itemsSoldMissingCost} ชิ้นที่ขายไปยังคำนวณกำไรไม่ได้ (ไม่มีราคาทุน)
+              </p>
+            )}
+          </div>
+
+          {/* Best sellers */}
+          <div className="bg-white border border-zinc-100 rounded-2xl p-4">
+            <p className="text-[11px] text-zinc-400 font-medium mb-2">สินค้าขายดี</p>
+            {bestSellers.length === 0 ? (
+              <p className="text-xs text-zinc-400 mt-2">ยังไม่มีข้อมูลการขาย</p>
+            ) : (
+              <div className="space-y-1.5 mt-1">
+                {bestSellers.map((b) => (
+                  <div key={b.product_id} className="flex justify-between items-center">
+                    <span className="text-[11px] text-zinc-700 truncate">{b.name}</span>
+                    <span className="text-[11px] font-bold text-zinc-900 flex-shrink-0 ml-2">{b.qtySold} ชิ้น</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Quick Actions */}
       <div>
         <h2 className="text-xs font-semibold text-zinc-500 tracking-widest uppercase mb-3">การดำเนินการด่วน</h2>
@@ -278,15 +332,16 @@ export default function AdminDashboard() {
               <Link href="/admin/products" className="text-xs text-zinc-400">จัดการ →</Link>
             </div>
             <div className="divide-y divide-zinc-50">
-              {STOCK_ALERTS.map((p) => (
-                <div key={p.name} className="px-5 py-3 flex items-center justify-between">
-                  <div>
+              {inventory.lowStock.length === 0 ? (
+                <div className="px-5 py-6 text-center text-xs text-zinc-400">สต็อกยังปกติ</div>
+              ) : (
+                inventory.lowStock.map((p) => (
+                  <div key={p.id} className="px-5 py-3 flex items-center justify-between">
                     <p className="text-xs font-medium text-zinc-900">{p.name}</p>
-                    <p className="text-[10px] text-zinc-400 mt-0.5">{p.tcg}</p>
+                    <span className="text-xs font-bold text-red-500">{p.stock} ชิ้น</span>
                   </div>
-                  <span className="text-xs font-bold text-red-500">{p.stock} ใบ</span>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 

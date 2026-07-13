@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
+import { createClient } from "@supabase/supabase-js";
 
 function getStripe() {
   return new Stripe(process.env.STRIPE_SECRET_KEY!);
+}
+
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
 }
 
 const SITE_URL =
@@ -40,6 +48,33 @@ export async function POST(request: NextRequest) {
         { error: "ไม่มีสินค้าในตะกร้า" },
         { status: 400 }
       );
+    }
+
+    // ── เช็คสต็อกให้พอก่อนเปิดหน้าจ่ายเงิน — กันลูกค้าจ่ายเงินไปแล้วของหมด ──
+    const supabase = getSupabase();
+    const ids = items.map((it: any) => it.id).filter(Boolean);
+    const { data: products, error: prodErr } = await supabase
+      .from("products")
+      .select("id, name, stock")
+      .in("id", ids);
+
+    if (prodErr) {
+      return NextResponse.json({ error: "ตรวจสอบสต็อกไม่สำเร็จ" }, { status: 500 });
+    }
+
+    const stockMap = new Map((products ?? []).map((p) => [p.id, p]));
+    for (const it of items) {
+      const p = stockMap.get(it.id);
+      const wantQty = Number(it.qty);
+      if (!p) {
+        return NextResponse.json({ error: `ไม่พบสินค้า: ${it.name ?? it.id}` }, { status: 400 });
+      }
+      if (p.stock < wantQty) {
+        return NextResponse.json(
+          { error: `${p.name} เหลือแค่ ${p.stock} ชิ้น (ขอซื้อ ${wantQty} ชิ้น) กรุณาปรับจำนวนในตะกร้า` },
+          { status: 400 }
+        );
+      }
     }
 
     const stripe = getStripe();

@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase";
+import { useAdmin } from "@/lib/admin-context";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -18,12 +19,22 @@ type Product = {
   image_url: string | null;
   description: string;
   active: boolean;
+  cost_price: number | null;
+};
+
+type StockMovement = {
+  id: string;
+  type: "receive" | "sale" | "adjustment";
+  qty_change: number;
+  note: string | null;
+  created_at: string;
 };
 
 const EMPTY: Omit<Product, "id" | "active"> = {
   name: "", sub: "", price: 0, stock: 0,
   category: "Single Cards", tcg: "One Piece",
   badge: "", rarity: "", image_url: null, description: "",
+  cost_price: null,
 };
 
 const STATUS_STYLE: Record<string, string> = {
@@ -31,6 +42,12 @@ const STATUS_STYLE: Record<string, string> = {
   "HOT":       "bg-red-50 text-red-700",
   "NEW":       "bg-zinc-900 text-white",
   "RARE":      "bg-purple-50 text-purple-700",
+};
+
+const MOVEMENT_LABEL: Record<string, string> = {
+  receive: "รับเข้า",
+  sale: "ขายออก",
+  adjustment: "ปรับปรุง",
 };
 
 const TCG_LIST    = ["One Piece", "Pokémon", "MTG", "Dragon Ball", "All"];
@@ -42,6 +59,7 @@ const RARITY_LIST = ["", "Common", "Uncommon", "Rare", "Super Rare", "Secret Rar
 
 export default function AdminProductsPage() {
   const supabase = createClient();
+  const { can: canDo } = useAdmin();
 
   const [products, setProducts]   = useState<Product[]>([]);
   const [loading, setLoading]     = useState(true);
@@ -57,22 +75,48 @@ export default function AdminProductsPage() {
   const [imgPreview, setImgPreview]     = useState<string | null>(null);
   const [error, setError]         = useState("");
 
+  // ── ปรับสต็อก (รับเข้า/ปรับปรุง) ──
+  const [stockTarget, setStockTarget] = useState<Product | null>(null);
+  const [stockType, setStockType] = useState<"receive" | "adjustment">("receive");
+  const [stockQty, setStockQty] = useState("");
+  const [stockNote, setStockNote] = useState("");
+  const [stockSaving, setStockSaving] = useState(false);
+  const [stockError, setStockError] = useState("");
+  const [movements, setMovements] = useState<StockMovement[]>([]);
+  const [movementsLoading, setMovementsLoading] = useState(false);
+
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // แนบ access_token ไปกับทุก request ให้ /api/admin/products ตรวจสิทธิ์ได้
+  async function authedFetch(input: string, init?: RequestInit) {
+    const { data: { session } } = await supabase.auth.getSession();
+    return fetch(input, {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        ...(init?.headers ?? {}),
+        Authorization: `Bearer ${session?.access_token ?? ""}`,
+      },
+    });
+  }
 
   // ── Load products ──
   const load = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("products")
-      .select("*")
-      .order("created_at", { ascending: false });
-    setProducts((data as Product[]) ?? []);
-    setLoading(false);
+    try {
+      const res = await authedFetch("/api/admin/products");
+      const data = await res.json();
+      if (res.ok) setProducts(data.products ?? []);
+    } catch {
+      /* ignore */
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  // ── Image upload ──
+  // ── Image upload (ตรง Supabase Storage — ไม่ใช่ตาราง products จึงไม่โดน RLS เขียนตรง) ──
   async function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -112,6 +156,7 @@ export default function AdminProductsPage() {
       name: p.name, sub: p.sub, price: p.price, stock: p.stock,
       category: p.category, tcg: p.tcg, badge: p.badge, rarity: p.rarity,
       image_url: p.image_url, description: p.description,
+      cost_price: p.cost_price,
     });
     setImgPreview(p.image_url);
     setError("");
@@ -124,18 +169,17 @@ export default function AdminProductsPage() {
     setSaving(true);
     setError("");
     try {
-      if (editing) {
-        const { error } = await supabase
-          .from("products")
-          .update({ ...form })
-          .eq("id", editing.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("products")
-          .insert({ ...form, active: true });
-        if (error) throw error;
-      }
+      const res = editing
+        ? await authedFetch("/api/admin/products", {
+            method: "PATCH",
+            body: JSON.stringify({ id: editing.id, ...form }),
+          })
+        : await authedFetch("/api/admin/products", {
+            method: "POST",
+            body: JSON.stringify(form),
+          });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "บันทึกไม่สำเร็จ");
       await load();
       setShowModal(false);
     } catch (err: any) {
@@ -148,10 +192,60 @@ export default function AdminProductsPage() {
   // ── Delete ──
   async function handleDelete(id: string) {
     setDeleting(true);
-    await supabase.from("products").delete().eq("id", id);
+    await authedFetch("/api/admin/products", {
+      method: "DELETE",
+      body: JSON.stringify({ id }),
+    });
     await load();
     setDeleteId(null);
     setDeleting(false);
+  }
+
+  // ── เปิด modal ปรับสต็อก + โหลดประวัติ ──
+  async function openStockAdjust(p: Product) {
+    setStockTarget(p);
+    setStockType("receive");
+    setStockQty("");
+    setStockNote("");
+    setStockError("");
+    setMovements([]);
+    setMovementsLoading(true);
+    try {
+      const res = await authedFetch(`/api/admin/products?movementsFor=${p.id}`);
+      const data = await res.json();
+      if (res.ok) setMovements(data.movements ?? []);
+    } catch {
+      /* ignore */
+    } finally {
+      setMovementsLoading(false);
+    }
+  }
+
+  async function handleStockSave() {
+    if (!stockTarget) return;
+    const qty = Number(stockQty);
+    if (!qty || qty === 0) { setStockError("กรอกจำนวนที่ไม่ใช่ 0"); return; }
+    setStockSaving(true);
+    setStockError("");
+    try {
+      // รับเข้า = บวกเสมอ, ปรับปรุง = ใช้เครื่องหมายตามที่กรอก (ติดลบได้ถ้าต้องการลดสต็อก)
+      const qtyChange = stockType === "receive" ? Math.abs(qty) : qty;
+      const res = await authedFetch("/api/admin/products", {
+        method: "PATCH",
+        body: JSON.stringify({
+          id: stockTarget.id,
+          stockAdjustment: { type: stockType, qtyChange, note: stockNote },
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "ปรับสต็อกไม่สำเร็จ");
+      await load();
+      setStockTarget(null);
+    } catch (err: any) {
+      setStockError(err?.message ?? "ปรับสต็อกไม่สำเร็จ");
+    } finally {
+      setStockSaving(false);
+    }
   }
 
   // ── Filter ──
@@ -161,6 +255,10 @@ export default function AdminProductsPage() {
         !p.sub.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
+
+  const canEdit = canDo("products:edit");
+  const canCreate = canDo("products:create");
+  const canDelete = canDo("products:delete");
 
   const inputCls = "w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-400 transition-colors";
   const labelCls = "text-[11px] font-semibold text-zinc-500 tracking-wide block mb-1";
@@ -186,10 +284,12 @@ export default function AdminProductsPage() {
           </select>
           <span className="text-xs text-zinc-400">{filtered.length} รายการ</span>
         </div>
-        <button onClick={openAdd}
-          className="flex items-center gap-2 bg-zinc-900 text-white text-xs font-semibold px-4 py-2.5 rounded-xl hover:bg-zinc-700">
-          <span className="text-base leading-none font-light">+</span> เพิ่มสินค้า
-        </button>
+        {canCreate && (
+          <button onClick={openAdd}
+            className="flex items-center gap-2 bg-zinc-900 text-white text-xs font-semibold px-4 py-2.5 rounded-xl hover:bg-zinc-700">
+            <span className="text-base leading-none font-light">+</span> เพิ่มสินค้า
+          </button>
+        )}
       </div>
 
       {/* Table */}
@@ -243,7 +343,12 @@ export default function AdminProductsPage() {
                   </td>
                   <td className="px-4 py-3 text-xs text-zinc-600">{p.tcg}</td>
                   <td className="px-4 py-3 text-xs text-zinc-600">{p.category}</td>
-                  <td className="px-4 py-3 text-xs font-semibold text-zinc-900">฿{p.price.toLocaleString()}</td>
+                  <td className="px-4 py-3 text-xs font-semibold text-zinc-900">
+                    ฿{p.price.toLocaleString()}
+                    {p.cost_price != null && (
+                      <p className="text-[9px] text-zinc-400 font-normal mt-0.5">ทุน ฿{p.cost_price.toLocaleString()}</p>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     <span className={`text-xs font-semibold ${p.stock <= 3 ? "text-red-500" : p.stock <= 10 ? "text-amber-500" : "text-green-600"}`}>
                       {p.stock}
@@ -258,14 +363,24 @@ export default function AdminProductsPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2 justify-end">
-                      <button onClick={() => openEdit(p)}
-                        className="text-xs text-zinc-500 hover:text-zinc-900 border border-zinc-200 rounded-lg px-2.5 py-1">
-                        แก้ไข
-                      </button>
-                      <button onClick={() => setDeleteId(p.id)}
-                        className="text-xs text-red-400 hover:text-red-600 border border-red-100 rounded-lg px-2.5 py-1">
-                        ลบ
-                      </button>
+                      {canEdit && (
+                        <button onClick={() => openStockAdjust(p)}
+                          className="text-xs text-blue-500 hover:text-blue-700 border border-blue-100 rounded-lg px-2.5 py-1">
+                          ปรับสต็อก
+                        </button>
+                      )}
+                      {canEdit && (
+                        <button onClick={() => openEdit(p)}
+                          className="text-xs text-zinc-500 hover:text-zinc-900 border border-zinc-200 rounded-lg px-2.5 py-1">
+                          แก้ไข
+                        </button>
+                      )}
+                      {canDelete && (
+                        <button onClick={() => setDeleteId(p.id)}
+                          className="text-xs text-red-400 hover:text-red-600 border border-red-100 rounded-lg px-2.5 py-1">
+                          ลบ
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -343,13 +458,19 @@ export default function AdminProductsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={labelCls}>ราคา (บาท) *</label>
+                  <label className={labelCls}>ราคาขาย (บาท) *</label>
                   <input type="number" className={inputCls} placeholder="0" value={form.price || ""}
                     onChange={e => setForm(f => ({ ...f, price: Number(e.target.value) }))} />
                 </div>
                 <div>
-                  <label className={labelCls}>จำนวนสต็อก</label>
+                  <label className={labelCls}>ราคาทุน (บาท)</label>
+                  <input type="number" className={inputCls} placeholder="กรอกทีหลังได้" value={form.cost_price ?? ""}
+                    onChange={e => setForm(f => ({ ...f, cost_price: e.target.value === "" ? null : Number(e.target.value) }))} />
+                </div>
+                <div>
+                  <label className={labelCls}>จำนวนสต็อก{editing ? " (แก้ตรงนี้ไม่ถูก log — ใช้ปุ่ม \"ปรับสต็อก\" แทน)" : ""}</label>
                   <input type="number" className={inputCls} placeholder="0" value={form.stock || ""}
+                    disabled={!!editing}
                     onChange={e => setForm(f => ({ ...f, stock: Number(e.target.value) }))} />
                 </div>
                 <div>
@@ -397,6 +518,91 @@ export default function AdminProductsPage() {
               <button onClick={handleSave} disabled={saving || uploadingImg}
                 className="flex-1 bg-zinc-900 text-white text-xs font-semibold py-2.5 rounded-xl hover:bg-zinc-700 disabled:opacity-40">
                 {saving ? "กำลังบันทึก..." : editing ? "บันทึกการแก้ไข" : "เพิ่มสินค้า"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Stock Adjust Modal ── */}
+      {stockTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setStockTarget(null)} />
+          <div className="relative bg-white rounded-2xl w-full max-w-md mx-4 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 flex-shrink-0">
+              <div>
+                <h3 className="text-sm font-bold text-zinc-900">ปรับสต็อก</h3>
+                <p className="text-[11px] text-zinc-400 mt-0.5">{stockTarget.name} — คงเหลือ {stockTarget.stock} ชิ้น</p>
+              </div>
+              <button onClick={() => setStockTarget(null)} className="text-zinc-400 text-lg leading-none">✕</button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+              <div className="flex gap-2">
+                {(["receive", "adjustment"] as const).map((t) => (
+                  <button key={t} onClick={() => setStockType(t)}
+                    className={`flex-1 text-xs font-semibold py-2.5 rounded-xl border transition-colors ${stockType === t ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 text-zinc-600"}`}>
+                    {t === "receive" ? "📦 รับเข้า" : "✏️ ปรับปรุง"}
+                  </button>
+                ))}
+              </div>
+
+              <div>
+                <label className={labelCls}>
+                  {stockType === "receive" ? "จำนวนที่รับเข้า" : "จำนวนที่เปลี่ยน (ใส่ - เพื่อลด เช่น -2)"}
+                </label>
+                <input type="number" className={inputCls} placeholder={stockType === "receive" ? "เช่น 10" : "เช่น -2 หรือ 5"}
+                  value={stockQty} onChange={e => setStockQty(e.target.value)} />
+              </div>
+              <div>
+                <label className={labelCls}>หมายเหตุ</label>
+                <input className={inputCls} placeholder="เช่น รับจากซัพพลายเออร์ / นับสต็อกใหม่พบต่างจากระบบ"
+                  value={stockNote} onChange={e => setStockNote(e.target.value)} />
+              </div>
+
+              {stockError && (
+                <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3">
+                  <p className="text-[11px] text-red-600">{stockError}</p>
+                </div>
+              )}
+
+              <div>
+                <p className="text-[11px] font-semibold text-zinc-500 tracking-wide mb-2">ประวัติล่าสุด</p>
+                {movementsLoading ? (
+                  <p className="text-xs text-zinc-400 text-center py-4">กำลังโหลด...</p>
+                ) : movements.length === 0 ? (
+                  <p className="text-xs text-zinc-400 text-center py-4">ยังไม่มีประวัติ</p>
+                ) : (
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                    {movements.map((m) => (
+                      <div key={m.id} className="flex items-center justify-between bg-zinc-50 rounded-xl px-3 py-2">
+                        <div>
+                          <p className="text-[11px] font-medium text-zinc-700">
+                            {MOVEMENT_LABEL[m.type] ?? m.type}
+                            {m.note ? ` — ${m.note}` : ""}
+                          </p>
+                          <p className="text-[10px] text-zinc-400 mt-0.5">
+                            {new Date(m.created_at).toLocaleString("th-TH")}
+                          </p>
+                        </div>
+                        <span className={`text-xs font-bold ${m.qty_change > 0 ? "text-green-600" : "text-red-500"}`}>
+                          {m.qty_change > 0 ? `+${m.qty_change}` : m.qty_change}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-2 px-6 py-4 border-t border-zinc-100 flex-shrink-0">
+              <button onClick={() => setStockTarget(null)}
+                className="flex-1 border border-zinc-200 text-xs font-semibold text-zinc-700 py-2.5 rounded-xl hover:bg-zinc-50">
+                ยกเลิก
+              </button>
+              <button onClick={handleStockSave} disabled={stockSaving}
+                className="flex-1 bg-zinc-900 text-white text-xs font-semibold py-2.5 rounded-xl hover:bg-zinc-700 disabled:opacity-40">
+                {stockSaving ? "กำลังบันทึก..." : "บันทึกการปรับสต็อก"}
               </button>
             </div>
           </div>
