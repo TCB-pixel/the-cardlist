@@ -75,7 +75,7 @@ export async function GET(req: Request) {
   const shopRevenue = shopOrders?.reduce((sum, o) => sum + (o.total_amount ?? 0), 0) ?? 0;
   const shopOrderCount = shopOrders?.length ?? 0;
 
-  // ── มูลค่าสต็อกคงเหลือ (ราคาขาย + ราคาทุน ถ้ามี) ──
+  // มูลค่าสต็อกคงเหลือ (ราคาขาย + ราคาทุน ถ้ามี)
   const { data: allProducts } = await supabase
     .from("products")
     .select("id, name, stock, price, cost_price");
@@ -89,7 +89,13 @@ export async function GET(req: Request) {
   );
   const productsMissingCost = (allProducts?.length ?? 0) - productsWithCost.length;
 
-  // ── กำไรขั้นต้น + สินค้าขายดี (จาก order_items ของออเดอร์ที่จ่ายแล้วเท่านั้น) ──
+  const lowStock = (allProducts ?? [])
+    .filter((p) => p.stock <= 5)
+    .sort((a, b) => a.stock - b.stock)
+    .slice(0, 5)
+    .map((p) => ({ id: p.id, name: p.name, stock: p.stock }));
+
+  // กำไรขั้นต้น + สินค้าขายดี (จาก order_items ของออเดอร์ที่จ่ายแล้วเท่านั้น)
   const paidOrderIds = (shopOrders ?? []).map((o) => o.id);
   let grossProfit = 0;
   let profitItemsMissingCost = 0;
@@ -150,16 +156,12 @@ export async function GET(req: Request) {
     inventory: {
       stockValueRetail,
       stockValueCost,
-      productsMissingCost, // จำนวนสินค้าที่ยังไม่ได้กรอกราคาทุน
-      lowStock: (allProducts ?? [])
-        .filter((p) => p.stock <= 5)
-        .sort((a, b) => a.stock - b.stock)
-        .slice(0, 5)
-        .map((p) => ({ id: p.id, name: p.name, stock: p.stock })),
+      productsMissingCost,
+      lowStock,
     },
     profit: {
-      grossProfit, // กำไรขั้นต้นจากสินค้าที่มีราคาทุนแล้วเท่านั้น
-      itemsSoldMissingCost: profitItemsMissingCost, // จำนวนชิ้นที่ขายไปแล้วแต่ยังคำนวณกำไรไม่ได้ (ไม่มีราคาทุน ณ ตอนนั้น)
+      grossProfit,
+      itemsSoldMissingCost: profitItemsMissingCost,
     },
     bestSellers,
   });
