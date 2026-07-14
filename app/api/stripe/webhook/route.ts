@@ -276,9 +276,10 @@ async function createShopOrder(
     amountTotal: number; // หน่วยสตางค์
     paymentId: string;
     shipping: ShopShipping | null;
+    cardFee: number; // บาท — ค่าธรรมเนียมบัตรเครดิต/เดบิต 3% ที่รวมอยู่ใน amountTotal แล้ว (0 ถ้าจ่าย PromptPay)
   }
 ) {
-  const { email, itemsJson, amountTotal, paymentId, shipping } = opts;
+  const { email, itemsJson, amountTotal, paymentId, shipping, cardFee } = opts;
 
   // กันยิงซ้ำ
   const { data: existingOrder } = await supabase
@@ -366,12 +367,19 @@ async function createShopOrder(
     }
   }
 
+  const noteParts: string[] = [];
+  if (cardFee > 0) {
+    noteParts.push(`ค่าธรรมเนียมบัตรเครดิต/เดบิต 3% รวมอยู่ในยอด: ฿${cardFee.toLocaleString()}`);
+  }
   if (oversoldItems.length > 0) {
+    noteParts.push(
+      `⚠️ สต็อกไม่พอตอนตัดสต็อก (ลูกค้าจ่ายเงินแล้ว ต้องตรวจสอบสต็อกด้วยมือ): ${oversoldItems.join(", ")}`
+    );
+  }
+  if (noteParts.length > 0) {
     await supabase
       .from("orders")
-      .update({
-        note: `⚠️ สต็อกไม่พอตอนตัดสต็อก (ลูกค้าจ่ายเงินแล้ว ต้องตรวจสอบสต็อกด้วยมือ): ${oversoldItems.join(", ")}`,
-      })
+      .update({ note: noteParts.join(" | ") })
       .eq("id", order.id);
   }
 
@@ -458,6 +466,7 @@ async function routeByType(
     amountTotal: number;
     paymentId: string;
     shipping: ShopShipping | null;
+    cardFee: number;
   }
 ) {
   const t = (p.type || "").toLowerCase();
@@ -483,6 +492,7 @@ async function routeByType(
       amountTotal: p.amountTotal,
       paymentId: p.paymentId,
       shipping: p.shipping,
+      cardFee: p.cardFee,
     });
   } else {
     console.warn("ไม่รู้จัก payment type:", t, p.paymentId);
@@ -533,6 +543,7 @@ export async function POST(request: NextRequest) {
           amountTotal: pi.amount,
           paymentId: pi.id,
           shipping: null,
+          cardFee: 0,
         });
         break;
       }
@@ -611,5 +622,6 @@ function sessionParams(s: Stripe.Checkout.Session) {
     amountTotal: s.amount_total ?? 0,
     paymentId,
     shipping,
+    cardFee: Number(s.metadata?.card_fee || 0),
   };
 }

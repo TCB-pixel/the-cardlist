@@ -42,6 +42,8 @@ export async function POST(request: NextRequest) {
     const items: any[] = Array.isArray(body.items) ? body.items : [];
     const userId: string | null = body.userId ?? null;
     const email: string | null = body.email ?? null;
+    // paymentMethod: "card" (มีค่าธรรมเนียม 3% แสดงแยกให้เห็นชัดเจน) หรือ "promptpay" (ไม่มีค่าธรรมเนียม)
+    const paymentMethod: "card" | "promptpay" = body.paymentMethod === "promptpay" ? "promptpay" : "card";
 
     if (items.length === 0) {
       return NextResponse.json(
@@ -125,7 +127,8 @@ export async function POST(request: NextRequest) {
 
     const stripe = getStripe();
 
-    // เก็บ items แบบกระชับลง metadata (Stripe จำกัด 500 ตัวอักษร/ฟิลด์)
+    // เก็บ items แบบกระชับลง metadata (Stripe จำกัด 500 ตัวอักษร/ฟิลด์) — ไม่รวมค่าธรรมเนียมบัตร
+    // (ค่าธรรมเนียมไม่ใช่สินค้า ไม่ต้องตัดสต็อก/สร้าง order_items ให้)
     const compactItems = items.map((it: any) => ({
       id: it.id,
       name: it.name,
@@ -134,22 +137,42 @@ export async function POST(request: NextRequest) {
     }));
     const itemsJson = JSON.stringify(compactItems);
 
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      payment_method_types: ["card", "promptpay"],
-      locale: "th",
-      customer_email: email ?? undefined,
-      line_items: items.map((it: any) => ({
+    // ── ค่าธรรมเนียมบัตรเครดิต/เดบิต 3% — แสดงเป็นรายการแยกชัดเจน ไม่ซ่อนในราคาสินค้า ──
+    // เก็บเฉพาะตอนจ่ายด้วยบัตรเท่านั้น ไม่เก็บกับ PromptPay
+    const subtotal = compactItems.reduce((sum, it) => sum + it.price * it.qty, 0);
+    const cardFee = paymentMethod === "card" ? Math.round(subtotal * 0.03) : 0;
+
+    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = items.map((it: any) => ({
+      price_data: {
+        currency: "thb",
+        product_data: {
+          name: it.name,
+          ...(it.image_url ? { images: [it.image_url] } : {}),
+        },
+        unit_amount: Number(it.price) * 100,
+      },
+      quantity: Number(it.qty),
+    }));
+
+    if (cardFee > 0) {
+      lineItems.push({
         price_data: {
           currency: "thb",
           product_data: {
-            name: it.name,
-            ...(it.image_url ? { images: [it.image_url] } : {}),
+            name: "ค่าธรรมเนียมการชำระด้วยบัตรเครดิต/เดบิต (3%)",
           },
-          unit_amount: Number(it.price) * 100,
+          unit_amount: cardFee * 100,
         },
-        quantity: Number(it.qty),
-      })),
+        quantity: 1,
+      });
+    }
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      payment_method_types: [paymentMethod],
+      locale: "th",
+      customer_email: email ?? undefined,
+      line_items: lineItems,
       // ✅ ฟอร์มที่อยู่จัดส่ง (เฉพาะไทย) + เบอร์โทร โผล่บนหน้า Stripe
       shipping_address_collection: { allowed_countries: ["TH"] },
       phone_number_collection: { enabled: true },
@@ -158,6 +181,7 @@ export async function POST(request: NextRequest) {
         user_id: userId ?? "",
         email: email ?? "",
         items: itemsJson,
+        card_fee: String(cardFee),
       },
       success_url: `${SITE_URL}/shop/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${SITE_URL}/shop`,

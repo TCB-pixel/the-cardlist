@@ -163,6 +163,50 @@ export default function ShopPage() {
     return Math.ceil(ms / (1000 * 60 * 60));
   }
 
+  const [checkingOut, setCheckingOut] = useState<"card" | "promptpay" | null>(null);
+
+  // ── ชำระเงิน — แยกปุ่มบัตร (มีค่าธรรมเนียม 3% แจ้งชัดเจนก่อนกด) กับ PromptPay (ไม่มีค่าธรรมเนียม) ──
+  async function startCheckout(paymentMethod: "card" | "promptpay") {
+    setCheckingOut(paymentMethod);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert("กรุณาเข้าสู่ระบบก่อนชำระเงิน");
+        window.location.href = "/login";
+        return;
+      }
+
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "shop",
+          userId: user.id,
+          email: user.email ?? null,
+          paymentMethod,
+          items: cart.map(i => ({
+            id: i.id,
+            name: i.name,
+            price: i.price,
+            qty: i.qty,
+            image_url: products.find(p => p.id === i.id)?.image_url ?? null,
+          })),
+        }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        try { localStorage.removeItem("cardlist_cart"); } catch { /* ignore */ }
+        window.location.href = data.url;
+      } else {
+        alert(data.error ?? "เกิดข้อผิดพลาด กรุณาลองใหม่");
+      }
+    } catch {
+      alert("เกิดข้อผิดพลาด กรุณาลองใหม่");
+    } finally {
+      setCheckingOut(null);
+    }
+  }
+
   // ── Filter & sort ──
   const filtered = useMemo(() => {
     return products.filter((p) => {
@@ -410,50 +454,29 @@ export default function ShopPage() {
             {/* Checkout - always visible at bottom */}
             <div className="flex-shrink-0 px-5 pt-3 pb-6 border-t border-zinc-100 bg-white">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs text-zinc-500">รวมทั้งหมด</span>
+                <span className="text-xs text-zinc-500">ยอดสินค้า</span>
                 <span className="text-base font-bold text-zinc-900">฿{totalPrice.toLocaleString()}</span>
               </div>
               {cart.length > 0 && (
-                <button
-                  onClick={async () => {
-                    try {
-                      // ต้องล็อกอินก่อนชำระเงิน — webhook ใช้ user_id ผูก order
-                      const { data: { user } } = await supabase.auth.getUser();
-                      if (!user) {
-                        alert("กรุณาเข้าสู่ระบบก่อนชำระเงิน");
-                        window.location.href = "/login";
-                        return;
-                      }
-
-                      const res = await fetch("/api/stripe/checkout", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          type: "shop",
-                          userId: user.id,
-                          email: user.email ?? null,
-                          items: cart.map(i => ({
-                            id: i.id,
-                            name: i.name,
-                            price: i.price,
-                            qty: i.qty,
-                            image_url: products.find(p => p.id === i.id)?.image_url ?? null,
-                          })),
-                        }),
-                      });
-                      const data = await res.json();
-                      if (data.url) {
-                        try { localStorage.removeItem("cardlist_cart"); } catch { /* ignore */ }
-                        window.location.href = data.url;
-                      }
-                      else alert(data.error ?? "เกิดข้อผิดพลาด กรุณาลองใหม่");
-                    } catch {
-                      alert("เกิดข้อผิดพลาด กรุณาลองใหม่");
-                    }
-                  }}
-                  className="btn-primary w-full py-3.5 text-center text-sm font-semibold">
-                  ชำระเงินผ่าน Stripe →
-                </button>
+                <div className="space-y-2">
+                  <button
+                    onClick={() => startCheckout("promptpay")}
+                    disabled={checkingOut !== null}
+                    className="btn-primary w-full py-3.5 text-center text-sm font-semibold disabled:opacity-50">
+                    {checkingOut === "promptpay" ? "กำลังไปหน้าชำระเงิน..." : `ชำระผ่าน PromptPay — ฿${totalPrice.toLocaleString()} (ไม่มีค่าธรรมเนียม)`}
+                  </button>
+                  <button
+                    onClick={() => startCheckout("card")}
+                    disabled={checkingOut !== null}
+                    className="w-full py-3.5 text-center text-sm font-semibold rounded-xl border border-zinc-200 text-zinc-700 active:opacity-70 transition-opacity disabled:opacity-50">
+                    {checkingOut === "card"
+                      ? "กำลังไปหน้าชำระเงิน..."
+                      : `ชำระด้วยบัตรเครดิต/เดบิต — ฿${(totalPrice + Math.round(totalPrice * 0.03)).toLocaleString()}`}
+                  </button>
+                  <p className="text-[10px] text-zinc-400 text-center">
+                    การชำระด้วยบัตรมีค่าธรรมเนียม 3% ของยอดสินค้า (ธนาคาร/เครือข่ายบัตรเรียกเก็บ) แสดงแยกให้เห็นชัดเจนก่อนชำระเงินเสมอ
+                  </p>
+                </div>
               )}
             </div>
           </div>
