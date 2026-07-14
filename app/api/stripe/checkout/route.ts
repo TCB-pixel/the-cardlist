@@ -77,6 +77,52 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ── สินค้าที่ต้อง "ขอสิทธิ์ซื้อ" (lottery) — ซื้อได้เฉพาะคนที่ได้สิทธิ์ "won" และยังไม่หมดเวลาเท่านั้น ──
+    const { data: activeLotteries } = await supabase
+      .from("product_lotteries")
+      .select("id, product_id, status, created_at")
+      .in("product_id", ids)
+      .in("status", ["open", "drawn"])
+      .order("created_at", { ascending: false });
+
+    const latestLotteryByProduct = new Map<string, { id: string; status: string }>();
+    for (const l of activeLotteries ?? []) {
+      if (!latestLotteryByProduct.has(l.product_id)) {
+        latestLotteryByProduct.set(l.product_id, { id: l.id, status: l.status });
+      }
+    }
+
+    if (latestLotteryByProduct.size > 0) {
+      if (!userId) {
+        return NextResponse.json({ error: "กรุณาเข้าสู่ระบบก่อนซื้อสินค้าที่ต้องขอสิทธิ์" }, { status: 401 });
+      }
+      const lotteryIds = Array.from(latestLotteryByProduct.values()).map((l) => l.id);
+      const { data: myEntries } = await supabase
+        .from("lottery_entries")
+        .select("lottery_id, status, purchase_deadline")
+        .in("lottery_id", lotteryIds)
+        .eq("user_id", userId)
+        .eq("status", "won");
+
+      const validWinByLottery = new Map(
+        (myEntries ?? [])
+          .filter((e) => !e.purchase_deadline || new Date(e.purchase_deadline) > new Date())
+          .map((e) => [e.lottery_id, true])
+      );
+
+      for (const it of items) {
+        const lot = latestLotteryByProduct.get(it.id);
+        if (!lot) continue; // สินค้านี้ไม่ใช่ lottery
+        if (!validWinByLottery.has(lot.id)) {
+          const p = stockMap.get(it.id);
+          return NextResponse.json(
+            { error: `${p?.name ?? it.name} ต้องขอสิทธิ์ซื้อและได้รับสิทธิ์ก่อนถึงจะซื้อได้ (หรือสิทธิ์ของคุณหมดเวลาแล้ว)` },
+            { status: 403 }
+          );
+        }
+      }
+    }
+
     const stripe = getStripe();
 
     // เก็บ items แบบกระชับลง metadata (Stripe จำกัด 500 ตัวอักษร/ฟิลด์)

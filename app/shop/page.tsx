@@ -22,6 +22,13 @@ type Product = {
 
 type CartItem = { id: string; name: string; price: number; qty: number };
 
+type LotteryInfo = {
+  lotteryId: string;
+  status: "open" | "drawn";
+  quota: number;
+  myEntry: { status: string; purchaseDeadline: string | null } | null;
+};
+
 // ─── Config ────────────────────────────────────────────────────────────────
 
 const TCG_TABS       = ["All", "One Piece", "Pokémon", "MTG", "Dragon Ball"];
@@ -68,6 +75,8 @@ export default function ShopPage() {
   const [cart, setCart]                   = useState<CartItem[]>([]);
   const [showCart, setShowCart]           = useState(false);
   const [toast, setToast]                 = useState<string | null>(null);
+  const [lotteries, setLotteries]         = useState<Record<string, LotteryInfo>>({});
+  const [requesting, setRequesting]       = useState<string | null>(null);
 
   // ── ตะกร้าค้างไว้แม้ refresh (localStorage) ──
   useEffect(() => {
@@ -97,6 +106,62 @@ export default function ShopPage() {
     }
     load();
   }, []);
+
+  // ── ดึงสถานะ lottery ("ขอสิทธิ์ซื้อ") ของสินค้าที่แสดงอยู่ ──
+  async function loadLotteries(productIds: string[]) {
+    if (productIds.length === 0) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`/api/lottery?productIds=${productIds.join(",")}`, {
+        headers: session ? { Authorization: `Bearer ${session.access_token}` } : {},
+      });
+      const data = await res.json();
+      if (data.lotteries) setLotteries(data.lotteries);
+    } catch { /* ignore */ }
+  }
+
+  useEffect(() => {
+    if (products.length > 0) loadLotteries(products.map((p) => p.id));
+  }, [products]);
+
+  async function requestToBuy(p: Product) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      alert("กรุณาเข้าสู่ระบบก่อนขอสิทธิ์ซื้อ");
+      window.location.href = "/login";
+      return;
+    }
+    setRequesting(p.id);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/lottery", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token ?? ""}`,
+        },
+        body: JSON.stringify({ productId: p.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error ?? "ขอสิทธิ์ไม่สำเร็จ");
+      } else {
+        await loadLotteries(products.map((pp) => pp.id));
+      }
+    } catch {
+      alert("เกิดข้อผิดพลาด กรุณาลองใหม่");
+    } finally {
+      setRequesting(null);
+    }
+  }
+
+  // ── นับเวลาที่เหลือแบบคร่าวๆ (ชม.) จาก deadline ──
+  function hoursLeft(deadline: string | null) {
+    if (!deadline) return null;
+    const ms = new Date(deadline).getTime() - Date.now();
+    if (ms <= 0) return 0;
+    return Math.ceil(ms / (1000 * 60 * 60));
+  }
 
   // ── Filter & sort ──
   const filtered = useMemo(() => {
@@ -226,13 +291,20 @@ export default function ShopPage() {
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-3">
-            {filtered.map((p) => (
+            {filtered.map((p) => {
+              const lot = lotteries[p.id];
+              return (
               <div key={p.id} className="card overflow-hidden">
                 {/* Product Image */}
                 <div className="relative">
                   {p.badge && (
                     <span className={`absolute top-2 left-2 z-10 ${BADGE_CLASS[p.badge] ?? "badge-pre"}`}>
                       {p.badge}
+                    </span>
+                  )}
+                  {lot && (
+                    <span className="absolute top-2 right-2 z-10 text-[8px] font-bold px-1.5 py-0.5 rounded bg-purple-600 text-white tracking-wide">
+                      🎟️ ลุ้นสิทธิ์
                     </span>
                   )}
                   {p.image_url ? (
@@ -258,15 +330,52 @@ export default function ShopPage() {
                   <p className="text-[9px] text-zinc-400 mt-0.5">
                     {p.stock <= 0 ? "หมดสต็อก" : p.stock <= 3 ? `เหลือ ${p.stock} ใบ` : "มีสต็อก"}
                   </p>
-                  <button
-                    onClick={() => addToCart(p)}
-                    disabled={p.stock <= 0}
-                    className="mt-2 w-full text-[10px] bg-zinc-900 text-white rounded-lg py-1.5 tracking-wide active:opacity-70 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed">
-                    {p.stock <= 0 ? "หมดสต็อก" : "+ ตะกร้า"}
-                  </button>
+
+                  {!lot ? (
+                    <button
+                      onClick={() => addToCart(p)}
+                      disabled={p.stock <= 0}
+                      className="mt-2 w-full text-[10px] bg-zinc-900 text-white rounded-lg py-1.5 tracking-wide active:opacity-70 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed">
+                      {p.stock <= 0 ? "หมดสต็อก" : "+ ตะกร้า"}
+                    </button>
+                  ) : lot.status === "open" ? (
+                    lot.myEntry ? (
+                      <button disabled className="mt-2 w-full text-[10px] bg-zinc-100 text-zinc-400 rounded-lg py-1.5 tracking-wide cursor-not-allowed">
+                        ขอสิทธิ์แล้ว รอผล
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => requestToBuy(p)}
+                        disabled={requesting === p.id}
+                        className="mt-2 w-full text-[10px] bg-purple-600 text-white rounded-lg py-1.5 tracking-wide active:opacity-70 transition-opacity disabled:opacity-50">
+                        {requesting === p.id ? "กำลังส่ง..." : "🎟️ ขอสิทธิ์ซื้อ"}
+                      </button>
+                    )
+                  ) : lot.myEntry?.status === "won" && hoursLeft(lot.myEntry.purchaseDeadline) !== 0 ? (
+                    <>
+                      <p className="text-[9px] text-purple-600 font-semibold mt-2">
+                        🎉 ได้สิทธิ์! เหลือ {hoursLeft(lot.myEntry.purchaseDeadline)} ชม.
+                      </p>
+                      <button
+                        onClick={() => addToCart(p)}
+                        disabled={p.stock <= 0}
+                        className="mt-1 w-full text-[10px] bg-purple-600 text-white rounded-lg py-1.5 tracking-wide active:opacity-70 transition-opacity disabled:opacity-30">
+                        {p.stock <= 0 ? "หมดสต็อก" : "+ ตะกร้า"}
+                      </button>
+                    </>
+                  ) : lot.myEntry?.status === "purchased" ? (
+                    <button disabled className="mt-2 w-full text-[10px] bg-zinc-100 text-zinc-400 rounded-lg py-1.5 tracking-wide cursor-not-allowed">
+                      ซื้อแล้ว
+                    </button>
+                  ) : (
+                    <button disabled className="mt-2 w-full text-[10px] bg-zinc-100 text-zinc-400 rounded-lg py-1.5 tracking-wide cursor-not-allowed">
+                      {lot.myEntry?.status === "won" ? "หมดเวลาซื้อ" : "พลาดสิทธิ์รอบนี้"}
+                    </button>
+                  )}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </main>

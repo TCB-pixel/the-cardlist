@@ -375,6 +375,27 @@ async function createShopOrder(
       .eq("id", order.id);
   }
 
+  // ── ถ้าซื้อสินค้าที่เป็น lottery — ปิดสิทธิ์ "won" เป็น "purchased" กันใช้สิทธิ์ซ้ำ ──
+  try {
+    const productIds = items.map((it: any) => it.id).filter(Boolean);
+    const { data: lotteries } = await supabase
+      .from("product_lotteries")
+      .select("id, product_id")
+      .in("product_id", productIds)
+      .eq("status", "drawn");
+    if (lotteries && lotteries.length > 0) {
+      const lotteryIds = lotteries.map((l) => l.id);
+      await supabase
+        .from("lottery_entries")
+        .update({ status: "purchased" })
+        .in("lottery_id", lotteryIds)
+        .eq("user_id", userId)
+        .eq("status", "won");
+    }
+  } catch (err) {
+    console.error("อัปเดตสถานะ lottery_entries เป็น purchased ไม่สำเร็จ:", err);
+  }
+
   // ── ยืนยันคำสั่งซื้อ: อีเมล + LINE (best-effort) ──
   await sendOrderConfirmEmail({
     email,

@@ -30,6 +30,34 @@ type StockMovement = {
   created_at: string;
 };
 
+type Lottery = {
+  id: string;
+  product_id: string;
+  quota: number;
+  status: "open" | "drawn" | "cancelled";
+  created_at: string;
+  drawn_at: string | null;
+  entryCounts: { pending: number; won: number; lost: number };
+};
+
+type LotteryEntry = {
+  id: string;
+  user_id: string;
+  status: string;
+  won_at: string | null;
+  purchase_deadline: string | null;
+  created_at: string;
+  profiles: { username: string | null; line_user_id: string | null } | null;
+};
+
+const LOTTERY_ENTRY_LABEL: Record<string, string> = {
+  pending: "รอผล",
+  won: "ได้สิทธิ์",
+  lost: "พลาดสิทธิ์",
+  expired: "หมดเวลา",
+  purchased: "ซื้อแล้ว",
+};
+
 const EMPTY: Omit<Product, "id" | "active"> = {
   name: "", sub: "", price: 0, stock: 0,
   category: "Single Cards", tcg: "One Piece",
@@ -84,6 +112,15 @@ export default function AdminProductsPage() {
   const [stockError, setStockError] = useState("");
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [movementsLoading, setMovementsLoading] = useState(false);
+
+  // ── Lottery ("ขอสิทธิ์ซื้อ") ──
+  const [lotteryTarget, setLotteryTarget] = useState<Product | null>(null);
+  const [currentLottery, setCurrentLottery] = useState<Lottery | null>(null);
+  const [lotteryEntries, setLotteryEntries] = useState<LotteryEntry[]>([]);
+  const [lotteryLoading, setLotteryLoading] = useState(false);
+  const [lotteryQuota, setLotteryQuota] = useState("");
+  const [lotteryBusy, setLotteryBusy] = useState(false);
+  const [lotteryError, setLotteryError] = useState("");
 
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -248,6 +285,103 @@ export default function AdminProductsPage() {
     }
   }
 
+  // ── Lottery: เปิด modal + โหลด lottery ล่าสุดของสินค้านี้ ──
+  async function openLottery(p: Product) {
+    setLotteryTarget(p);
+    setCurrentLottery(null);
+    setLotteryEntries([]);
+    setLotteryQuota("");
+    setLotteryError("");
+    setLotteryLoading(true);
+    try {
+      const res = await authedFetch("/api/admin/lotteries");
+      const data = await res.json();
+      if (res.ok) {
+        const mine: Lottery[] = (data.lotteries ?? []).filter((l: any) => l.product_id === p.id);
+        const latest = mine[0] ?? null; // เรียงจาก created_at desc มาแล้วจาก API
+        setCurrentLottery(latest);
+        if (latest && latest.status !== "open") {
+          await loadLotteryEntries(latest.id);
+        }
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      setLotteryLoading(false);
+    }
+  }
+
+  async function loadLotteryEntries(lotteryId: string) {
+    try {
+      const res = await authedFetch(`/api/admin/lotteries?lotteryId=${lotteryId}`);
+      const data = await res.json();
+      if (res.ok) setLotteryEntries(data.entries ?? []);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function handleCreateLottery() {
+    if (!lotteryTarget) return;
+    const quota = Number(lotteryQuota);
+    if (!quota || quota <= 0) { setLotteryError("กรอกจำนวนสิทธิ์ที่จะสุ่ม"); return; }
+    setLotteryBusy(true);
+    setLotteryError("");
+    try {
+      const res = await authedFetch("/api/admin/lotteries", {
+        method: "POST",
+        body: JSON.stringify({ productId: lotteryTarget.id, quota }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "เปิดรอบไม่สำเร็จ");
+      await openLottery(lotteryTarget);
+    } catch (err: any) {
+      setLotteryError(err?.message ?? "เปิดรอบไม่สำเร็จ");
+    } finally {
+      setLotteryBusy(false);
+    }
+  }
+
+  async function handleDrawLottery() {
+    if (!currentLottery) return;
+    if (!confirm(`ยืนยันปิดรับคำขอและสุ่มผู้ชนะ ${currentLottery.quota} สิทธิ์? การกระทำนี้ย้อนกลับไม่ได้`)) return;
+    setLotteryBusy(true);
+    setLotteryError("");
+    try {
+      const res = await authedFetch("/api/admin/lotteries", {
+        method: "PATCH",
+        body: JSON.stringify({ lotteryId: currentLottery.id, action: "close_and_draw" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "สุ่มไม่สำเร็จ");
+      if (lotteryTarget) await openLottery(lotteryTarget);
+    } catch (err: any) {
+      setLotteryError(err?.message ?? "สุ่มไม่สำเร็จ");
+    } finally {
+      setLotteryBusy(false);
+    }
+  }
+
+  async function handleCancelLottery() {
+    if (!currentLottery) return;
+    if (!confirm("ยกเลิกรอบขอสิทธิ์นี้?")) return;
+    setLotteryBusy(true);
+    setLotteryError("");
+    try {
+      const res = await authedFetch("/api/admin/lotteries", {
+        method: "PATCH",
+        body: JSON.stringify({ lotteryId: currentLottery.id, action: "cancel" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "ยกเลิกไม่สำเร็จ");
+      if (lotteryTarget) await openLottery(lotteryTarget);
+    } catch (err: any) {
+      setLotteryError(err?.message ?? "ยกเลิกไม่สำเร็จ");
+    } finally {
+      setLotteryBusy(false);
+    }
+  }
+
   // ── Filter ──
   const filtered = products.filter((p) => {
     if (filterTcg !== "All" && p.tcg !== filterTcg) return false;
@@ -367,6 +501,12 @@ export default function AdminProductsPage() {
                         <button onClick={() => openStockAdjust(p)}
                           className="text-xs text-blue-500 hover:text-blue-700 border border-blue-100 rounded-lg px-2.5 py-1">
                           ปรับสต็อก
+                        </button>
+                      )}
+                      {canEdit && (
+                        <button onClick={() => openLottery(p)}
+                          className="text-xs text-purple-500 hover:text-purple-700 border border-purple-100 rounded-lg px-2.5 py-1">
+                          🎟️ Lottery
                         </button>
                       )}
                       {canEdit && (
@@ -604,6 +744,106 @@ export default function AdminProductsPage() {
                 className="flex-1 bg-zinc-900 text-white text-xs font-semibold py-2.5 rounded-xl hover:bg-zinc-700 disabled:opacity-40">
                 {stockSaving ? "กำลังบันทึก..." : "บันทึกการปรับสต็อก"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Lottery Modal ── */}
+      {lotteryTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setLotteryTarget(null)} />
+          <div className="relative bg-white rounded-2xl w-full max-w-md mx-4 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 flex-shrink-0">
+              <div>
+                <h3 className="text-sm font-bold text-zinc-900">🎟️ ขอสิทธิ์ซื้อ (Lottery)</h3>
+                <p className="text-[11px] text-zinc-400 mt-0.5">{lotteryTarget.name}</p>
+              </div>
+              <button onClick={() => setLotteryTarget(null)} className="text-zinc-400 text-lg leading-none">✕</button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+              {lotteryLoading ? (
+                <p className="text-xs text-zinc-400 text-center py-6">กำลังโหลด...</p>
+              ) : !currentLottery || currentLottery.status === "cancelled" ? (
+                <>
+                  <p className="text-xs text-zinc-500">
+                    ยังไม่มีรอบขอสิทธิ์เปิดอยู่ — เปิดรอบใหม่เพื่อให้ลูกค้ากดขอสิทธิ์ซื้อสินค้านี้แทนการซื้อตรงได้
+                  </p>
+                  <div>
+                    <label className={labelCls}>จำนวนสิทธิ์ที่จะสุ่มให้ (quota)</label>
+                    <input type="number" className={inputCls} placeholder="เช่น 5"
+                      value={lotteryQuota} onChange={(e) => setLotteryQuota(e.target.value)} />
+                  </div>
+                  {lotteryError && (
+                    <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3">
+                      <p className="text-[11px] text-red-600">{lotteryError}</p>
+                    </div>
+                  )}
+                  <button onClick={handleCreateLottery} disabled={lotteryBusy}
+                    className="w-full bg-purple-600 text-white text-xs font-semibold py-2.5 rounded-xl hover:bg-purple-700 disabled:opacity-40">
+                    {lotteryBusy ? "กำลังเปิด..." : "เปิดรับคำขอ"}
+                  </button>
+                </>
+              ) : currentLottery.status === "open" ? (
+                <>
+                  <div className="bg-purple-50 border border-purple-100 rounded-xl px-4 py-3">
+                    <p className="text-xs font-semibold text-purple-700">🟢 กำลังเปิดรับคำขอ</p>
+                    <p className="text-[11px] text-zinc-600 mt-1">
+                      จะสุ่ม {currentLottery.quota} สิทธิ์ — มีคนขอแล้ว {currentLottery.entryCounts.pending} คน
+                    </p>
+                  </div>
+                  {lotteryError && (
+                    <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3">
+                      <p className="text-[11px] text-red-600">{lotteryError}</p>
+                    </div>
+                  )}
+                  <button onClick={handleDrawLottery} disabled={lotteryBusy}
+                    className="w-full bg-purple-600 text-white text-xs font-semibold py-2.5 rounded-xl hover:bg-purple-700 disabled:opacity-40">
+                    {lotteryBusy ? "กำลังสุ่ม..." : `ปิดรับคำขอ + สุ่มผู้ชนะ`}
+                  </button>
+                  <button onClick={handleCancelLottery} disabled={lotteryBusy}
+                    className="w-full border border-red-100 text-red-500 text-xs font-semibold py-2.5 rounded-xl hover:bg-red-50 disabled:opacity-40">
+                    ยกเลิกรอบนี้
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="bg-zinc-50 border border-zinc-100 rounded-xl px-4 py-3">
+                    <p className="text-xs font-semibold text-zinc-700">✅ สุ่มผลแล้ว</p>
+                    <p className="text-[11px] text-zinc-600 mt-1">
+                      ได้สิทธิ์ {currentLottery.entryCounts.won} คน · พลาดสิทธิ์ {currentLottery.entryCounts.lost} คน
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-[11px] font-semibold text-zinc-500 tracking-wide mb-2">รายชื่อผู้ได้สิทธิ์</p>
+                    {lotteryEntries.filter((e) => e.status === "won" || e.status === "purchased").length === 0 ? (
+                      <p className="text-xs text-zinc-400 text-center py-4">ไม่มีผู้ได้สิทธิ์</p>
+                    ) : (
+                      <div className="space-y-1.5 max-h-56 overflow-y-auto">
+                        {lotteryEntries
+                          .filter((e) => e.status === "won" || e.status === "purchased")
+                          .map((e) => (
+                            <div key={e.id} className="flex items-center justify-between bg-zinc-50 rounded-xl px-3 py-2">
+                              <p className="text-[11px] font-medium text-zinc-700">
+                                @{e.profiles?.username ?? e.user_id.slice(0, 8)}
+                              </p>
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${e.status === "purchased" ? "bg-green-50 text-green-700" : "bg-purple-50 text-purple-700"}`}>
+                                {LOTTERY_ENTRY_LABEL[e.status] ?? e.status}
+                              </span>
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <button onClick={() => { setCurrentLottery(null); setLotteryEntries([]); }}
+                    className="w-full border border-zinc-200 text-xs font-semibold text-zinc-700 py-2.5 rounded-xl hover:bg-zinc-50">
+                    เปิดรอบใหม่
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
