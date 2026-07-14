@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import type { Profile, Booking, Event } from "@/lib/types";
+import { getTier, getNextTier, TIER_LABEL, TIER_COLOR } from "@/lib/tiers";
 import BottomNav from "@/components/BottomNav";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -27,13 +28,6 @@ type BookingWithEvent = Booking & {
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const PACK_PRICE = 49;
-
-const TIER_CONFIG = {
-  bronze:   { label: "Bronze",   color: "#CD7F32", next: "Silver",   nextSpend: 5000  },
-  silver:   { label: "Silver",   color: "#A8A9AD", next: "Gold",     nextSpend: 15000 },
-  gold:     { label: "Gold",     color: "#EF9F27", next: "Platinum", nextSpend: 30000 },
-  platinum: { label: "Platinum", color: "#7F77DD", next: null,       nextSpend: 30000 },
-};
 
 const STATUS_STYLE: Record<string, string> = {
   completed: "bg-green-50 text-green-700",
@@ -526,10 +520,14 @@ export default function ProfilePage() {
     );
   }
 
-  const tier = TIER_CONFIG[profile.tier];
+  // Tier คำนวณสดจากยอดซื้อสะสมจริง (ไม่ใช้ profiles.tier ที่เป็นค่า static)
+  const tierKey = getTier(totalSpend);
+  const tierColor = TIER_COLOR[tierKey];
+  const tierLabel = TIER_LABEL[tierKey];
+  const { next: nextTierKey, nextThreshold } = getNextTier(tierKey);
   const ptsPct = Math.min(Math.round((profile.points / 2000) * 100), 100);
-  const spendPct = tier.next ? Math.min(Math.round((totalSpend / tier.nextSpend) * 100), 100) : 100;
-  const spendRemaining = tier.next ? Math.max(tier.nextSpend - totalSpend, 0) : 0;
+  const spendPct = nextThreshold ? Math.min(Math.round((totalSpend / nextThreshold) * 100), 100) : 100;
+  const spendRemaining = nextThreshold ? Math.max(nextThreshold - totalSpend, 0) : 0;
 
   return (
     <div className="min-h-screen bg-zinc-50 pb-20">
@@ -607,9 +605,9 @@ export default function ProfilePage() {
             <p className="text-sm font-bold text-zinc-900">{profile.display_name ?? profile.username}</p>
             <p className="text-[11px] text-zinc-400 mt-0.5">@{profile.username}</p>
             <div className="flex items-center gap-1.5 mt-1.5">
-              <span className="w-2 h-2 rounded-full" style={{ background: tier.color }} />
-              <span className="text-[10px] font-semibold tracking-widest" style={{ color: tier.color }}>
-                {tier.label.toUpperCase()} MEMBER
+              <span className="w-2 h-2 rounded-full" style={{ background: tierColor }} />
+              <span className="text-[10px] font-semibold tracking-widest" style={{ color: tierColor }}>
+                {tierLabel.toUpperCase()} MEMBER
               </span>
             </div>
           </div>
@@ -631,38 +629,38 @@ export default function ProfilePage() {
         </div>
 
         {/* Points progress */}
-        {tier.next && (
+        {nextTierKey && (
           <div className="mb-3">
             <div className="flex justify-between mb-1.5">
-              <span className="text-[11px] text-zinc-500 font-medium">Points: {tier.label} → {tier.next}</span>
+              <span className="text-[11px] text-zinc-500 font-medium">Points: {tierLabel} → {TIER_LABEL[nextTierKey]}</span>
               <span className="text-[11px] text-zinc-400">{profile.points.toLocaleString()} / 2,000</span>
             </div>
             <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden">
-              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${ptsPct}%`, background: tier.color }} />
+              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${ptsPct}%`, background: tierColor }} />
             </div>
           </div>
         )}
 
         {/* Spend progress */}
-        {tier.next && (
+        {nextTierKey && nextThreshold !== null && (
           <div>
             <div className="flex justify-between mb-1.5">
-              <span className="text-[11px] text-zinc-500 font-medium">ยอดซื้อสะสม → {tier.next}</span>
-              <span className="text-[11px] text-zinc-400">฿{totalSpend.toLocaleString()} / ฿{tier.nextSpend.toLocaleString()}</span>
+              <span className="text-[11px] text-zinc-500 font-medium">ยอดซื้อสะสม → {TIER_LABEL[nextTierKey]}</span>
+              <span className="text-[11px] text-zinc-400">฿{totalSpend.toLocaleString()} / ฿{nextThreshold.toLocaleString()}</span>
             </div>
             <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden">
-              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${spendPct}%`, background: tier.color }} />
+              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${spendPct}%`, background: tierColor }} />
             </div>
             <p className="text-[10px] text-zinc-400 mt-1">
-              อีก ฿{spendRemaining.toLocaleString()} จะขึ้น {tier.next}
+              อีก ฿{spendRemaining.toLocaleString()} จะขึ้น {TIER_LABEL[nextTierKey]}
             </p>
           </div>
         )}
 
-        {profile.tier === "platinum" && (
+        {tierKey === "platinum" && (
           <div className="mt-3 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full" style={{ background: tier.color }} />
-            <p className="text-[11px] font-semibold" style={{ color: tier.color }}>
+            <span className="w-2 h-2 rounded-full" style={{ background: tierColor }} />
+            <p className="text-[11px] font-semibold" style={{ color: tierColor }}>
               Platinum — ระดับสูงสุด 🎉
             </p>
           </div>
