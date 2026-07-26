@@ -86,6 +86,11 @@ export default function EventsPage() {
   const [selectedType, setSelectedType] = useState<TableType>("pokemon");
   const [bookingBusy, setBookingBusy] = useState("");
 
+  // ลงทะเบียนเข้างาน (general_registrations) — กดครั้งเดียวได้ QR เลยจาก list
+  const [registrations, setRegistrations] = useState<Record<string, string>>({}); // eventId -> qrCode
+  const [registeringId, setRegisteringId] = useState("");
+  const [registerError, setRegisterError] = useState("");
+
   const authedFetch = useCallback(async (input: string, init?: RequestInit) => {
     const { data: { session } } = await supabase.auth.getSession();
     return fetch(input, {
@@ -108,10 +113,45 @@ export default function EventsPage() {
       setLoggedIn(!!session);
       const firstTrading = (eventsData ?? []).find((e: Event) => e.trading_tables_enabled);
       if (firstTrading) setTradingEventId(firstTrading.id);
+
+      // โหลดสถานะลงทะเบียนเดิมของ user (ถ้า login) เพื่อโชว์ QR ทันทีไม่ต้องกดซ้ำ
+      if (session) {
+        const { data: regs } = await supabase
+          .from("general_registrations")
+          .select("event_id, qr_code")
+          .eq("user_id", session.user.id);
+        const map: Record<string, string> = {};
+        (regs ?? []).forEach((r: any) => { map[r.event_id] = r.qr_code; });
+        setRegistrations(map);
+      }
+
       setLoading(false);
     }
     load();
   }, []);
+
+  async function handleRegister(ev: Event) {
+    if (!loggedIn) {
+      router.push("/login");
+      return;
+    }
+    setRegisteringId(ev.id);
+    setRegisterError("");
+    try {
+      const res = await fetch("/api/events/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventId: ev.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "ลงทะเบียนไม่สำเร็จ");
+      setRegistrations((prev) => ({ ...prev, [ev.id]: data.qrCode }));
+    } catch (e: any) {
+      setRegisterError(e?.message ?? "ลงทะเบียนไม่สำเร็จ");
+    } finally {
+      setRegisteringId("");
+    }
+  }
 
   const loadTradingData = useCallback(async () => {
     if (!tradingEventId) return;
@@ -122,13 +162,13 @@ export default function EventsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "โหลดข้อมูลไม่สำเร็จ");
       setTradingData(data);
-      if (!selectedDate && data.event?.days?.length) setSelectedDate(data.event.days[0]);
+      setSelectedDate((prev) => prev || (data.event?.days?.[0] ?? ""));
     } catch (e: any) {
       setTradingError(e?.message ?? "โหลดข้อมูลไม่สำเร็จ");
     } finally {
       setTradingLoading(false);
     }
-  }, [tradingEventId, authedFetch, selectedDate]);
+  }, [tradingEventId, authedFetch]);
 
   useEffect(() => {
     if (activeTab === "จองโต๊ะเทรด" && tradingEventId) loadTradingData();
@@ -327,16 +367,39 @@ export default function EventsPage() {
                       </button>
                     )}
 
-                    {/* CTA Button */}
-                    {full ? (
+                    {/* CTA: ลงทะเบียน — กดครั้งเดียวได้ QR เลย (ยกเว้น tournament ใช้ระบบที่นั่งแยก) */}
+                    {registrations[ev.id] ? (
+                      <div className="bg-zinc-50 rounded-xl px-3 py-2.5 border border-zinc-100">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-green-600">✓ ลงทะเบียนแล้ว</p>
+                            <p className="text-[10px] text-zinc-400 font-mono truncate">{registrations[ev.id]}</p>
+                          </div>
+                          <Link href="/profile" className="flex-shrink-0 text-[10px] font-semibold text-zinc-900 border border-zinc-200 rounded-lg px-2.5 py-1.5 active:bg-zinc-100">
+                            ดู QR →
+                          </Link>
+                        </div>
+                      </div>
+                    ) : full ? (
                       <div className="w-full text-center text-xs font-semibold py-2.5 rounded-xl bg-zinc-100 text-zinc-400">
                         ที่นั่งเต็ม
                       </div>
-                    ) : (
+                    ) : isTournament ? (
                       <Link href={`/events/${ev.id}`}
                         className="block w-full text-center text-xs font-semibold py-2.5 rounded-xl bg-zinc-900 text-white active:opacity-70 transition-opacity">
-                        ลงทะเบียน →
+                        ดูรายละเอียด →
                       </Link>
+                    ) : (
+                      <button
+                        onClick={() => handleRegister(ev)}
+                        disabled={registeringId === ev.id}
+                        className="block w-full text-center text-xs font-semibold py-2.5 rounded-xl bg-zinc-900 text-white active:opacity-70 transition-opacity disabled:opacity-50"
+                      >
+                        {registeringId === ev.id ? "กำลังลงทะเบียน..." : "ลงทะเบียน →"}
+                      </button>
+                    )}
+                    {registerError && registeringId === "" && (
+                      <p className="text-[10px] text-red-600 mt-1.5">{registerError}</p>
                     )}
                   </div>
                 </div>
