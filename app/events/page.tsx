@@ -1,11 +1,12 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 import BottomNav from "@/components/BottomNav";
 import TopBar from "@/components/TopBar";
+import { TableType, TABLE_TYPES, TABLE_TYPE_LABEL } from "@/lib/tradingTables";
 
 type EventType = "meetup" | "tournament" | "sale";
 
@@ -23,6 +24,7 @@ type Event = {
   description: string | null;
   event_type: EventType;
   image_url: string | null;
+  trading_tables_enabled: boolean;
 };
 
 const TCG_COLOR: Record<string, string> = {
@@ -34,31 +36,146 @@ const TCG_COLOR: Record<string, string> = {
   "Other": "#888",
 };
 
-const TABS = ["อีเวนต์", "จองโต๊ะ"];
+const TABS = ["อีเวนต์", "จองโต๊ะ", "จองโต๊ะเทรด"];
 const TIME_SLOTS = ["11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00"];
 
+type TradingSlot = { start: string; end: string };
+type TradingBooking = {
+  id: string;
+  event_id: string;
+  user_id: string;
+  table_type: TableType;
+  table_number: number;
+  booking_date: string;
+  slot_start: string;
+  slot_end: string;
+  status: "confirmed" | "cancelled";
+};
+type TradingData = {
+  event: { id: string; title: string; days: string[] };
+  slots: TradingSlot[];
+  capacity: Record<TableType, number>;
+  availability: Record<string, Record<TableType, Record<string, number>>>;
+  myBookings: TradingBooking[];
+};
+
+function formatThaiDate(dateStr: string) {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("th-TH", { day: "numeric", month: "short" });
+}
+
 export default function EventsPage() {
+  const router = useRouter();
   const supabase = createClient();
   const [activeTab, setActiveTab] = useState("อีเวนต์");
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
 
-  // จองโต๊ะ state
+  // จองโต๊ะ (ที่ร้าน) state
   const [selectedSlot, setSelectedSlot] = useState("");
   const [tableDate, setTableDate] = useState("");
   const [tableDone, setTableDone] = useState(false);
 
+  // จองโต๊ะเทรด state
+  const [tradingEventId, setTradingEventId] = useState("");
+  const [tradingData, setTradingData] = useState<TradingData | null>(null);
+  const [tradingLoading, setTradingLoading] = useState(false);
+  const [tradingError, setTradingError] = useState("");
+  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedType, setSelectedType] = useState<TableType>("pokemon");
+  const [bookingBusy, setBookingBusy] = useState("");
+
+  const authedFetch = useCallback(async (input: string, init?: RequestInit) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    return fetch(input, {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        ...(init?.headers ?? {}),
+        Authorization: `Bearer ${session?.access_token ?? ""}`,
+      },
+    });
+  }, [supabase]);
+
   useEffect(() => {
     async function load() {
-      const { data } = await supabase
-        .from("events")
-        .select("*")
-        .order("date", { ascending: true });
-      setEvents(data ?? []);
+      const [{ data: eventsData }, { data: { session } }] = await Promise.all([
+        supabase.from("events").select("*").order("date", { ascending: true }),
+        supabase.auth.getSession(),
+      ]);
+      setEvents(eventsData ?? []);
+      setLoggedIn(!!session);
+      const firstTrading = (eventsData ?? []).find((e: Event) => e.trading_tables_enabled);
+      if (firstTrading) setTradingEventId(firstTrading.id);
       setLoading(false);
     }
     load();
   }, []);
+
+  const loadTradingData = useCallback(async () => {
+    if (!tradingEventId) return;
+    setTradingLoading(true);
+    setTradingError("");
+    try {
+      const res = await authedFetch(`/api/trading-tables?event_id=${tradingEventId}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "โหลดข้อมูลไม่สำเร็จ");
+      setTradingData(data);
+      if (!selectedDate && data.event?.days?.length) setSelectedDate(data.event.days[0]);
+    } catch (e: any) {
+      setTradingError(e?.message ?? "โหลดข้อมูลไม่สำเร็จ");
+    } finally {
+      setTradingLoading(false);
+    }
+  }, [tradingEventId, authedFetch, selectedDate]);
+
+  useEffect(() => {
+    if (activeTab === "จองโต๊ะเทรด" && tradingEventId) loadTradingData();
+  }, [activeTab, tradingEventId, loadTradingData]);
+
+  async function bookTradingSlot(slot: TradingSlot) {
+    if (!loggedIn) {
+      router.push("/login");
+      return;
+    }
+    if (!window.confirm(`ยืนยันจองโต๊ะ ${TABLE_TYPE_LABEL[selectedType]} วันที่ ${formatThaiDate(selectedDate)} เวลา ${slot.start}-${slot.end} น.?`)) return;
+
+    setBookingBusy(slot.start);
+    setTradingError("");
+    try {
+      const res = await authedFetch("/api/trading-tables", {
+        method: "POST",
+        body: JSON.stringify({ event_id: tradingEventId, table_type: selectedType, date: selectedDate, slot_start: slot.start }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "จองไม่สำเร็จ");
+      await loadTradingData();
+    } catch (e: any) {
+      setTradingError(e?.message ?? "จองไม่สำเร็จ");
+    } finally {
+      setBookingBusy("");
+    }
+  }
+
+  async function cancelTradingBooking(id: string) {
+    if (!window.confirm("ยกเลิกการจองรอบนี้?")) return;
+    setBookingBusy(id);
+    setTradingError("");
+    try {
+      const res = await authedFetch("/api/trading-tables", {
+        method: "DELETE",
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "ยกเลิกไม่สำเร็จ");
+      await loadTradingData();
+    } catch (e: any) {
+      setTradingError(e?.message ?? "ยกเลิกไม่สำเร็จ");
+    } finally {
+      setBookingBusy("");
+    }
+  }
 
   function formatDate(date: string, dateEnd: string | null) {
     const d = new Date(date);
@@ -79,6 +196,8 @@ export default function EventsPage() {
       month: d.toLocaleDateString("th-TH", { month: "short" }).toUpperCase(),
     };
   }
+
+  const tradingEvents = events.filter((e) => e.trading_tables_enabled);
 
   return (
     <div className="min-h-screen bg-zinc-50 pb-20">
@@ -114,21 +233,20 @@ export default function EventsPage() {
 
               return (
                 <div key={ev.id} className="bg-white rounded-2xl overflow-hidden border border-zinc-100">
-                  {/* Banner Image */}
+                  {/* Banner Image — แสดงตามสัดส่วนภาพจริง (16:9) ไม่ครอป */}
                   {ev.image_url && (
-                    <div className="relative h-36 w-full">
-                      <Image src={ev.image_url} alt={ev.title} fill className="object-cover" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                    <div className="relative w-full aspect-[16/9]">
+                      <Image src={ev.image_url} alt={ev.title} fill className="object-cover" sizes="100vw" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
                       {/* Date badge on image */}
                       <div className="absolute top-3 left-3 bg-zinc-900/80 backdrop-blur-sm rounded-xl px-2.5 py-2 text-center min-w-[44px]">
                         <div className="text-lg font-bold text-white leading-none">{day}</div>
                         <div className="text-[8px] text-zinc-300 tracking-wider mt-0.5">{month}</div>
                       </div>
-                      {/* Event type badge */}
+                      {/* Event type badge — เข้าฟรีทั้งหมด */}
                       {ev.event_type !== "tournament" && (
-                        <div className="absolute top-3 right-3 flex gap-1">
-                          <span className="text-[9px] bg-green-500/90 text-white px-2 py-0.5 rounded-full font-semibold backdrop-blur-sm">ฟรี</span>
-                          <span className="text-[9px] bg-amber-500/90 text-white px-2 py-0.5 rounded-full font-semibold backdrop-blur-sm">฿690</span>
+                        <div className="absolute top-3 right-3">
+                          <span className="text-[9px] bg-green-500/90 text-white px-2 py-0.5 rounded-full font-semibold backdrop-blur-sm">เข้าฟรี</span>
                         </div>
                       )}
                     </div>
@@ -190,18 +308,23 @@ export default function EventsPage() {
                       </div>
                     )}
 
-                    {/* Meet up — ticket preview */}
+                    {/* Meet up — เข้าฟรี */}
                     {!isTournament && (
-                      <div className="flex gap-2 mb-3">
-                        <div className="flex-1 bg-zinc-50 rounded-xl px-3 py-2 text-center">
-                          <p className="text-[9px] text-zinc-400 mb-0.5">General</p>
-                          <p className="text-xs font-bold text-green-600">ฟรี</p>
-                        </div>
-                        <div className="flex-1 bg-amber-50 rounded-xl px-3 py-2 text-center">
-                          <p className="text-[9px] text-zinc-400 mb-0.5">Priority Guest</p>
-                          <p className="text-xs font-bold text-amber-600">฿690</p>
+                      <div className="mb-3">
+                        <div className="bg-green-50 rounded-xl px-3 py-2 text-center">
+                          <p className="text-xs font-bold text-green-600">เข้างานฟรี ไม่มีค่าใช้จ่าย</p>
                         </div>
                       </div>
+                    )}
+
+                    {/* ปุ่มจองโต๊ะเทรด (ถ้าอีเวนต์เปิดใช้งาน) */}
+                    {ev.trading_tables_enabled && (
+                      <button
+                        onClick={() => { setTradingEventId(ev.id); setActiveTab("จองโต๊ะเทรด"); }}
+                        className="w-full mb-2 text-center text-xs font-semibold py-2.5 rounded-xl border border-zinc-200 text-zinc-700 active:bg-zinc-50 transition-colors"
+                      >
+                        🃏 จองโต๊ะเทรดในงานนี้
+                      </button>
                     )}
 
                     {/* CTA Button */}
@@ -223,7 +346,7 @@ export default function EventsPage() {
         </div>
       )}
 
-      {/* ── TAB: จองโต๊ะ ── */}
+      {/* ── TAB: จองโต๊ะ (ที่ร้าน) ── */}
       {activeTab === "จองโต๊ะ" && (
         <div className="px-4 py-4">
           <div className="card p-5">
@@ -268,6 +391,153 @@ export default function EventsPage() {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── TAB: จองโต๊ะเทรด ── */}
+      {activeTab === "จองโต๊ะเทรด" && (
+        <div className="px-4 py-4 space-y-4">
+          {tradingEvents.length === 0 ? (
+            <div className="card px-5 py-10 text-center">
+              <p className="text-sm text-zinc-400">ยังไม่มีอีเวนต์ที่เปิดให้จองโต๊ะเทรด</p>
+            </div>
+          ) : (
+            <>
+              {/* เลือกอีเวนต์ (ถ้ามีมากกว่า 1) */}
+              {tradingEvents.length > 1 && (
+                <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+                  {tradingEvents.map((ev) => (
+                    <button key={ev.id}
+                      onClick={() => { setTradingEventId(ev.id); setSelectedDate(""); setTradingData(null); }}
+                      className={`flex-shrink-0 text-[11px] px-3 py-1.5 rounded-full border font-semibold ${tradingEventId === ev.id ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 text-zinc-500 bg-white"}`}>
+                      {ev.title}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {!loggedIn && (
+                <div className="card px-4 py-3 bg-amber-50 border-amber-100">
+                  <p className="text-[11px] text-amber-700">
+                    กรุณา <Link href="/login" className="font-semibold underline">เข้าสู่ระบบ</Link> หรือ{" "}
+                    <Link href="/register" className="font-semibold underline">สมัครสมาชิก</Link> ก่อนจองโต๊ะเทรด
+                  </p>
+                </div>
+              )}
+
+              {tradingError && (
+                <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-2.5">
+                  <p className="text-[11px] text-red-600">{tradingError}</p>
+                </div>
+              )}
+
+              {tradingLoading || !tradingData ? (
+                <div className="flex items-center justify-center py-20">
+                  <div className="w-8 h-8 border-2 border-zinc-200 border-t-zinc-900 rounded-full animate-spin" />
+                </div>
+              ) : (
+                <>
+                  <div className="card p-4">
+                    <h3 className="text-sm font-semibold text-zinc-900 mb-0.5">จองพื้นที่เทรด — {tradingData.event.title}</h3>
+                    <p className="text-[11px] text-zinc-400 mb-4">รอบละ 45 นาที เริ่ม 10:00 น. · เว้น 60 นาทีระหว่างรอบของคุณ</p>
+
+                    {/* เลือกวันที่ */}
+                    <div className="mb-3">
+                      <label className="text-[11px] font-semibold text-zinc-600 tracking-wide mb-1.5 block">วันที่</label>
+                      <div className="flex gap-2">
+                        {tradingData.event.days.map((d) => (
+                          <button key={d} onClick={() => setSelectedDate(d)}
+                            className={`text-xs px-3 py-2 rounded-xl border font-semibold ${selectedDate === d ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 text-zinc-600 bg-white"}`}>
+                            {formatThaiDate(d)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* เลือกประเภทโต๊ะ */}
+                    <div className="mb-4">
+                      <label className="text-[11px] font-semibold text-zinc-600 tracking-wide mb-1.5 block">ประเภทโต๊ะ</label>
+                      <div className="flex gap-2 flex-wrap">
+                        {TABLE_TYPES.map((t) => (
+                          <button key={t} onClick={() => setSelectedType(t)}
+                            className={`text-xs px-3 py-2 rounded-xl border font-semibold ${selectedType === t ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 text-zinc-600 bg-white"}`}>
+                            {TABLE_TYPE_LABEL[t]} <span className="opacity-60">({tradingData.capacity[t]} โต๊ะ)</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Slot grid */}
+                    {selectedDate && (
+                      <div className="grid grid-cols-3 gap-2">
+                        {tradingData.slots.map((s) => {
+                          const capacity = tradingData.capacity[selectedType];
+                          const booked = tradingData.availability[selectedDate]?.[selectedType]?.[s.start] ?? 0;
+                          const remaining = capacity - booked;
+                          const full = remaining <= 0;
+                          const isPast = new Date(`${selectedDate}T${s.start}`).getTime() <= Date.now();
+                          const disabled = full || isPast || !loggedIn || bookingBusy !== "";
+                          return (
+                            <button
+                              key={s.start}
+                              disabled={disabled}
+                              onClick={() => bookTradingSlot(s)}
+                              className={`text-center rounded-xl border px-2 py-2 transition-colors ${
+                                full || isPast
+                                  ? "bg-zinc-50 border-zinc-100 text-zinc-300 cursor-not-allowed"
+                                  : "border-zinc-200 text-zinc-700 active:bg-zinc-50"
+                              }`}
+                            >
+                              <p className="text-[11px] font-semibold">{s.start}</p>
+                              <p className="text-[9px] mt-0.5">
+                                {bookingBusy === s.start ? "..." : isPast ? "ผ่านไปแล้ว" : full ? "เต็ม" : `ว่าง ${remaining}/${capacity}`}
+                              </p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* การจองของฉัน */}
+                  {loggedIn && tradingData.myBookings.length > 0 && (
+                    <div className="card p-4">
+                      <h3 className="text-sm font-semibold text-zinc-900 mb-3">การจองของฉัน</h3>
+                      <div className="space-y-2">
+                        {tradingData.myBookings
+                          .slice()
+                          .sort((a, b) => (a.booking_date + a.slot_start).localeCompare(b.booking_date + b.slot_start))
+                          .map((b) => {
+                            const isPast = new Date(`${b.booking_date}T${b.slot_start}`).getTime() <= Date.now();
+                            return (
+                              <div key={b.id} className="flex items-center justify-between bg-zinc-50 rounded-xl px-3 py-2.5">
+                                <div>
+                                  <p className="text-xs font-semibold text-zinc-900">
+                                    {TABLE_TYPE_LABEL[b.table_type]} · โต๊ะ {b.table_number}
+                                  </p>
+                                  <p className="text-[10px] text-zinc-400 mt-0.5">
+                                    {formatThaiDate(b.booking_date)} · {b.slot_start.slice(0, 5)}-{b.slot_end.slice(0, 5)} น.
+                                  </p>
+                                </div>
+                                {!isPast && (
+                                  <button
+                                    onClick={() => cancelTradingBooking(b.id)}
+                                    disabled={bookingBusy === b.id}
+                                    className="text-[10px] text-red-600 border border-red-100 rounded-lg px-2.5 py-1 active:bg-red-50 disabled:opacity-50"
+                                  >
+                                    {bookingBusy === b.id ? "..." : "ยกเลิก"}
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </>
+          )}
         </div>
       )}
 
