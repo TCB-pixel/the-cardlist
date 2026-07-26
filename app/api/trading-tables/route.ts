@@ -6,6 +6,7 @@ import {
   TABLE_CAPACITY,
   generateSlots,
   violatesCooldown,
+  getTradingDays,
 } from "@/lib/tradingTables";
 
 // service role client — bypass RLS (เรียกได้เฉพาะฝั่ง server)
@@ -51,13 +52,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "อีเวนต์นี้ไม่เปิดให้จองโต๊ะเทรด" }, { status: 400 });
   }
 
-  // สร้างรายการวันที่ของ event (date ถึง date_end)
-  const days: string[] = [];
-  const start = new Date(event.date);
-  const end = new Date(event.date_end ?? event.date);
-  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    days.push(d.toISOString().slice(0, 10));
-  }
+  // วันที่เปิดให้จองโต๊ะเทรด — ปัจจุบันเปิดแค่วันแรกของงาน
+  const days = getTradingDays(event.date);
 
   const slots = generateSlots();
 
@@ -131,11 +127,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "อีเวนต์นี้ไม่เปิดให้จองโต๊ะเทรด" }, { status: 400 });
     }
 
-    // ตรวจว่าวันที่ที่ขอจองอยู่ในช่วงงานจริง
-    const minDate = event.date;
-    const maxDate = event.date_end ?? event.date;
-    if (date < minDate || date > maxDate) {
-      return NextResponse.json({ error: "วันที่นอกช่วงงาน" }, { status: 400 });
+    // ตรวจว่าวันที่ที่ขอจองอยู่ในวันที่เปิดให้จองโต๊ะเทรดจริง (ปัจจุบันเปิดแค่วันแรกของงาน)
+    const tradingDays = getTradingDays(event.date);
+    if (!tradingDays.includes(date)) {
+      return NextResponse.json({ error: "วันที่นี้ไม่เปิดให้จองโต๊ะเทรด" }, { status: 400 });
     }
 
     // ตรวจว่า slot ที่ขอ ตรงกับ slot ที่ระบบอนุญาตจริง (กันการยิง request มั่ว)

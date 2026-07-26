@@ -40,6 +40,11 @@ export function minutesToTime(mins: number): string {
   return `${h}:${m}`;
 }
 
+// วันที่เปิดให้จองโต๊ะเทรดจริง — ปัจจุบันเปิดแค่วันแรกของงานเท่านั้น (ไม่รวมวันที่ 2 เป็นต้นไป)
+export function getTradingDays(eventDate: string): string[] {
+  return [eventDate];
+}
+
 export type Slot = { start: string; end: string };
 
 // สร้างรายการ slot 45 นาที ตั้งแต่ TRADING_OPEN_TIME จนกว่า slot_end จะเกิน TRADING_CLOSE_TIME
