@@ -180,8 +180,7 @@ export default function HomePage() {
                   <p className="text-[10px] text-zinc-400 mt-0.5">{ev.location}</p>
                   {isMeetup ? (
                     <div className="flex gap-1 mt-2">
-                      <span className="text-[9px] bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded">ฟรี</span>
-                      <span className="text-[9px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded">Priority ฿690</span>
+                      <span className="text-[9px] bg-green-50 text-green-600 px-1.5 py-0.5 rounded font-semibold">เข้าฟรี</span>
                     </div>
                   ) : ev.max_slots > 0 ? (
                     <div className="mt-2">
