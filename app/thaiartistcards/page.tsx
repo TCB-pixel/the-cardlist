@@ -210,6 +210,10 @@ export default function ThaiArtistCardsPage() {
     <div className="min-h-screen bg-zinc-50 pb-20">
       <TopBar title="Artist Cards" />
 
+      {/* บนจอ desktop บีบเนื้อหาเหลือ 70% แล้วจัดกึ่งกลาง — การ์ดเล็กลง 30%
+          และได้พื้นที่ว่างสองข้าง ส่วนมือถือ/แท็บเล็ตยังเต็มความกว้างเหมือนเดิม */}
+      <div className="lg:max-w-[70%] lg:mx-auto">
+
       <div className="px-4 pt-4 pb-1">
         <h1 className="text-sm font-semibold text-zinc-900">การ์ดศิลปินไทย</h1>
         <p className="text-[11px] text-zinc-400 mt-0.5">
@@ -269,6 +273,8 @@ export default function ThaiArtistCardsPage() {
             ))}
           </div>
         )}
+      </div>
+
       </div>
 
       {selected && (
