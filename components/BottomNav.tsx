@@ -41,6 +41,18 @@ const NAV = [
     ),
   },
   {
+    href: "/thaiartistcards",
+    label: "Artist Cards",
+    icon: (active: boolean) => (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <rect x="6" y="3" width="10" height="13" rx="1.6" stroke="currentColor" strokeWidth={active ? "1.6" : "1.3"} fill="none"/>
+        <path d="M4.2 5.8L2.6 6.4a1 1 0 00-.6 1.3l3.2 8.7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" fill="none"/>
+        <circle cx="11" cy="8" r="1.6" stroke="currentColor" strokeWidth="1.3" fill="none"/>
+        <path d="M8 13.5l2-2.2 1.6 1.7 1.2-1.1 1.2 1.6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+      </svg>
+    ),
+  },
+  {
     href: "/news",
     label: "News",
     icon: (active: boolean) => (
@@ -72,9 +84,9 @@ export default function BottomNav() {
         const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
         return (
           <Link key={item.href} href={item.href}
-            className={`flex flex-col items-center gap-1 px-3 py-1 transition-colors ${active ? "text-zinc-900" : "text-zinc-400"}`}>
+            className={`flex flex-1 min-w-0 flex-col items-center gap-1 px-0.5 py-1 transition-colors ${active ? "text-zinc-900" : "text-zinc-400"}`}>
             {item.icon(active)}
-            <span className={`text-[9px] tracking-wide ${active ? "font-semibold" : "font-normal"}`}>{item.label}</span>
+            <span className={`text-[9px] tracking-tight whitespace-nowrap ${active ? "font-semibold" : "font-normal"}`}>{item.label}</span>
           </Link>
         );
       })}

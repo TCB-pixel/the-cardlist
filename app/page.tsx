@@ -87,7 +87,7 @@ export default function HomePage() {
       // โหลด news
       try {
         const { data: newsData } = await supabase
-          .from("news_posts")
+          .from("news")
           .select("id, title, slug, tag, published_at")
           .order("published_at", { ascending: false })
           .limit(3);

@@ -7,6 +7,7 @@ export type Permission =
   | "events:view" | "events:create" | "events:edit" | "events:delete"
   | "news:view" | "news:create" | "news:edit" | "news:delete"
   | "members:view" | "members:edit"
+  | "artists:view" | "artists:create" | "artists:edit" | "artists:delete"
   | "staff:view" | "staff:create" | "staff:edit" | "staff:delete";
 
 const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
@@ -17,6 +18,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
     "events:view", "events:create", "events:edit", "events:delete",
     "news:view", "news:create", "news:edit", "news:delete",
     "members:view", "members:edit",
+    "artists:view", "artists:create", "artists:edit", "artists:delete",
     "staff:view", "staff:create", "staff:edit", "staff:delete",
   ],
   head_staff: [
@@ -26,6 +28,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
     "events:view", "events:create", "events:edit", "events:delete",
     "news:view", "news:create", "news:edit", "news:delete",
     "members:view", "members:edit",
+    "artists:view", "artists:create", "artists:edit", "artists:delete",
     "staff:view", "staff:create", "staff:edit",
     // head_staff ลบ staff ไม่ได้, สร้าง/แก้ได้แค่ staff (ไม่ใช่ owner/head_staff)
   ],
@@ -36,6 +39,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
     "events:view", "events:edit",
     "news:view",
     "members:view",
+    "artists:view",
     "staff:view",
   ],
 };

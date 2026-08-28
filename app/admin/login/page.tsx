@@ -20,6 +20,8 @@ function AdminLoginForm() {
   useEffect(() => {
     if (errorParam === "unauthorized") {
       setError("บัญชีนี้ไม่มีสิทธิ์เข้าถึง Admin Panel");
+    } else if (errorParam === "auth_unavailable") {
+      setError("ตรวจสอบสิทธิ์ไม่สำเร็จชั่วคราว — กรุณาลองใหม่อีกครั้ง");
     }
   }, [errorParam]);
 

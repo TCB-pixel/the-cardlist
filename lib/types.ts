@@ -61,3 +61,43 @@ export type CartItem = {
   product: Product;
   quantity: number;
 };
+
+// ── Artist Cards ──
+export type ArtistCategory = {
+  id: string;
+  name: string;
+  slug: string;
+  order: number;
+  active: boolean;
+  created_at: string;
+};
+
+export type Artist = {
+  id: string;
+  name: string;
+  slug: string;
+  bio: string | null;
+  avatar_url: string | null;
+  instagram_url: string | null;
+  facebook_url: string | null;
+  x_url: string | null;
+  order: number;
+  active: boolean;
+  created_at: string;
+};
+
+export type ArtistCard = {
+  id: string;
+  artist_id: string;
+  category_id: string | null;
+  name: string;
+  description: string | null;
+  image_url: string | null;
+  rarity: string | null;
+  limited_count: number | null;
+  collection: string | null;
+  release_year: number | null;
+  order: number;
+  active: boolean;
+  created_at: string;
+};

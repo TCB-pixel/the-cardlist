@@ -229,3 +229,64 @@ $$;
 -- SELECT id, 'Kritanat Sukhaneskul', 'thecardlistbkk@gmail.com', 'owner'
 -- FROM auth.users
 -- WHERE email = 'thecardlistbkk@gmail.com';
+
+-- =============================================
+-- ARTIST CARDS — การ์ดศิลปินไทย (หน้า /thaiartistcards)
+-- =============================================
+
+-- หมวดหมู่การ์ด (แอดมินสร้าง/ลบเองได้จากหน้า /admin/artists)
+create table if not exists public.artist_categories (
+  id uuid default uuid_generate_v4() primary key,
+  name text not null,
+  slug text not null unique,
+  "order" integer not null default 1,
+  active boolean not null default true,
+  created_at timestamptz default now()
+);
+alter table public.artist_categories enable row level security;
+create policy "Artist categories are viewable by everyone"
+  on public.artist_categories for select using (true);
+
+-- ศิลปินแต่ละคน
+create table if not exists public.artists (
+  id uuid default uuid_generate_v4() primary key,
+  name text not null,
+  slug text not null unique,
+  bio text,
+  avatar_url text,
+  instagram_url text,
+  facebook_url text,
+  x_url text,
+  "order" integer not null default 1,
+  active boolean not null default true,
+  created_at timestamptz default now()
+);
+alter table public.artists enable row level security;
+create policy "Artists are viewable by everyone"
+  on public.artists for select using (true);
+
+-- การ์ดของศิลปินแต่ละใบ
+create table if not exists public.artist_cards (
+  id uuid default uuid_generate_v4() primary key,
+  artist_id uuid not null references public.artists(id) on delete cascade,
+  category_id uuid references public.artist_categories(id) on delete set null,
+  name text not null,
+  description text,
+  image_url text,
+  rarity text,
+  limited_count integer,
+  collection text,
+  release_year integer,
+  "order" integer not null default 1,
+  active boolean not null default true,
+  created_at timestamptz default now()
+);
+alter table public.artist_cards enable row level security;
+create policy "Artist cards are viewable by everyone"
+  on public.artist_cards for select using (true);
+
+create index if not exists artist_cards_artist_id_idx on public.artist_cards(artist_id);
+create index if not exists artist_cards_category_id_idx on public.artist_cards(category_id);
+
+-- หมายเหตุ: ไม่มี policy สำหรับ insert/update/delete โดยตั้งใจ
+-- การเขียนข้อมูลทำผ่าน /api/admin/* ที่ใช้ service role key ฝั่ง server เท่านั้น

@@ -120,10 +120,13 @@ export async function POST(req: Request) {
     const auth = await requireAdmin(req);
     if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-    const { name, email, role, active, password } = await req.json();
-    if (!name || !email || !role) {
+    const { name, email: rawEmail, role, active, password } = await req.json();
+    if (!name || !rawEmail || !role) {
       return NextResponse.json({ error: "กรอกข้อมูลไม่ครบ" }, { status: 400 });
     }
+    // Supabase Auth เก็บอีเมลเป็นตัวพิมพ์เล็กเสมอ ส่วนการค้นใน admin_staff ใช้ .eq() ซึ่ง
+    // case-sensitive — ถ้าเก็บตามที่แอดมินพิมพ์ (เช่น "Kritanut34@") จะหาไม่เจอและล็อกอินไม่ได้
+    const email = String(rawEmail).trim().toLowerCase();
 
     // ต้องมีสิทธิ์สร้างผู้ใช้ระดับนี้ (กัน head_staff สร้าง owner/head_staff)
     if (!canManageRole(auth.caller.role, role as AdminRole)) {

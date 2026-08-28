@@ -46,6 +46,8 @@ const NAV: NavGroup[] = [
     items: [
       { href: "/admin/news", label: "ข่าวสาร & บทความ", permission: "news:view",
         icon: <><rect x="2.5" y="2.5" width="15" height="15" rx="2" stroke="currentColor" strokeWidth="1.3" fill="none"/><line x1="6" y1="7" x2="14" y2="7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><line x1="6" y1="10" x2="14" y2="10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><line x1="6" y1="13" x2="10" y2="13" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></> },
+      { href: "/admin/artists", label: "Artist Cards", permission: "artists:view",
+        icon: <><rect x="6" y="3" width="10" height="13" rx="1.6" stroke="currentColor" strokeWidth="1.3" fill="none"/><path d="M4.2 5.8L2.6 6.4a1 1 0 00-.6 1.3l3.2 8.7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" fill="none"/><circle cx="11" cy="8" r="1.6" stroke="currentColor" strokeWidth="1.3" fill="none"/><path d="M8 13.5l2-2.2 1.6 1.7 1.2-1.1 1.2 1.6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" fill="none"/></> },
       { href: "/admin/banners", label: "จัดการ Banner", permission: "news:edit" as Permission,
         icon: <><rect x="1.5" y="4" width="17" height="12" rx="2" stroke="currentColor" strokeWidth="1.3" fill="none"/><line x1="1.5" y1="9" x2="18.5" y2="9" stroke="currentColor" strokeWidth="1.3"/><circle cx="5" cy="13" r="1" fill="currentColor"/><circle cx="10" cy="13" r="1" fill="currentColor"/></> },
     ],

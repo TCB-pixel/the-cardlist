@@ -37,6 +37,7 @@ npm run dev
 | News | `/news` | ข่าวสารและบทความ |
 | Login | `/login` | เข้าสู่ระบบ |
 | Register | `/register` | สมัครสมาชิก |
+| Artist Cards | `/thaiartistcards` | แกลเลอรีการ์ดศิลปินไทย — กรองตามหมวดหมู่และศิลปิน |
 | Profile | `/profile` | โปรไฟล์, คะแนน, Tier, QR Code |
 
 ## Database Tables
@@ -45,6 +46,7 @@ npm run dev
 - `events` — อีเวนต์
 - `bookings` — การจองอีเวนต์ + QR Code
 - `news` — บทความ
+- `artists` / `artist_cards` / `artist_categories` — การ์ดศิลปินไทย (จัดการที่ `/admin/artists`)
 - `orders` / `order_items` — คำสั่งซื้อ
 
 ## Tech Stack

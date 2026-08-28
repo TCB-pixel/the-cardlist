@@ -67,8 +67,12 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(loginUrl);
     }
 
-  } catch {
-    return NextResponse.next();
+  } catch (e) {
+    // fail-closed: ถ้าเช็คสิทธิ์ไม่สำเร็จ (env หาย / Supabase ล่ม) ห้ามปล่อยผ่านเข้า /admin
+    console.error("admin middleware auth check failed:", e);
+    const loginUrl = new URL("/admin/login", request.url);
+    loginUrl.searchParams.set("error", "auth_unavailable");
+    return NextResponse.redirect(loginUrl);
   }
 
   return response;
