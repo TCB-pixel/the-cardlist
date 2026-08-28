@@ -13,6 +13,7 @@ type ArtistForm = {
 };
 type CardForm = {
   artist_id: string; category_id: string; name: string; description: string;
+  story: string; significance: string; how_to_get: string;
   image_url: string; rarity: string; limited_count: string; collection: string;
   release_year: string; order: number; active: boolean;
 };
@@ -22,7 +23,8 @@ const EMPTY_ARTIST: ArtistForm = {
   order: 1, active: true,
 };
 const EMPTY_CARD: CardForm = {
-  artist_id: "", category_id: "", name: "", description: "", image_url: "",
+  artist_id: "", category_id: "", name: "", description: "",
+  story: "", significance: "", how_to_get: "", image_url: "",
   rarity: "", limited_count: "", collection: "", release_year: "", order: 1, active: true,
 };
 
@@ -162,7 +164,9 @@ export default function AdminArtistsPage() {
     setEditingCard(c);
     setCardForm({
       artist_id: c.artist_id, category_id: c.category_id ?? "", name: c.name,
-      description: c.description ?? "", image_url: c.image_url ?? "", rarity: c.rarity ?? "",
+      description: c.description ?? "", story: c.story ?? "",
+      significance: c.significance ?? "", how_to_get: c.how_to_get ?? "",
+      image_url: c.image_url ?? "", rarity: c.rarity ?? "",
       limited_count: c.limited_count?.toString() ?? "", collection: c.collection ?? "",
       release_year: c.release_year?.toString() ?? "", order: c.order, active: c.active,
     });
@@ -542,9 +546,33 @@ export default function AdminArtistsPage() {
                 <input value={cardForm.name} onChange={(e) => setCardForm({ ...cardForm, name: e.target.value })} className={inputCls} />
               </div>
               <div>
-                <label className={labelCls}>คำอธิบาย</label>
-                <textarea rows={3} value={cardForm.description} onChange={(e) => setCardForm({ ...cardForm, description: e.target.value })} className={inputCls} />
+                <label className={labelCls}>คำอธิบายสั้น</label>
+                <textarea rows={2} value={cardForm.description} onChange={(e) => setCardForm({ ...cardForm, description: e.target.value })}
+                  placeholder="สรุปสั้นๆ ว่าการ์ดใบนี้คืออะไร" className={inputCls} />
               </div>
+
+              {/* หัวข้อเล่าเรื่อง — เว้นว่างได้ ถ้าไม่กรอกจะไม่แสดงบนหน้าเว็บ */}
+              <div className="border-t border-zinc-100 pt-3 space-y-3">
+                <p className="text-[10px] text-zinc-400">
+                  3 ช่องนี้เว้นว่างได้ — กรอกช่องไหนจะโชว์เฉพาะช่องนั้นในป๊อปอัปของหน้าเว็บ
+                </p>
+                <div>
+                  <label className={labelCls}>✨ เรื่องราวเบื้องหลัง</label>
+                  <textarea rows={3} value={cardForm.story} onChange={(e) => setCardForm({ ...cardForm, story: e.target.value })}
+                    placeholder="แรงบันดาลใจ ที่มาของภาพ ความหมายของสัญลักษณ์ในการ์ด" className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>⭐ ทำไมการ์ดใบนี้ถึงพิเศษ</label>
+                  <textarea rows={3} value={cardForm.significance} onChange={(e) => setCardForm({ ...cardForm, significance: e.target.value })}
+                    placeholder="เช่น ใบแรกของซีรีส์ ทำเฉพาะงาน มีลายเซ็นศิลปิน" className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>🎟️ วิธีได้มา / ที่มา</label>
+                  <textarea rows={3} value={cardForm.how_to_get} onChange={(e) => setCardForm({ ...cardForm, how_to_get: e.target.value })}
+                    placeholder="เช่น แจกในงาน SIAM PARAGON 2026 / แถมกับสินค้า" className={inputCls} />
+                </div>
+              </div>
+
               <div>
                 <label className={labelCls}>รูปการ์ด</label>
                 <div className="flex items-center gap-3">

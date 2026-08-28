@@ -46,6 +46,19 @@ function CardTile({ card, artist, category, onClick }: {
   );
 }
 
+// หัวข้อย่อยในป๊อปอัป — แสดงเฉพาะตอนที่แอดมินกรอกข้อมูลมาเท่านั้น
+function DetailSection({ icon, title, body }: { icon: string; title: string; body: string | null }) {
+  if (!body?.trim()) return null;
+  return (
+    <div className="mt-4 pt-4 border-t border-zinc-100">
+      <p className="text-[9px] text-zinc-400 tracking-widest font-semibold mb-1.5">
+        {icon} {title}
+      </p>
+      <p className="text-xs text-zinc-600 leading-relaxed whitespace-pre-line">{body}</p>
+    </div>
+  );
+}
+
 // ─── ป๊อปอัปรายละเอียดการ์ด ───
 function CardDetail({ card, artist, category, onClose }: {
   card: ArtistCard;
@@ -105,6 +118,10 @@ function CardDetail({ card, artist, category, onClose }: {
           {card.description && (
             <p className="text-xs text-zinc-600 leading-relaxed mt-3 whitespace-pre-line">{card.description}</p>
           )}
+
+          <DetailSection icon="✨" title="เรื่องราวเบื้องหลัง" body={card.story} />
+          <DetailSection icon="⭐" title="ทำไมการ์ดใบนี้ถึงพิเศษ" body={card.significance} />
+          <DetailSection icon="🎟️" title="วิธีได้มา" body={card.how_to_get} />
 
           {artist && (
             <div className="mt-4 pt-4 border-t border-zinc-100">

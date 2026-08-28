@@ -272,6 +272,9 @@ create table if not exists public.artist_cards (
   category_id uuid references public.artist_categories(id) on delete set null,
   name text not null,
   description text,
+  story text,          -- เรื่องราว / แรงบันดาลใจเบื้องหลัง
+  significance text,   -- ทำไมการ์ดใบนี้ถึงสำคัญ / พิเศษ
+  how_to_get text,     -- วิธีได้มา / ที่มา
   image_url text,
   rarity text,
   limited_count integer,

@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { adminDb, requireAdmin } from "@/lib/require-admin";
 
-const TEXT_FIELDS = ["description", "image_url", "rarity", "collection"] as const;
+const TEXT_FIELDS = [
+  "description", "image_url", "rarity", "collection",
+  "story", "significance", "how_to_get",
+] as const;
 
 // แปลงค่าตัวเลขที่ส่งมาจากฟอร์ม ("" -> null, "100" -> 100)
 function num(v: unknown): number | null {

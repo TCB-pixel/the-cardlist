@@ -92,6 +92,9 @@ export type ArtistCard = {
   category_id: string | null;
   name: string;
   description: string | null;
+  story: string | null;
+  significance: string | null;
+  how_to_get: string | null;
   image_url: string | null;
   rarity: string | null;
   limited_count: number | null;
