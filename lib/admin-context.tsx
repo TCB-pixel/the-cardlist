@@ -1,7 +1,10 @@
 "use client";
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { AdminRole, AdminUser, can, Permission } from "@/lib/rbac";
 import { createClient } from "@/lib/supabase";
+
+const LOGIN_PATH = "/admin/login";
 
 // ผู้ใช้ชั่วคราวระหว่างรอ /api/admin/me — ให้สิทธิ์ต่ำสุดไว้ก่อน (least privilege)
 // role จริงมาจาก admin_users / admin_staff ใน DB เท่านั้น ห้าม hardcode
@@ -26,18 +29,26 @@ type AdminContextType = {
 const AdminContext = createContext<AdminContextType | null>(null);
 
 export function AdminProvider({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
   const [currentUser, setCurrentUser] = useState<AdminUser>(LOADING_USER);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
 
+    // หน้า login ก็ถูก AdminProvider ครอบด้วย — ถ้าไม่ข้ามตรงนี้ ตอนยังไม่ล็อกอิน
+    // จะ redirect กลับมาหน้าเดิมซ้ำไม่จบ (หน้าเว็บรีเฟรชรัวๆ)
+    if (pathname === LOGIN_PATH) {
+      setLoading(false);
+      return;
+    }
+
     async function loadMe() {
       const supabase = createClient();
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
       if (!token) {
-        window.location.href = "/admin/login";
+        window.location.href = LOGIN_PATH;
         return;
       }
 
@@ -69,7 +80,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
 
     loadMe();
     return () => { cancelled = true; };
-  }, []);
+  }, [pathname]);
 
   async function logout() {
     const supabase = createClient();
