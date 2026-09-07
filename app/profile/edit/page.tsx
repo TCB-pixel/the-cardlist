@@ -13,9 +13,13 @@ export default function EditProfilePage() {
   const [userId, setUserId] = useState("");
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phone, setPhone] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [addressCount, setAddressCount] = useState(0);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -36,8 +40,16 @@ export default function EditProfilePage() {
         setUserId(session.user.id);
         setUsername(data.username ?? "");
         setDisplayName(data.display_name ?? "");
+        setFirstName(data.first_name ?? "");
+        setLastName(data.last_name ?? "");
+        setPhone(data.phone ?? "");
         setAvatarUrl(data.avatar_url ?? null);
       }
+      const { count } = await supabase
+        .from("addresses")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", session.user.id);
+      setAddressCount(count ?? 0);
       setLoading(false);
     }
     load();
@@ -55,6 +67,12 @@ export default function EditProfilePage() {
   async function handleSave() {
     if (!displayName.trim()) { setError("กรุณากรอกชื่อที่แสดง"); return; }
     if (!username.trim()) { setError("กรุณากรอก Username"); return; }
+    // เก็บเบอร์เป็นตัวเลขล้วน ให้ค้นหน้าร้านเจอแน่นอน
+    const phoneDigits = phone.replace(/\D/g, "");
+    if (phoneDigits && !/^0\d{8,9}$/.test(phoneDigits)) {
+      setError("เบอร์โทรไม่ถูกต้อง — กรอกเป็นตัวเลข 9-10 หลัก ขึ้นต้นด้วย 0");
+      return;
+    }
     setSaving(true);
     setError("");
     setSuccess(false);
@@ -80,6 +98,9 @@ export default function EditProfilePage() {
         .update({
           display_name: displayName.trim(),
           username: username.trim(),
+          first_name: firstName.trim() || null,
+          last_name: lastName.trim() || null,
+          phone: phoneDigits || null,
           avatar_url: newAvatarUrl,
         })
         .eq("id", userId);
@@ -189,7 +210,47 @@ export default function EditProfilePage() {
             </div>
             <p className="text-[10px] text-zinc-400 mt-1">ตัวอักษรภาษาอังกฤษ ตัวเลข และ _ เท่านั้น</p>
           </div>
+
+          {/* ── ชื่อ-นามสกุลจริง ── */}
+          <div className="pt-4 border-t border-zinc-100">
+            <label className="text-[11px] font-semibold text-zinc-500 tracking-wide block mb-1.5">
+              ชื่อ-นามสกุล
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <input type="text" className="input" placeholder="ชื่อจริง"
+                value={firstName} onChange={(e) => setFirstName(e.target.value)} maxLength={60} />
+              <input type="text" className="input" placeholder="นามสกุล"
+                value={lastName} onChange={(e) => setLastName(e.target.value)} maxLength={60} />
+            </div>
+            <p className="text-[10px] text-zinc-400 mt-1">ใช้สำหรับยืนยันตัวตนตอนรับสิทธิ์และรับสินค้า</p>
+          </div>
+
+          {/* ── เบอร์โทร ── */}
+          <div>
+            <label className="text-[11px] font-semibold text-zinc-500 tracking-wide block mb-1.5">
+              เบอร์โทรศัพท์
+            </label>
+            <input type="tel" inputMode="numeric" className="input" placeholder="08x-xxx-xxxx"
+              value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={20} />
+            <p className="text-[10px] text-zinc-400 mt-1">
+              พนักงานใช้ค้นหาคุณตอนบันทึกรอบเล่น เผื่อกรณีเปิด QR ไม่ได้
+            </p>
+          </div>
         </div>
+
+        {/* ── ที่อยู่จัดส่ง (จัดการในหน้าแยก รองรับหลายที่อยู่) ── */}
+        <Link href="/profile/address"
+          className="card px-5 py-4 flex items-center justify-between mt-4 active:bg-zinc-50 transition-colors">
+          <div>
+            <p className="text-sm text-zinc-900">ที่อยู่จัดส่ง</p>
+            <p className="text-[10px] text-zinc-400 mt-0.5">
+              {addressCount > 0 ? `บันทึกไว้ ${addressCount} ที่อยู่` : "ยังไม่ได้เพิ่มที่อยู่"}
+            </p>
+          </div>
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" className="text-zinc-300">
+            <path d="M8 5l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </Link>
 
         {/* Error / Success */}
         {error && (

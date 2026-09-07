@@ -10,6 +10,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
   const [loading, setLoading] = useState(false);
@@ -22,13 +23,19 @@ export default function RegisterPage() {
     setError("");
     if (password !== confirmPw) { setError("รหัสผ่านไม่ตรงกัน"); return; }
     if (password.length < 8) { setError("รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร"); return; }
+    // เก็บเป็นตัวเลขล้วน ให้พนักงานค้นด้วยเบอร์หน้าร้านเจอแน่นอน
+    const phoneDigits = phone.replace(/\D/g, "");
+    if (!/^0\d{8,9}$/.test(phoneDigits)) {
+      setError("กรอกเบอร์โทรเป็นตัวเลข 9-10 หลัก ขึ้นต้นด้วย 0");
+      return;
+    }
     setLoading(true);
     try {
       const supabase = createClient();
       const { error: err } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { username, display_name: displayName } },
+        options: { data: { username, display_name: displayName, phone: phoneDigits } },
       });
       if (err) { setError(err.message); return; }
       setDone(true);
@@ -125,6 +132,15 @@ export default function RegisterPage() {
             <label className="text-[11px] font-semibold text-zinc-500 tracking-wide block mb-1.5">ชื่อที่แสดง</label>
             <input type="text" className="input" placeholder="ชื่อของคุณ"
               value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-semibold text-zinc-500 tracking-wide block mb-1.5">
+              เบอร์โทรศัพท์ <span className="text-red-400">*</span>
+            </label>
+            <input type="tel" inputMode="numeric" className="input" placeholder="08x-xxx-xxxx"
+              value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={20} required />
+            <p className="text-[10px] text-zinc-400 mt-1">ใช้ยืนยันตัวตนตอนรับสิทธิ์และสะสมรอบเล่นหน้าร้าน</p>
           </div>
 
           <div>

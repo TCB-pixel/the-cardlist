@@ -572,6 +572,22 @@ export default function ProfilePage() {
         </div>
       )}
 
+      {/* ── เตือนให้กรอกเบอร์ — พนักงานใช้ค้นหาตอนบันทึกรอบเล่น ── */}
+      {!loading && profile && !profile.phone && (
+        <Link href="/profile/edit"
+          className="bg-amber-50 border-b border-amber-100 px-4 py-3 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-amber-900">ยังไม่ได้กรอกเบอร์โทร</p>
+            <p className="text-[10px] text-amber-700 mt-0.5">
+              กรอกไว้เผื่อเปิด QR ไม่ได้ พนักงานจะค้นหาคุณด้วยเบอร์แทนได้
+            </p>
+          </div>
+          <span className="text-[11px] bg-amber-900 text-white font-semibold px-3 py-1.5 rounded-lg flex-shrink-0">
+            กรอกเลย
+          </span>
+        </Link>
+      )}
+
       {/* ── PWA Install Banner ── */}
       {showInstallBanner && !installed && (
         <div className="bg-zinc-900 px-4 py-3 flex items-center justify-between gap-3">

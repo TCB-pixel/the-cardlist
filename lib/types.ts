@@ -55,6 +55,10 @@ export type Profile = {
   avatar_url: string | null;
   tier: "bronze" | "silver" | "gold" | "platinum";
   points: number;
+  first_name: string | null;
+  last_name: string | null;
+  phone: string | null;
+  line_user_id: string | null;
   created_at: string;
 };
 
