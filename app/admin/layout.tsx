@@ -53,6 +53,15 @@ const NAV: NavGroup[] = [
     ],
   },
   {
+    group: "สะสมรอบเล่น",
+    items: [
+      { href: "/admin/play", label: "บันทึกการมาเล่น", permission: "play:scan",
+        icon: <><rect x="2.5" y="3" width="15" height="14" rx="2" stroke="currentColor" strokeWidth="1.3" fill="none"/><path d="M6 10l2.5 2.5L14 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/></> },
+      { href: "/admin/rewards", label: "สรุปรอบเล่น & สิทธิ์", permission: "play:view",
+        icon: <><path d="M4 16V9M8 16V5M12 16v-4M16 16V7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="2.5" y1="17.5" x2="17.5" y2="17.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></> },
+    ],
+  },
+  {
     group: "สมาชิก",
     items: [
       { href: "/admin/members", label: "จัดการสมาชิก", permission: "members:view",

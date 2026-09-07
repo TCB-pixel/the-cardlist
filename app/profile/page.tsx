@@ -207,6 +207,11 @@ export default function ProfilePage() {
   const [totalSpend, setTotalSpend] = useState(0);
   const [fetchError, setFetchError] = useState("");
 
+  // สะสมรอบเล่น — staff สแกน QR ประจำตัวหน้าร้านเพื่อบันทึก
+  const [playCount, setPlayCount] = useState(0);
+  const [stampRewards, setStampRewards] = useState<{ id: string; name: string; required_visits: number; price: number | null; quota: number | null; granted_count: number }[]>([]);
+  const [myGrants, setMyGrants] = useState<{ reward_id: string; status: string }[]>([]);
+
   // UI state
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [loggingOut, setLoggingOut] = useState(false);
@@ -271,6 +276,17 @@ export default function ProfilePage() {
       setProfile(profileData);
       // แสดง banner ผูก LINE ถ้ายังไม่มี line_user_id
       if (!profileData?.line_user_id) setShowLineBanner(true);
+
+      // 2.5) สะสมรอบเล่น + สิทธิ์ที่ได้รับ (RLS ให้อ่านได้เฉพาะของตัวเอง)
+      const [playRes, rewardRes, grantRes] = await Promise.all([
+        supabase.from("play_sessions").select("id", { count: "exact", head: true }).eq("user_id", userId),
+        supabase.from("stamp_rewards").select("id, name, required_visits, price, quota, granted_count")
+          .eq("active", true).order("required_visits", { ascending: true }),
+        supabase.from("stamp_reward_grants").select("reward_id, status").eq("user_id", userId),
+      ]);
+      setPlayCount(playRes.count ?? 0);
+      setStampRewards(rewardRes.data ?? []);
+      setMyGrants(grantRes.data ?? []);
 
       // 3) Orders (with items + product name for summary)
       const { data: ordersData, error: ordersErr } = await supabase
@@ -834,11 +850,67 @@ export default function ProfilePage() {
         {/* QR */}
         {activeTab === "qr" && (
           <div className="space-y-4">
+            {/* ── QR ประจำตัวสมาชิก — ให้ staff สแกนทุกครั้งที่มาเล่น ── */}
+            {profile?.member_code && (
+              <div className="card px-5 py-5">
+                <div className="text-center">
+                  <p className="text-[9px] font-semibold text-zinc-400 tracking-widest mb-1">MEMBER QR</p>
+                  <p className="text-xs text-zinc-500 mb-4">ยื่นให้พนักงานสแกนทุกครั้งที่มาเล่น</p>
+                  <QRCode value={profile.member_code} />
+                  <p className="text-sm font-mono font-semibold text-zinc-900 mt-3 tracking-wider">{profile.member_code}</p>
+                </div>
+
+                {/* สะสมรอบเล่น */}
+                <div className="mt-5 pt-4 border-t border-zinc-100">
+                  <div className="flex items-baseline justify-between mb-3">
+                    <p className="text-[9px] font-semibold text-zinc-400 tracking-widest">สะสมรอบเล่น</p>
+                    <p className="text-xs text-zinc-900"><span className="text-xl font-bold">{playCount}</span> ครั้ง</p>
+                  </div>
+
+                  {stampRewards.length === 0 ? (
+                    <p className="text-[11px] text-zinc-400">ยังไม่มีสิทธิ์พิเศษในช่วงนี้</p>
+                  ) : stampRewards.map((r) => {
+                    const grant = myGrants.find((g) => g.reward_id === r.id);
+                    const pct = Math.min(100, (playCount / r.required_visits) * 100);
+                    const soldOut = r.quota != null && r.granted_count >= r.quota && !grant;
+                    return (
+                      <div key={r.id} className="mb-3 last:mb-0">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <p className="text-[11px] text-zinc-600 leading-tight">{r.name}</p>
+                          {grant ? (
+                            <span className={`flex-shrink-0 text-[8px] font-bold px-1.5 py-0.5 rounded tracking-widest ${
+                              grant.status === "used" ? "bg-zinc-100 text-zinc-500" : "bg-green-50 text-green-700"}`}>
+                              {grant.status === "used" ? "ใช้แล้ว" : "ได้สิทธิ์แล้ว"}
+                            </span>
+                          ) : soldOut ? (
+                            <span className="flex-shrink-0 text-[8px] font-bold px-1.5 py-0.5 rounded tracking-widest bg-red-50 text-red-600">เต็มแล้ว</span>
+                          ) : (
+                            <span className="flex-shrink-0 text-[10px] text-zinc-400">{playCount}/{r.required_visits}</span>
+                          )}
+                        </div>
+                        <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full ${grant ? "bg-green-600" : "bg-zinc-900"}`} style={{ width: `${pct}%` }} />
+                        </div>
+                        {r.quota != null && !grant && (
+                          <p className="text-[9px] text-zinc-400 mt-1">เหลือ {Math.max(0, r.quota - r.granted_count)} สิทธิ์จาก {r.quota}</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {myGrants.some((g) => g.status === "granted") && (
+                    <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mt-3">
+                      🎁 คุณมีสิทธิ์ที่ยังไม่ได้ใช้ — แจ้งพนักงานหน้างานเพื่อใช้สิทธิ์ได้เลย
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
             {genRegs.length === 0 && priorityTickets.length === 0 ? (
               <div className="card px-5 py-10 text-center">
                 <p className="text-2xl mb-3">🎫</p>
-                <p className="text-sm text-zinc-400">ยังไม่มี QR Code</p>
-                <p className="text-[11px] text-zinc-400 mt-1">ลงทะเบียนเข้างานเพื่อรับ QR Code</p>
+                <p className="text-sm text-zinc-400">ยังไม่มีบัตรเข้างาน</p>
+                <p className="text-[11px] text-zinc-400 mt-1">ลงทะเบียนเข้างานเพื่อรับ QR บัตรเข้างาน</p>
               </div>
             ) : (
               <>

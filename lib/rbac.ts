@@ -8,6 +8,7 @@ export type Permission =
   | "news:view" | "news:create" | "news:edit" | "news:delete"
   | "members:view" | "members:edit"
   | "artists:view" | "artists:create" | "artists:edit" | "artists:delete"
+  | "play:view" | "play:scan" | "play:manage"
   | "staff:view" | "staff:create" | "staff:edit" | "staff:delete";
 
 const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
@@ -19,6 +20,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
     "news:view", "news:create", "news:edit", "news:delete",
     "members:view", "members:edit",
     "artists:view", "artists:create", "artists:edit", "artists:delete",
+    "play:view", "play:scan", "play:manage",
     "staff:view", "staff:create", "staff:edit", "staff:delete",
   ],
   head_staff: [
@@ -29,6 +31,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
     "news:view", "news:create", "news:edit", "news:delete",
     "members:view", "members:edit",
     "artists:view", "artists:create", "artists:edit", "artists:delete",
+    "play:view", "play:scan", "play:manage",
     "staff:view", "staff:create", "staff:edit",
     // head_staff ลบ staff ไม่ได้, สร้าง/แก้ได้แค่ staff (ไม่ใช่ owner/head_staff)
   ],
@@ -40,6 +43,8 @@ const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
     "news:view",
     "members:view",
     "artists:view",
+    // staff หน้าร้านต้องสแกนบันทึกการมาเล่นได้ แต่ตั้งค่าสิทธิ์/แก้รางวัลไม่ได้
+    "play:view", "play:scan",
     "staff:view",
   ],
 };

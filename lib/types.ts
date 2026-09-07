@@ -49,6 +49,7 @@ export type NewsPost = {
 
 export type Profile = {
   id: string;
+  member_code: string;
   username: string;
   display_name: string | null;
   avatar_url: string | null;
