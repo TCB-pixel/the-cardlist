@@ -24,6 +24,7 @@ export default function AdminPlayPage() {
   const [code, setCode] = useState("");
   const [game, setGame] = useState(GAMES[0]);
   const [lookup, setLookup] = useState<Lookup | null>(null);
+  const [choices, setChoices] = useState<{ id: string; member_code: string; display_name: string | null; username: string; phone: string | null }[] | null>(null);
   const [saved, setSaved] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -52,15 +53,21 @@ export default function AdminPlayPage() {
 
   useEffect(() => { return () => { stopScanner(); }; }, [stopScanner]);
 
-  const lookupMember = useCallback(async (memberCode: string) => {
-    const c = memberCode.trim().toUpperCase();
-    if (!c) return;
-    setLoading(true); setError(""); setSaved(null); setLookup(null);
+  // รับได้ทั้งรหัสสมาชิก (MB-XXXXXXXX) และเบอร์โทร — ฝั่ง API แยกให้เอง
+  const lookupMember = useCallback(async (input: string) => {
+    const q = input.trim();
+    if (!q) return;
+    setLoading(true); setError(""); setSaved(null); setLookup(null); setChoices(null);
     try {
-      const res = await authedFetch(`/api/admin/play?code=${encodeURIComponent(c)}`);
+      const res = await authedFetch(`/api/admin/play?code=${encodeURIComponent(q)}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "ไม่พบสมาชิก");
-      setCode(c);
+      // เบอร์เดียวผูกหลายบัญชี — ให้เลือกก่อน
+      if (json.multiple) {
+        setChoices(json.multiple);
+        return;
+      }
+      setCode(json.profile.member_code);
       setLookup(json);
     } catch (e: any) {
       setError(e?.message ?? "ไม่พบสมาชิก");
@@ -113,7 +120,7 @@ export default function AdminPlayPage() {
   }
 
   function reset() {
-    setLookup(null); setSaved(null); setCode(""); setError("");
+    setLookup(null); setSaved(null); setCode(""); setError(""); setChoices(null);
   }
 
   if (!canDo("play:scan")) {
@@ -126,7 +133,7 @@ export default function AdminPlayPage() {
     <div className="p-6 max-w-lg mx-auto">
       <div className="mb-5">
         <h1 className="text-sm font-semibold text-zinc-900">บันทึกการมาเล่น</h1>
-        <p className="text-[11px] text-zinc-400 mt-0.5">สแกน QR ประจำตัวสมาชิก แล้วเลือกเกมที่เล่นรอบนี้</p>
+        <p className="text-[11px] text-zinc-400 mt-0.5">สแกน QR ประจำตัว หรือค้นด้วยรหัสสมาชิก/เบอร์โทร แล้วเลือกเกมที่เล่นรอบนี้</p>
       </div>
 
       {error && (
@@ -174,18 +181,42 @@ export default function AdminPlayPage() {
               </button>
               <div className="flex items-center gap-2">
                 <div className="flex-1 h-px bg-zinc-100" />
-                <span className="text-[10px] text-zinc-300">หรือพิมพ์รหัสเอง</span>
+                <span className="text-[10px] text-zinc-300">หรือค้นหาเอง</span>
                 <div className="flex-1 h-px bg-zinc-100" />
               </div>
               <div className="flex gap-2">
-                <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())}
+                <input value={code}
+                  onChange={(e) => {
+                    // ตัวเลขล้วน = เบอร์โทร ไม่ต้องแปลงเป็นตัวใหญ่
+                    const v = e.target.value;
+                    setCode(/[A-Za-z]/.test(v) ? v.toUpperCase() : v);
+                  }}
                   onKeyDown={(e) => { if (e.key === "Enter") lookupMember(code); }}
-                  placeholder="MB-XXXXXXXX" className={inputCls} />
+                  placeholder="MB-XXXXXXXX หรือเบอร์โทร 08X-XXX-XXXX" className={inputCls} />
                 <button onClick={() => lookupMember(code)} disabled={loading || !code.trim()}
                   className="bg-zinc-900 text-white text-xs font-semibold px-5 rounded-xl hover:bg-zinc-700 disabled:opacity-40 flex-shrink-0">
                   {loading ? "..." : "ค้นหา"}
                 </button>
               </div>
+              <p className="text-[10px] text-zinc-400">
+                ค้นด้วยเบอร์ได้เฉพาะสมาชิกที่กรอกเบอร์ไว้ในโปรไฟล์แล้ว — ถ้าหาไม่เจอให้ใช้ QR หรือรหัส MB- แทน
+              </p>
+
+              {/* เบอร์เดียวเจอหลายบัญชี */}
+              {choices && (
+                <div className="border-t border-zinc-100 pt-3">
+                  <p className="text-[11px] font-semibold text-zinc-500 mb-2">เจอ {choices.length} บัญชีที่ใช้เบอร์นี้ — เลือกคนที่ถูกต้อง</p>
+                  <div className="space-y-2">
+                    {choices.map((c) => (
+                      <button key={c.id} onClick={() => lookupMember(c.member_code)}
+                        className="w-full text-left border border-zinc-200 rounded-xl px-3 py-2 hover:bg-zinc-50">
+                        <p className="text-xs font-semibold text-zinc-900">{c.display_name ?? c.username}</p>
+                        <p className="text-[10px] font-mono text-zinc-400">{c.member_code}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </>
           )}
           {scanning && (

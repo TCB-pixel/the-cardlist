@@ -15,19 +15,53 @@ async function sendLineNotify(lineUserId: string | null, message: string) {
   }
 }
 
-// ---------- GET : ค้นสมาชิกจากรหัส/QR เพื่อดูข้อมูลก่อนกดบันทึก ----------
+const PROFILE_COLS = "id, member_code, display_name, username, avatar_url, tier, phone";
+
+// ---------- GET : ค้นสมาชิกจากรหัส/QR หรือเบอร์โทร เพื่อดูข้อมูลก่อนกดบันทึก ----------
 export async function GET(req: Request) {
   const auth = await requireAdmin(req, "play:scan");
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-  const code = new URL(req.url).searchParams.get("code")?.trim().toUpperCase();
-  if (!code) return NextResponse.json({ error: "ไม่พบรหัสสมาชิก" }, { status: 400 });
+  const raw = new URL(req.url).searchParams.get("code")?.trim();
+  if (!raw) return NextResponse.json({ error: "กรอกรหัสสมาชิกหรือเบอร์โทร" }, { status: 400 });
 
-  const { data: profile } = await adminDb
-    .from("profiles")
-    .select("id, member_code, display_name, username, avatar_url, tier, phone")
-    .eq("member_code", code)
-    .maybeSingle();
+  // ถ้ากรอกมาเป็นตัวเลขล้วน (หรือ +66) ให้ถือว่าเป็นเบอร์โทร นอกนั้นถือเป็นรหัสสมาชิก
+  const digits = raw.replace(/\D/g, "");
+  const looksLikePhone = !/[A-Za-z]/.test(raw) && digits.length >= 9;
+
+  let profile: any = null;
+
+  if (looksLikePhone) {
+    const { data: matches, error } = await adminDb.rpc("find_members_by_phone", { p_phone: raw });
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+    const list = (matches ?? []) as any[];
+    if (list.length === 0) {
+      return NextResponse.json({ error: "ไม่พบสมาชิกที่ใช้เบอร์นี้ (สมาชิกอาจยังไม่ได้กรอกเบอร์ในโปรไฟล์)" }, { status: 404 });
+    }
+    // เบอร์ซ้ำกันหลายบัญชี — ให้ staff เลือกเองว่าคนไหน
+    if (list.length > 1) {
+      return NextResponse.json({
+        multiple: list.map((p) => ({
+          id: p.id, member_code: p.member_code,
+          display_name: p.display_name, username: p.username, phone: p.phone,
+        })),
+      });
+    }
+    profile = {
+      id: list[0].id, member_code: list[0].member_code,
+      display_name: list[0].display_name, username: list[0].username,
+      avatar_url: list[0].avatar_url, tier: list[0].tier, phone: list[0].phone,
+    };
+  } else {
+    const { data } = await adminDb
+      .from("profiles")
+      .select(PROFILE_COLS)
+      .eq("member_code", raw.toUpperCase())
+      .maybeSingle();
+    profile = data;
+  }
+
   if (!profile) return NextResponse.json({ error: "ไม่พบรหัสสมาชิกนี้ในระบบ" }, { status: 404 });
 
   const [{ count: total }, { data: recent }, { data: grants }] = await Promise.all([
