@@ -243,15 +243,21 @@ export default function EventsPage() {
     <div className="min-h-screen bg-zinc-50 pb-20">
       <TopBar title="Events & Booking" />
 
-      {/* Tabs */}
-      <div className="flex bg-white border-b border-zinc-100">
-        {TABS.map((t) => (
-          <button key={t} onClick={() => setActiveTab(t)}
-            className={`flex-1 text-xs py-3 tracking-wide border-b-2 transition-colors ${activeTab === t ? "border-zinc-900 text-zinc-900 font-semibold" : "border-transparent text-zinc-400"}`}>
-            {t}
-          </button>
-        ))}
+      {/* Tabs — แถบขาวกินเต็มความกว้าง แต่ปุ่มข้างในชิดกรอบเนื้อหาเดียวกับด้านล่าง */}
+      <div className="bg-white border-b border-zinc-100">
+        <div className="flex lg:max-w-[70%] lg:mx-auto">
+          {TABS.map((t) => (
+            <button key={t} onClick={() => setActiveTab(t)}
+              className={`flex-1 text-xs py-3 tracking-wide border-b-2 transition-colors ${activeTab === t ? "border-zinc-900 text-zinc-900 font-semibold" : "border-transparent text-zinc-400"}`}>
+              {t}
+            </button>
+          ))}
+        </div>
       </div>
+
+      {/* บนจอ desktop บีบเนื้อหาเหลือ 70% แล้วจัดกึ่งกลาง — แบนเนอร์อีเวนต์เล็กลง
+          และได้พื้นที่ว่างสองข้าง ส่วนมือถือ/แท็บเล็ตยังเต็มความกว้างเหมือนเดิม */}
+      <div className="lg:max-w-[70%] lg:mx-auto">
 
       {/* ── TAB: อีเวนต์ ── */}
       {activeTab === "อีเวนต์" && (
@@ -276,7 +282,7 @@ export default function EventsPage() {
                   {/* Banner Image — แสดงตามสัดส่วนภาพจริง (16:9) ไม่ครอป */}
                   {ev.image_url && (
                     <div className="relative w-full aspect-[16/9]">
-                      <Image src={ev.image_url} alt={ev.title} fill className="object-cover" sizes="100vw" />
+                      <Image src={ev.image_url} alt={ev.title} fill className="object-cover" sizes="(min-width: 1024px) 70vw, 100vw" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
                       {/* Date badge on image */}
                       <div className="absolute top-3 left-3 bg-zinc-900/80 backdrop-blur-sm rounded-xl px-2.5 py-2 text-center min-w-[44px]">
@@ -603,6 +609,8 @@ export default function EventsPage() {
           )}
         </div>
       )}
+
+      </div>
 
       <BottomNav />
     </div>
