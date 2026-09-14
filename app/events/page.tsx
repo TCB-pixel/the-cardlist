@@ -6,6 +6,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 import BottomNav from "@/components/BottomNav";
 import TopBar from "@/components/TopBar";
+import FacebookFollowCard from "@/components/FacebookFollowCard";
 import { TableType, TABLE_TYPES, TABLE_TYPE_LABEL } from "@/lib/tradingTables";
 
 type EventType = "meetup" | "tournament" | "sale";
@@ -262,6 +263,7 @@ export default function EventsPage() {
       {/* ── TAB: อีเวนต์ ── */}
       {activeTab === "อีเวนต์" && (
         <div className="px-4 py-4 space-y-3">
+          <FacebookFollowCard />
           {loading ? (
             <div className="flex items-center justify-center py-20">
               <div className="w-8 h-8 border-2 border-zinc-200 border-t-zinc-900 rounded-full animate-spin" />

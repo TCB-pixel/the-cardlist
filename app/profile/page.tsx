@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase";
 import type { Profile, Booking, Event } from "@/lib/types";
 import { getTier, getNextTier, TIER_LABEL, TIER_COLOR } from "@/lib/tiers";
 import BottomNav from "@/components/BottomNav";
+import FacebookFollowCard from "@/components/FacebookFollowCard";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -738,6 +739,9 @@ export default function ProfilePage() {
         {/* OVERVIEW */}
         {activeTab === "overview" && (
           <div className="space-y-2">
+            <div className="mb-4">
+              <FacebookFollowCard />
+            </div>
             {!installed && (
               <div className="card px-4 py-4 mb-4">
                 <p className="text-xs font-semibold text-zinc-900 mb-1">ดาวน์โหลดแอป The Cardlist</p>

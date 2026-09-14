@@ -71,6 +71,8 @@ const NAV: NavGroup[] = [
   {
     group: "ระบบ",
     items: [
+      { href: "/admin/settings", label: "ตั้งค่าเว็บไซต์", permission: "news:view",
+        icon: <><circle cx="10" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.3" fill="none"/><path d="M10 2.5v2M10 15.5v2M17.5 10h-2M4.5 10h-2M15.3 4.7l-1.4 1.4M6.1 13.9l-1.4 1.4M15.3 15.3l-1.4-1.4M6.1 6.1L4.7 4.7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></> },
       { href: "/admin/staff", label: "จัดการ Admin & Staff", permission: "staff:view",
         icon: <><circle cx="7" cy="7" r="3" stroke="currentColor" strokeWidth="1.3" fill="none"/><circle cx="13" cy="7" r="3" stroke="currentColor" strokeWidth="1.3" fill="none"/><path d="M1 18c0-3 2.7-5 6-5M10 18c0-3 2.7-5 6-5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" fill="none"/></> },
     ],
