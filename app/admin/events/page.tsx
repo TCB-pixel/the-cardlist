@@ -20,6 +20,9 @@ type Event = {
   event_type: EventType;
   image_url: string | null;
   created_at: string;
+  lucky_draw_enabled: boolean;
+  lucky_draw_prizes: string[] | null;
+  require_fb_follow: boolean;
 };
 
 const TYPE_LABEL: Record<EventType, string> = {
@@ -101,6 +104,9 @@ const EMPTY_FORM = {
   description: "",
   event_type: "meetup" as EventType,
   image_url: "",
+  lucky_draw_enabled: false,
+  lucky_draw_prizes: "",
+  require_fb_follow: false,
 };
 
 export default function AdminEventsPage() {
@@ -152,6 +158,9 @@ export default function AdminEventsPage() {
       description: ev.description ?? "",
       event_type: (ev.event_type as EventType) ?? "meetup",
       image_url: ev.image_url ?? "",
+      lucky_draw_enabled: !!ev.lucky_draw_enabled,
+      lucky_draw_prizes: (ev.lucky_draw_prizes ?? []).join("\n"),
+      require_fb_follow: !!ev.require_fb_follow,
     });
     setImgFile(null);
     setImgPreview(ev.image_url ?? null);
@@ -192,6 +201,12 @@ export default function AdminEventsPage() {
     const uploadedUrl = await uploadImage();
     if (imgFile && !uploadedUrl) { setSaving(false); return; }
 
+    // textarea บรรทัดละรางวัล → text[]
+    const prizeList = form.lucky_draw_prizes
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
     const payload = {
       title: form.title,
       location: form.location,
@@ -204,6 +219,9 @@ export default function AdminEventsPage() {
       description: form.description || null,
       event_type: form.event_type,
       image_url: uploadedUrl,
+      lucky_draw_enabled: form.lucky_draw_enabled,
+      lucky_draw_prizes: form.lucky_draw_enabled ? prizeList : [],
+      require_fb_follow: form.require_fb_follow,
     };
 
     if (editing) {
@@ -394,6 +412,45 @@ export default function AdminEventsPage() {
                   <p className="text-[11px] text-blue-700 font-semibold mb-1">บัตรที่จะแสดงอัตโนมัติ:</p>
                   <p className="text-[10px] text-blue-600">🟢 General — ลงทะเบียนฟรี</p>
                   <p className="text-[10px] text-blue-600">🥇 Priority Guest — ฿500</p>
+                </div>
+              )}
+
+              {/* ── สิทธิ์ลุ้นรางวัล + เงื่อนไขฟอลเพจ ── */}
+              {form.event_type !== "tournament" && (
+                <div className="border border-amber-200 bg-amber-50/60 rounded-xl p-3 space-y-3">
+                  <label className="flex items-start gap-2.5 cursor-pointer">
+                    <input type="checkbox" className="mt-0.5 w-4 h-4 accent-amber-500"
+                      checked={form.lucky_draw_enabled}
+                      onChange={(e) => setForm({ ...form, lucky_draw_enabled: e.target.checked })} />
+                    <span>
+                      <span className="text-xs font-semibold text-amber-900 block">🎁 ให้สิทธิ์ลุ้นรางวัล</span>
+                      <span className="text-[10px] text-amber-700/70">ผู้ลงทะเบียนงานนี้ทุกคนได้สิทธิ์ลุ้น</span>
+                    </span>
+                  </label>
+
+                  {form.lucky_draw_enabled && (
+                    <div>
+                      <label className={labelCls}>รายการรางวัล (บรรทัดละ 1 รางวัล)</label>
+                      <textarea rows={3} className={inputCls}
+                        placeholder={"กล่อง Pokemon ชุด 30 ปี\nSet Fur 30th Anniversary"}
+                        value={form.lucky_draw_prizes}
+                        onChange={(e) => setForm({ ...form, lucky_draw_prizes: e.target.value })} />
+                      <p className="text-[10px] text-zinc-400 mt-1">รางวัลจะแสดงในหน้ารายละเอียดงานและส่งไปใน LINE ตอนลงทะเบียนสำเร็จ</p>
+                    </div>
+                  )}
+
+                  <label className="flex items-start gap-2.5 cursor-pointer">
+                    <input type="checkbox" className="mt-0.5 w-4 h-4 accent-[#1877F2]"
+                      checked={form.require_fb_follow}
+                      onChange={(e) => setForm({ ...form, require_fb_follow: e.target.checked })} />
+                    <span>
+                      <span className="text-xs font-semibold text-zinc-800 block">บังคับกดติดตามเพจ Facebook ก่อนลงทะเบียน</span>
+                      <span className="text-[10px] text-zinc-500">
+                        ระบบยืนยันได้แค่ &quot;กดลิงก์ไปเพจแล้ว&quot; — Facebook ไม่เปิด API ให้เช็คการฟอลจริง
+                        สตาฟต้องตรวจซ้ำหน้างานตอนสแกน QR
+                      </span>
+                    </span>
+                  </label>
                 </div>
               )}
 

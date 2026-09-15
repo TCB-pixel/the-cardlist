@@ -19,6 +19,7 @@ type Row = {
   email: string;
   event_title: string;
   pack_paid: boolean | null;
+  fb_clicked: boolean;
 };
 
 type Winner = { key: string; name: string; ticket_type: string; event_title: string; prize: string };
@@ -34,6 +35,7 @@ export default function AdminRafflePage() {
   const [typeFilter, setTypeFilter] = useState<"all" | "priority" | "general">("all");
   const [approvedOnly, setApprovedOnly] = useState(true);
   const [packPaidOnly, setPackPaidOnly] = useState(false);
+  const [fbFollowedOnly, setFbFollowedOnly] = useState(false);
 
   // ── draw ──
   const [prize, setPrize] = useState("Booster Box");
@@ -84,9 +86,10 @@ export default function AdminRafflePage() {
       if (eventFilter !== "all" && r.event_title !== eventFilter) return false;
       if (typeFilter !== "all" && r.source !== typeFilter) return false;
       if (packPaidOnly && !r.pack_paid) return false;
+      if (fbFollowedOnly && !r.fb_clicked) return false;
       return true;
     });
-  }, [rows, approvedOnly, eventFilter, typeFilter, packPaidOnly]);
+  }, [rows, approvedOnly, eventFilter, typeFilter, packPaidOnly, fbFollowedOnly]);
 
   const wonKeys = useMemo(() => new Set(winners.map((w) => w.key)), [winners]);
   const remaining = useMemo(
@@ -207,6 +210,7 @@ export default function AdminRafflePage() {
           </div>
           <Toggle on={approvedOnly} setOn={setApprovedOnly} label="เฉพาะที่อนุมัติแล้ว" />
           <Toggle on={packPaidOnly} setOn={setPackPaidOnly} label="เฉพาะคนที่จ่าย Pack" />
+          <Toggle on={fbFollowedOnly} setOn={setFbFollowedOnly} label="เฉพาะคนที่กดลิงก์เพจ FB" />
         </div>
       </div>
 

@@ -14,6 +14,10 @@ type ScanResult = {
   ma5_slot?: boolean | null;
   status?: string;
   ticketId: string;
+  fb_clicked_at?: string | null;
+  lucky_draw_enabled?: boolean;
+  lucky_draw_prizes?: string[];
+  require_fb_follow?: boolean;
 };
 
 type Phase = "scan" | "result" | "ma5";
@@ -102,6 +106,10 @@ export default function StaffScannerPage() {
           event: { title: d.events?.title ?? "—", date: d.events?.date ?? "" },
           pack_paid: d.pack_paid ?? false,
           pack_used: d.pack_used ?? 0,
+          fb_clicked_at: d.profiles?.fb_clicked_at ?? null,
+          lucky_draw_enabled: !!d.events?.lucky_draw_enabled,
+          lucky_draw_prizes: d.events?.lucky_draw_prizes ?? [],
+          require_fb_follow: !!d.events?.require_fb_follow,
         });
       } else {
         setResult({
@@ -118,6 +126,7 @@ export default function StaffScannerPage() {
           free_pack_quota: d.free_pack_quota ?? 5,
           free_pack_used: d.free_pack_used ?? 0,
           ma5_slot: d.ma5_slot,
+          fb_clicked_at: d.profiles?.fb_clicked_at ?? null,
         });
       }
       setPhase("result");
@@ -291,6 +300,34 @@ export default function StaffScannerPage() {
                 className={`w-full py-3 rounded-xl text-sm font-bold ${(result.pack_used ?? 0) >= 1 ? "bg-zinc-800 text-zinc-600 cursor-not-allowed" : "bg-white text-zinc-900"} disabled:opacity-50`}>
                 {(result.pack_used ?? 0) >= 1 ? "ใช้สิทธิ์ไปแล้ว ✓" : redeeming === "pack_used" ? "กำลังบันทึก..." : "✓ Redeem สิทธิ์"}
               </button>
+            </div>
+          )}
+
+          {/* ── สิทธิ์ลุ้นรางวัล + ตรวจการฟอลเพจหน้างาน ── */}
+          {result.type === "general" && result.lucky_draw_enabled && (
+            <div className="bg-zinc-900 rounded-2xl p-4 mt-3">
+              <p className="text-[10px] text-zinc-400 font-semibold tracking-widest uppercase mb-3">สิทธิ์ลุ้นรางวัล</p>
+
+              {(result.lucky_draw_prizes ?? []).map((prize) => (
+                <div key={prize} className="flex items-center gap-2 p-3 bg-zinc-800 rounded-xl mb-2">
+                  <span aria-hidden="true">🎁</span>
+                  <p className="text-xs font-semibold">{prize}</p>
+                </div>
+              ))}
+
+              {result.require_fb_follow && (
+                <div className={`rounded-xl px-3 py-2.5 mt-3 ${result.fb_clicked_at ? "bg-blue-900/30 border border-blue-700/30" : "bg-red-900/30 border border-red-700/30"}`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-sm" aria-hidden="true">{result.fb_clicked_at ? "🔵" : "⚠️"}</span>
+                    <p className={`text-[11px] font-bold ${result.fb_clicked_at ? "text-blue-300" : "text-red-400"}`}>
+                      {result.fb_clicked_at ? "กดลิงก์ไปเพจแล้ว" : "ยังไม่ได้กดลิงก์ไปเพจ"}
+                    </p>
+                  </div>
+                  <p className="text-[10px] text-zinc-400 leading-relaxed">
+                    ระบบเช็คได้แค่ว่ากดลิงก์ไปเพจ — ขอดูมือถือลูกค้าว่ากดติดตามเพจจริงก่อนให้สิทธิ์ลุ้น
+                  </p>
+                </div>
+              )}
             </div>
           )}
 

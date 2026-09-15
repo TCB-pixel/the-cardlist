@@ -91,8 +91,8 @@ export async function GET(req: Request) {
 
   // หมายเหตุ: ตัด "email" ออก เพราะ profiles ไม่มีคอลัมน์นี้ (email อยู่ที่ auth.users)
   const [profilesData, eventsData] = await Promise.all([
-    userIds.length ? fetchIn("profiles", "id, username, display_name, avatar_url, line_user_id", userIds) : Promise.resolve([] as any[]),
-    eventIds.length ? fetchIn("events", "id, title, date", eventIds) : Promise.resolve([] as any[]),
+    userIds.length ? fetchIn("profiles", "id, username, display_name, avatar_url, line_user_id, fb_clicked_at", userIds) : Promise.resolve([] as any[]),
+    eventIds.length ? fetchIn("events", "id, title, date, lucky_draw_enabled, require_fb_follow", eventIds) : Promise.resolve([] as any[]),
   ]);
 
   const pMap = new Map(profilesData.map((p: any) => [p.id, p]));
@@ -119,6 +119,10 @@ export async function GET(req: Request) {
       event_date: e.date || null,
       qr_code: r.qr_code || "",
       pack_paid: source === "general" ? !!r.pack_paid : null,
+      // "กดลิงก์ไปเพจแล้ว" เท่านั้น — ไม่ใช่การยืนยันว่าไลค์จริง
+      fb_clicked: !!p.fb_clicked_at,
+      lucky_draw_enabled: !!e.lucky_draw_enabled,
+      require_fb_follow: !!e.require_fb_follow,
       created_at: r.created_at || null,
     };
   };
