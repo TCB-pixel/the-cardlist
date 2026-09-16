@@ -28,6 +28,7 @@ type Event = {
   lucky_draw_enabled: boolean;
   lucky_draw_prizes: string[] | null;
   require_fb_follow: boolean;
+  lucky_draw_image_url: string | null;
 };
 
 const TCG_COLOR: Record<string, string> = {
@@ -225,6 +226,13 @@ export default function EventDetailPage() {
                 <p className="text-[10px] text-amber-700/70">ลงทะเบียนฟรี ไม่มีค่าใช้จ่าย</p>
               </div>
             </div>
+
+            {event.lucky_draw_image_url && (
+              <div className="relative w-full aspect-[16/10] rounded-xl overflow-hidden mb-3 bg-white">
+                <Image src={event.lucky_draw_image_url} alt="รางวัลที่ลุ้นได้"
+                  fill className="object-contain" sizes="100vw" />
+              </div>
+            )}
 
             <ul className="space-y-1.5">
               {prizes.map((prize) => (

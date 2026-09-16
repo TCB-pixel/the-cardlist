@@ -23,6 +23,7 @@ type Event = {
   lucky_draw_enabled: boolean;
   lucky_draw_prizes: string[] | null;
   require_fb_follow: boolean;
+  lucky_draw_image_url: string | null;
 };
 
 const TYPE_LABEL: Record<EventType, string> = {
@@ -107,6 +108,7 @@ const EMPTY_FORM = {
   lucky_draw_enabled: false,
   lucky_draw_prizes: "",
   require_fb_follow: false,
+  lucky_draw_image_url: "",
 };
 
 export default function AdminEventsPage() {
@@ -123,6 +125,9 @@ export default function AdminEventsPage() {
   // Image upload
   const imgRef = useRef<HTMLInputElement>(null);
   const [imgFile, setImgFile] = useState<File | null>(null);
+  const drawRef = useRef<HTMLInputElement>(null);
+  const [drawFile, setDrawFile] = useState<File | null>(null);
+  const [drawPreview, setDrawPreview] = useState<string | null>(null);
   const [imgPreview, setImgPreview] = useState<string | null>(null);
   const [imgUploading, setImgUploading] = useState(false);
 
@@ -140,6 +145,8 @@ export default function AdminEventsPage() {
     setForm(EMPTY_FORM);
     setImgFile(null);
     setImgPreview(null);
+    setDrawFile(null);
+    setDrawPreview(null);
     setError("");
     setShowModal(true);
   }
@@ -161,9 +168,12 @@ export default function AdminEventsPage() {
       lucky_draw_enabled: !!ev.lucky_draw_enabled,
       lucky_draw_prizes: (ev.lucky_draw_prizes ?? []).join("\n"),
       require_fb_follow: !!ev.require_fb_follow,
+      lucky_draw_image_url: ev.lucky_draw_image_url ?? "",
     });
     setImgFile(null);
     setImgPreview(ev.image_url ?? null);
+    setDrawFile(null);
+    setDrawPreview(ev.lucky_draw_image_url ?? null);
     setError("");
     setShowModal(true);
   }
@@ -175,13 +185,24 @@ export default function AdminEventsPage() {
     setImgPreview(URL.createObjectURL(file));
   }
 
-  async function uploadImage(): Promise<string | null> {
-    if (!imgFile) return form.image_url || null;
+  async function handleDrawChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setDrawFile(file);
+    setDrawPreview(URL.createObjectURL(file));
+  }
+
+  async function uploadImage(
+    file: File | null = imgFile,
+    existingUrl: string = form.image_url,
+    prefix = "event",
+  ): Promise<string | null> {
+    if (!file) return existingUrl || null;
     setImgUploading(true);
     try {
-      const ext = imgFile.name.split(".").pop();
-      const path = `events/event_${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("banners").upload(path, imgFile, { upsert: true });
+      const ext = file.name.split(".").pop();
+      const path = `events/${prefix}_${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("banners").upload(path, file, { upsert: true });
       if (upErr) throw upErr;
       const { data } = supabase.storage.from("banners").getPublicUrl(path);
       return data.publicUrl;
@@ -200,6 +221,9 @@ export default function AdminEventsPage() {
 
     const uploadedUrl = await uploadImage();
     if (imgFile && !uploadedUrl) { setSaving(false); return; }
+
+    const drawUrl = await uploadImage(drawFile, form.lucky_draw_image_url, "luckydraw");
+    if (drawFile && !drawUrl) { setSaving(false); return; }
 
     // textarea บรรทัดละรางวัล → text[]
     const prizeList = form.lucky_draw_prizes
@@ -222,6 +246,7 @@ export default function AdminEventsPage() {
       lucky_draw_enabled: form.lucky_draw_enabled,
       lucky_draw_prizes: form.lucky_draw_enabled ? prizeList : [],
       require_fb_follow: form.require_fb_follow,
+      lucky_draw_image_url: form.lucky_draw_enabled ? drawUrl : null,
     };
 
     if (editing) {
@@ -435,7 +460,33 @@ export default function AdminEventsPage() {
                         placeholder={"กล่อง Pokemon ชุด 30 ปี\nSet Fur 30th Anniversary"}
                         value={form.lucky_draw_prizes}
                         onChange={(e) => setForm({ ...form, lucky_draw_prizes: e.target.value })} />
-                      <p className="text-[10px] text-zinc-400 mt-1">รางวัลจะแสดงในหน้ารายละเอียดงานและส่งไปใน LINE ตอนลงทะเบียนสำเร็จ</p>
+                      <p className="text-[10px] text-zinc-400 mt-1">รางวัลจะแสดงในหน้ารายการอีเวนต์ หน้ารายละเอียดงาน และส่งไปใน LINE ตอนลงทะเบียนสำเร็จ</p>
+
+                      <label className={`${labelCls} mt-3`}>รูปโปสเตอร์รางวัล (ถ้ามี)</label>
+                      <input ref={drawRef} type="file" accept="image/*" className="hidden" onChange={handleDrawChange} />
+                      {drawPreview ? (
+                        <div className="space-y-2">
+                          <div className="relative w-full h-32 rounded-xl overflow-hidden border border-zinc-100 bg-white">
+                            <Image src={drawPreview} alt="โปสเตอร์รางวัล" fill className="object-contain" />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button onClick={() => drawRef.current?.click()}
+                              className="border border-zinc-200 rounded-xl py-2 text-xs text-zinc-500 hover:bg-zinc-50">
+                              เปลี่ยนรูป
+                            </button>
+                            <button onClick={() => { setDrawFile(null); setDrawPreview(null); setForm({ ...form, lucky_draw_image_url: "" }); }}
+                              className="border border-zinc-200 rounded-xl py-2 text-xs text-red-500 hover:bg-red-50">
+                              ลบรูป
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button onClick={() => drawRef.current?.click()}
+                          className="w-full border-2 border-dashed border-amber-200 rounded-xl py-5 flex flex-col items-center gap-1.5 hover:border-amber-400 transition-colors">
+                          <span className="text-xl" aria-hidden="true">🎁</span>
+                          <p className="text-xs text-zinc-400">อัพโหลดโปสเตอร์รางวัล</p>
+                        </button>
+                      )}
                     </div>
                   )}
 
