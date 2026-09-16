@@ -222,7 +222,7 @@ export default function EventDetailPage() {
             <div className="flex items-center gap-2 mb-3">
               <span className="text-xl" aria-hidden="true">🎁</span>
               <div>
-                <h2 className="text-sm font-bold text-amber-900">ลงทะเบียนแล้วได้สิทธิ์ลุ้น</h2>
+                <h2 className="text-sm font-bold text-amber-900">ลงทะเบียนแล้วลุ้นรับ</h2>
                 <p className="text-[10px] text-amber-700/70">ลงทะเบียนฟรี ไม่มีค่าใช้จ่าย</p>
               </div>
             </div>

@@ -373,7 +373,7 @@ export default function EventsPage() {
                     {!isTournament && ev.lucky_draw_enabled && (ev.lucky_draw_prizes ?? []).length > 0 && (
                       <div className="mb-3 rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 px-3 py-2.5">
                         <p className="text-[11px] font-bold text-amber-900 mb-1.5">
-                          🎁 ลงทะเบียนแล้วได้สิทธิ์ลุ้น
+                          🎁 ลงทะเบียนแล้วลุ้นรับ
                         </p>
                         {ev.lucky_draw_image_url && (
                           <div className="relative w-full aspect-[16/10] rounded-lg overflow-hidden mb-2 bg-white">
