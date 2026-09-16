@@ -47,21 +47,7 @@ const STATUS_LABEL: Record<string, string> = {
   cancelled: "ยกเลิก",
 };
 
-type Tab = "overview" | "orders" | "bookings" | "qr" | "coupon";
-
-type Coupon = {
-  campaign_id: string;
-  code: string;
-  partner_name: string;
-  title: string;
-  subtitle: string | null;
-  discount_type: "fixed" | "percent";
-  discount_value: number;
-  terms: string | null;
-  usage_limit: number;
-  used_count: number;
-  status: "active" | "used";
-};
+type Tab = "overview" | "orders" | "bookings" | "qr";
 
 type GenReg = {
   id: string;
@@ -203,8 +189,6 @@ export default function ProfilePage() {
   const [bookings, setBookings] = useState<BookingWithEvent[]>([]);
   const [genRegs, setGenRegs] = useState<GenReg[]>([]);
   const [priorityTickets, setPriorityTickets] = useState<PriorityTicket[]>([]);
-  const [coupons, setCoupons] = useState<Coupon[]>([]);
-  const [redeeming, setRedeeming] = useState<string | null>(null);
   const [totalSpend, setTotalSpend] = useState(0);
   const [fetchError, setFetchError] = useState("");
 
@@ -353,44 +337,6 @@ export default function ProfilePage() {
       }));
       setPriorityTickets((priorityWithEvents as unknown as PriorityTicket[]) ?? []);
 
-      // 8) Coupons (per-user) — โชว์เฉพาะคนที่ลงทะเบียนเข้างานแล้ว
-      const isRegistered = (genWithEvents?.length ?? 0) > 0 || (priorityWithEvents?.length ?? 0) > 0;
-      if (isRegistered) {
-        // แจกคูปองให้ user ปัจจุบัน (idempotent)
-        await supabase.rpc("ensure_my_coupons");
-
-        const [{ data: campRows }, { data: ucRows }] = await Promise.all([
-          supabase
-            .from("coupon_campaigns")
-            .select("id, code, partner_name, title, subtitle, discount_type, discount_value, terms, usage_limit, used_count")
-            .eq("is_active", true),
-          supabase
-            .from("user_coupons")
-            .select("campaign_id, status")
-            .eq("user_id", userId),
-        ]);
-
-        const ucMap = new Map((ucRows ?? []).map((u: any) => [u.campaign_id, u.status]));
-        const merged: Coupon[] = (campRows ?? [])
-          .filter((c: any) => ucMap.has(c.id))
-          .map((c: any) => ({
-            campaign_id: c.id,
-            code: c.code,
-            partner_name: c.partner_name,
-            title: c.title,
-            subtitle: c.subtitle,
-            discount_type: c.discount_type,
-            discount_value: c.discount_value,
-            terms: c.terms,
-            usage_limit: c.usage_limit,
-            used_count: c.used_count,
-            status: (ucMap.get(c.id) as "active" | "used") ?? "active",
-          }));
-        setCoupons(merged);
-      } else {
-        setCoupons([]);
-      }
-
     } catch (err: any) {
       setFetchError(err?.message ?? "โหลดข้อมูลไม่สำเร็จ");
     } finally {
@@ -477,43 +423,6 @@ export default function ProfilePage() {
     setLoggingOut(true);
     await supabase.auth.signOut();
     router.replace("/login");
-  }
-
-  // ── ใช้สิทธิ์คูปอง (สตาฟกดบนจอลูกค้า) ──
-  async function redeemCoupon(c: Coupon) {
-    if (redeeming) return;
-    const discount = c.discount_type === "percent" ? `${c.discount_value}%` : `฿${c.discount_value}`;
-    if (!window.confirm(`ยืนยันใช้สิทธิ์ ${c.partner_name} ส่วนลด ${discount}?\nใช้แล้วกดซ้ำไม่ได้`)) return;
-
-    setRedeeming(c.code);
-    try {
-      const { data, error } = await supabase.rpc("redeem_my_coupon", { p_code: c.code });
-      const row: any = Array.isArray(data) ? data[0] : data;
-
-      if (error || !row?.success) {
-        const reason = row?.reason;
-        if (reason === "already_used") window.alert("คูปองนี้ถูกใช้ไปแล้ว");
-        else if (reason === "limit_reached") window.alert("สิทธิ์เต็ม 200 ใบแล้ว");
-        else window.alert("ใช้สิทธิ์ไม่สำเร็จ ลองใหม่อีกครั้ง");
-        // ดึงสถานะล่าสุดกลับมา
-        if (reason === "already_used") {
-          setCoupons((prev) => prev.map((x) => x.code === c.code ? { ...x, status: "used" } : x));
-        } else if (reason === "limit_reached") {
-          setCoupons((prev) => prev.map((x) => x.code === c.code ? { ...x, used_count: x.usage_limit } : x));
-        }
-        return;
-      }
-
-      // สำเร็จ → อัปเดตการ์ดเป็น "ใช้แล้ว" + ตัวนับรวม
-      const usedCount = row.usage_limit - (row.remaining ?? 0);
-      setCoupons((prev) =>
-        prev.map((x) => x.code === c.code ? { ...x, status: "used", used_count: usedCount } : x)
-      );
-    } catch {
-      window.alert("ใช้สิทธิ์ไม่สำเร็จ ลองใหม่อีกครั้ง");
-    } finally {
-      setRedeeming(null);
-    }
   }
 
   // ── Loading ──
@@ -702,8 +611,8 @@ export default function ProfilePage() {
 
       {/* ── Tabs ── */}
       <div className="flex bg-white border-b border-zinc-100 overflow-x-auto scrollbar-hide">
-        {(["overview", "orders", "bookings", "qr", "coupon"] as Tab[]).map((t) => {
-          const labels: Record<Tab, string> = { overview: "ภาพรวม", orders: "สั่งซื้อ", bookings: "จอง", qr: "QR", coupon: "คูปอง" };
+        {(["overview", "orders", "bookings", "qr"] as Tab[]).map((t) => {
+          const labels: Record<Tab, string> = { overview: "ภาพรวม", orders: "สั่งซื้อ", bookings: "จอง", qr: "QR" };
           return (
             <button
               key={t}
@@ -721,11 +630,6 @@ export default function ProfilePage() {
               {t === "bookings" && bookings.length > 0 && (
                 <span className="ml-1 text-[9px] bg-zinc-900 text-white px-1.5 py-0.5 rounded-full">
                   {bookings.length}
-                </span>
-              )}
-              {t === "coupon" && coupons.length > 0 && (genRegs.length > 0 || priorityTickets.length > 0) && (
-                <span className="ml-1 text-[9px] bg-pink-500 text-white px-1.5 py-0.5 rounded-full">
-                  {coupons.length}
                 </span>
               )}
             </button>
@@ -1054,86 +958,6 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* COUPON */}
-        {activeTab === "coupon" && (
-          <div className="space-y-4">
-            {(genRegs.length === 0 && priorityTickets.length === 0) ? (
-              <div className="card px-5 py-10 text-center">
-                <p className="text-2xl mb-3">🎟️</p>
-                <p className="text-sm text-zinc-400">ยังไม่มีคูปอง</p>
-                <p className="text-[11px] text-zinc-400 mt-1">ลงทะเบียนเข้างานเพื่อรับคูปองจากพาร์ทเนอร์</p>
-                <Link href="/events" className="mt-4 inline-block btn-primary px-6 py-2.5">ดูอีเวนต์</Link>
-              </div>
-            ) : (
-              <>
-                {/* คูปอง Photopia (ดิจิทัล · สตาฟกดใช้บนจอลูกค้า) */}
-                {coupons.map((c) => {
-                  const remaining = Math.max(0, (c.usage_limit || 0) - (c.used_count || 0));
-                  const isFull = remaining <= 0;
-                  const isUsed = c.status === "used";
-                  const discount = c.discount_type === "percent" ? `${c.discount_value}%` : `฿${c.discount_value}`;
-                  const banner = c.partner_name === "Photopia" ? "/coupons/photopia.png" : null;
-                  return (
-                    <div key={c.code} className="rounded-2xl overflow-hidden border border-zinc-200 bg-white shadow-sm">
-                      {banner ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={banner} alt={c.title} className={`w-full h-auto block ${isUsed ? "grayscale opacity-60" : ""}`} />
-                      ) : (
-                        <div className="px-5 pt-5">
-                          <span className="text-[10px] bg-pink-100 text-pink-700 px-2 py-0.5 rounded-full font-semibold">🎟️ {c.partner_name}</span>
-                          <div className="flex items-baseline gap-1.5 mt-2">
-                            <span className="text-2xl font-extrabold text-zinc-900">{discount}</span>
-                            <span className="text-xs text-zinc-400">ส่วนลด</span>
-                          </div>
-                          <p className="text-xs font-semibold text-zinc-900">{c.title}</p>
-                        </div>
-                      )}
-
-                      <div className="px-4 py-3 border-t border-zinc-100">
-                        {isUsed ? (
-                          <div className="flex items-center justify-center gap-2 py-1.5">
-                            <span className="text-green-600 text-base">✅</span>
-                            <span className="text-sm font-bold text-green-700">ใช้สิทธิ์แล้ว</span>
-                          </div>
-                        ) : isFull ? (
-                          <div className="text-center text-sm font-bold text-zinc-400 py-1.5">สิทธิ์เต็ม 200 ใบแล้ว</div>
-                        ) : (
-                          <>
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-[11px] text-zinc-400">เหลือ {remaining}/{c.usage_limit} สิทธิ์</span>
-                              <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">พร้อมใช้</span>
-                            </div>
-                            <button
-                              onClick={() => redeemCoupon(c)}
-                              disabled={redeeming === c.code}
-                              className="w-full rounded-xl bg-pink-600 py-3.5 text-base font-bold text-white active:scale-[0.99] disabled:opacity-50"
-                            >
-                              {redeeming === c.code ? "กำลังใช้สิทธิ์..." : "ให้สตาฟกดใช้สิทธิ์"}
-                            </button>
-                            <p className="text-[9px] text-zinc-400 text-center mt-2">ยื่นจอนี้ให้สตาฟที่บูธ {c.partner_name} กดใช้สิทธิ์</p>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-
-                {/* คูปองกระดาษ (รับที่จุดลงทะเบียน · โชว์ภาพอย่างเดียว) */}
-                <div className="rounded-2xl overflow-hidden border border-zinc-200 bg-white shadow-sm">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/coupons/restaurant.jpg" alt="คูปองส่วนลดร้านอาหาร ฿100" className="w-full h-auto block" />
-                  <p className="text-[10px] text-zinc-400 text-center py-2">🧾 คูปองกระดาษ · รับได้ที่จุดลงทะเบียนหน้างาน</p>
-                </div>
-
-                <div className="rounded-2xl overflow-hidden border border-zinc-200 bg-white shadow-sm">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/coupons/loft.jpg" alt="LOFT ส่วนลด ฿200" className="w-full h-auto block" />
-                  <p className="text-[10px] text-zinc-400 text-center py-2">🧾 คูปองกระดาษ · รับได้ที่จุดลงทะเบียนหน้างาน</p>
-                </div>
-              </>
-            )}
-          </div>
-        )}
 
       </div>
 
