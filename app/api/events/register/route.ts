@@ -71,11 +71,11 @@ export async function POST(request: NextRequest) {
 
   // ส่ง LINE แจ้งเตือน
   if (profile?.line_user_id) {
+    // สิทธิ์ตามที่ตั้งไว้ในอีเวนต์เท่านั้น — สิทธิ์ซื้อ Pokemon M1-M5 ราคาป้ายถูกยกเลิกไปแล้ว (896120d)
     const prizes: string[] = event.lucky_draw_enabled ? (event.lucky_draw_prizes ?? []) : [];
-    const perkLines = [
-      "• ซื้อ Pokemon M1-M5 ราคาป้าย 1 ซอง / คน",
-      ...prizes.map((p) => `• ลุ้นรับ ${p}`),
-    ].join("\n");
+    const perkSection = prizes.length
+      ? `\n\n🎫 สิทธิ์ของคุณ:\n${prizes.map((p) => `• ลุ้นรับ ${p}`).join("\n")}`
+      : "";
 
     const eventDate = event.date
       ? new Date(event.date).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" })
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
         lineUserId: profile.line_user_id,
         type: "broadcast",
         data: {
-          message: `✅ ลงทะเบียนเข้างานสำเร็จ!\n\n📍 งาน: ${event.title ?? "งาน"}\n📅 วันที่: ${eventDate}\n📌 สถานที่: ${event.location ?? ""}\n\n🎫 สิทธิ์ของคุณ:\n${perkLines}\n\n🔑 QR Code: ${qrCode}\n\nแสดง QR Code ในโปรไฟล์หน้างานได้เลยครับ 🙌`,
+          message: `✅ ลงทะเบียนเข้างานสำเร็จ!\n\n📍 งาน: ${event.title ?? "งาน"}\n📅 วันที่: ${eventDate}\n📌 สถานที่: ${event.location ?? ""}${perkSection}\n\n🔑 QR Code: ${qrCode}\n\nแสดง QR Code ในโปรไฟล์หน้างานได้เลยครับ 🙌`,
         },
       }),
     });
