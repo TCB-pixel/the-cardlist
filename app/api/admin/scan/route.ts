@@ -66,13 +66,13 @@ export async function GET(request: NextRequest) {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("display_name, username, avatar_url, line_user_id")
+      .select("display_name, username, avatar_url, line_user_id, fb_clicked_at")
       .eq("id", data.user_id)
       .single();
 
     const { data: event } = await supabase
       .from("events")
-      .select("title, date, location")
+      .select("title, date, location, lucky_draw_enabled, lucky_draw_prizes, require_fb_follow")
       .eq("id", data.event_id)
       .single();
 
@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("display_name, username, avatar_url, line_user_id")
+      .select("display_name, username, avatar_url, line_user_id, fb_clicked_at")
       .eq("id", data.user_id)
       .single();
 

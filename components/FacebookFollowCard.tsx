@@ -7,7 +7,14 @@ import { createClient } from "@/lib/supabase";
  * - ซ่อนตัวเองถ้าแอดมินยังไม่ได้ตั้งค่า URL เพจใน /admin/settings
  * - บันทึกว่า "กดลิงก์แล้ว" เท่านั้น — Facebook ไม่เปิดให้ตรวจสอบว่าไลค์จริงไหม
  */
-export default function FacebookFollowCard({ compact = false }: { compact?: boolean }) {
+export default function FacebookFollowCard({
+  compact = false,
+  onClicked,
+}: {
+  compact?: boolean;
+  /** เรียกเมื่อสมาชิกกดลิงก์ไปเพจ — ใช้ปลดล็อกเงื่อนไข "ต้องฟอลเพจ" ของหน้าที่ครอบอยู่ */
+  onClicked?: () => void;
+}) {
   const [url, setUrl] = useState<string | null>(null);
   const [clicked, setClicked] = useState(false);
   const [ready, setReady] = useState(false);
@@ -35,6 +42,7 @@ export default function FacebookFollowCard({ compact = false }: { compact?: bool
 
   async function handleClick() {
     setClicked(true);
+    onClicked?.();
     try {
       const supabase = createClient();
       const { data: { session } } = await supabase.auth.getSession();

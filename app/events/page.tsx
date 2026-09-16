@@ -26,6 +26,10 @@ type Event = {
   event_type: EventType;
   image_url: string | null;
   trading_tables_enabled: boolean;
+  lucky_draw_enabled: boolean;
+  lucky_draw_prizes: string[] | null;
+  require_fb_follow: boolean;
+  lucky_draw_image_url: string | null;
 };
 
 const TCG_COLOR: Record<string, string> = {
@@ -362,6 +366,32 @@ export default function EventsPage() {
                         <div className="bg-green-50 rounded-xl px-3 py-2 text-center">
                           <p className="text-xs font-bold text-green-600">เข้างานฟรี ไม่มีค่าใช้จ่าย</p>
                         </div>
+                      </div>
+                    )}
+
+                    {/* สิทธิ์ลุ้นรางวัลสำหรับผู้ลงทะเบียน — โชว์ตั้งแต่หน้ารายการ ไม่ต้องกดเข้าไปดู */}
+                    {!isTournament && ev.lucky_draw_enabled && (ev.lucky_draw_prizes ?? []).length > 0 && (
+                      <div className="mb-3 rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 px-3 py-2.5">
+                        <p className="text-[11px] font-bold text-amber-900 mb-1.5">
+                          🎁 ลงทะเบียนแล้วลุ้นรับ
+                        </p>
+                        {ev.lucky_draw_image_url && (
+                          <div className="relative w-full aspect-[16/10] rounded-lg overflow-hidden mb-2 bg-white">
+                            <Image src={ev.lucky_draw_image_url} alt="รางวัลที่ลุ้นได้"
+                              fill className="object-contain" sizes="(max-width: 768px) 100vw, 400px" />
+                          </div>
+                        )}
+                        <ul className="space-y-1">
+                          {(ev.lucky_draw_prizes ?? []).map((prize) => (
+                            <li key={prize} className="flex items-start gap-1.5">
+                              <span className="text-amber-500 text-[10px] mt-[3px] flex-shrink-0" aria-hidden="true">★</span>
+                              <span className="text-[11px] font-semibold text-amber-900 leading-snug">{prize}</span>
+                            </li>
+                          ))}
+                        </ul>
+                        {ev.require_fb_follow && (
+                          <p className="text-[10px] text-amber-700/80 mt-1.5">ต้องกดติดตามเพจ Facebook ด้วย</p>
+                        )}
                       </div>
                     )}
 

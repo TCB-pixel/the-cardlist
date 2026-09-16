@@ -6,6 +6,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 import BottomNav from "@/components/BottomNav";
 import TopBar from "@/components/TopBar";
+import FacebookFollowCard from "@/components/FacebookFollowCard";
 
 type EventType = "meetup" | "tournament" | "sale";
 
@@ -24,6 +25,10 @@ type Event = {
   event_type: EventType;
   image_url: string | null;
   trading_tables_enabled: boolean;
+  lucky_draw_enabled: boolean;
+  lucky_draw_prizes: string[] | null;
+  require_fb_follow: boolean;
+  lucky_draw_image_url: string | null;
 };
 
 const TCG_COLOR: Record<string, string> = {
@@ -63,6 +68,7 @@ export default function EventDetailPage() {
   const [registered, setRegistered] = useState(false);
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
   const [qrCode, setQrCode] = useState("");
+  const [fbClicked, setFbClicked] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -76,6 +82,13 @@ export default function EventDetailPage() {
       setEvent(ev as Event);
     }
     setLoggedIn(!!session);
+
+    if (session?.user) {
+      const { data: profile } = await supabase
+        .from("profiles").select("fb_clicked_at").eq("id", session.user.id).maybeSingle();
+      setFbClicked(!!profile?.fb_clicked_at);
+    }
+
     setLoading(false);
   }, [eventId]);
 
@@ -114,7 +127,11 @@ export default function EventDetailPage() {
         body: JSON.stringify({ eventId }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "ลงทะเบียนไม่สำเร็จ");
+      if (!res.ok) {
+        // server ปฏิเสธเพราะยังไม่ได้กดลิงก์เพจ — ดึงการ์ดฟอลเพจกลับมาแสดง
+        if (data.reason === "fb_follow_required") setFbClicked(false);
+        throw new Error(data.error || "ลงทะเบียนไม่สำเร็จ");
+      }
       setQrCode(data.qrCode);
       if (data.alreadyRegistered) setAlreadyRegistered(true);
       else setRegistered(true);
@@ -152,6 +169,9 @@ export default function EventDetailPage() {
 
   const isTournament = event.event_type === "tournament";
   const done = registered || alreadyRegistered;
+  const prizes = event.lucky_draw_enabled ? (event.lucky_draw_prizes ?? []) : [];
+  // ยืนยันได้แค่ "กดลิงก์ไปเพจแล้ว" — Facebook ไม่เปิด API ให้เช็คการฟอลจริง สตาฟตรวจซ้ำหน้างานตอนสแกน QR
+  const needsFollow = event.require_fb_follow && !fbClicked;
 
   return (
     <div className="min-h-screen bg-zinc-50 pb-20">
@@ -196,6 +216,42 @@ export default function EventDetailPage() {
           )}
         </div>
 
+        {/* ── สิทธิ์ลุ้นรางวัลสำหรับผู้ลงทะเบียน ── */}
+        {prizes.length > 0 && !isTournament && (
+          <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-xl" aria-hidden="true">🎁</span>
+              <div>
+                <h2 className="text-sm font-bold text-amber-900">ลงทะเบียนแล้วลุ้นรับ</h2>
+                <p className="text-[10px] text-amber-700/70">ลงทะเบียนฟรี ไม่มีค่าใช้จ่าย</p>
+              </div>
+            </div>
+
+            {event.lucky_draw_image_url && (
+              <div className="relative w-full aspect-[16/10] rounded-xl overflow-hidden mb-3 bg-white">
+                <Image src={event.lucky_draw_image_url} alt="รางวัลที่ลุ้นได้"
+                  fill className="object-contain" sizes="100vw" />
+              </div>
+            )}
+
+            <ul className="space-y-1.5">
+              {prizes.map((prize) => (
+                <li key={prize} className="flex items-start gap-2 bg-white/70 rounded-xl px-3 py-2">
+                  <span className="text-amber-500 text-xs mt-0.5" aria-hidden="true">★</span>
+                  <span className="text-[13px] font-semibold text-amber-900 leading-snug">{prize}</span>
+                </li>
+              ))}
+            </ul>
+
+            {event.require_fb_follow && (
+              <p className="text-[11px] text-amber-800 mt-3 leading-relaxed">
+                <span className="font-semibold">เงื่อนไข:</span> ต้องกดติดตามเพจ Facebook ของร้าน
+                และทีมงานจะตรวจสอบอีกครั้งหน้างานตอนสแกน QR
+              </p>
+            )}
+          </div>
+        )}
+
         {/* ── ลงทะเบียนเข้างาน (เฉพาะงาน meet up / general — tournament ใช้ระบบที่นั่งแยก) ── */}
         {!isTournament && (
           <div className="bg-white rounded-2xl border border-zinc-100 p-4">
@@ -225,12 +281,25 @@ export default function EventDetailPage() {
                     กรุณา <Link href="/login" className="font-semibold underline">เข้าสู่ระบบ</Link> ก่อนลงทะเบียน
                   </p>
                 )}
+                {loggedIn && needsFollow && (
+                  <div className="mb-3 space-y-2">
+                    <p className="text-[11px] text-amber-600 leading-relaxed">
+                      งานนี้ต้องกดติดตามเพจ Facebook ก่อนจึงจะลงทะเบียนได้
+                    </p>
+                    <FacebookFollowCard onClicked={() => setFbClicked(true)} />
+                  </div>
+                )}
+
                 <button
                   onClick={handleRegister}
-                  disabled={registering}
+                  disabled={registering || (!!loggedIn && needsFollow)}
                   className="w-full py-3 text-sm font-semibold rounded-xl bg-zinc-900 text-white disabled:opacity-50"
                 >
-                  {registering ? "กำลังลงทะเบียน..." : "ลงทะเบียนเข้าร่วมงาน"}
+                  {registering
+                    ? "กำลังลงทะเบียน..."
+                    : loggedIn && needsFollow
+                      ? "กดติดตามเพจก่อนลงทะเบียน"
+                      : "ลงทะเบียนเข้าร่วมงาน"}
                 </button>
               </>
             )}

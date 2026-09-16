@@ -24,6 +24,28 @@ export async function POST(request: NextRequest) {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const { data: event } = await supabase
+    .from("events")
+    .select("title, date, location, require_fb_follow, lucky_draw_enabled, lucky_draw_prizes")
+    .eq("id", eventId)
+    .single();
+
+  if (!event) return NextResponse.json({ error: "ไม่พบอีเวนต์นี้" }, { status: 404 });
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("line_user_id, display_name, fb_clicked_at")
+    .eq("id", session.user.id)
+    .single();
+
+  // งานที่บังคับฟอลเพจ: ต้องกดลิงก์ไปเพจก่อน — สตาฟยืนยันการฟอลจริงอีกครั้งตอนสแกน QR หน้างาน
+  if (event.require_fb_follow && !profile?.fb_clicked_at) {
+    return NextResponse.json(
+      { error: "กรุณากดติดตามเพจ Facebook ก่อนลงทะเบียน", reason: "fb_follow_required" },
+      { status: 403 }
+    );
+  }
+
   // เช็คว่าลงทะเบียนไปแล้วไหม
   const { data: existing } = await supabase
     .from("general_registrations")
@@ -48,18 +70,16 @@ export async function POST(request: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   // ส่ง LINE แจ้งเตือน
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("line_user_id, display_name")
-    .eq("id", session.user.id)
-    .single();
-
   if (profile?.line_user_id) {
-    const { data: event } = await supabase
-      .from("events")
-      .select("title, date, location")
-      .eq("id", eventId)
-      .single();
+    const prizes: string[] = event.lucky_draw_enabled ? (event.lucky_draw_prizes ?? []) : [];
+    const perkLines = [
+      "• ซื้อ Pokemon M1-M5 ราคาป้าย 1 ซอง / คน",
+      ...prizes.map((p) => `• ลุ้นรับ ${p}`),
+    ].join("\n");
+
+    const eventDate = event.date
+      ? new Date(event.date).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" })
+      : "";
 
     await fetch(`${process.env.NEXT_PUBLIC_SITE_URL ?? "https://thecardlistbkk.com"}/api/line-notify`, {
       method: "POST",
@@ -68,7 +88,7 @@ export async function POST(request: NextRequest) {
         lineUserId: profile.line_user_id,
         type: "broadcast",
         data: {
-          message: `✅ ลงทะเบียนเข้างานสำเร็จ!\n\n📍 งาน: ${event?.title ?? "งาน"}\n📅 วันที่: ${event?.date ? new Date(event.date).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" }) : ""}\n📌 สถานที่: ${event?.location ?? ""}\n\n🎫 สิทธิ์ของคุณ:\n• ซื้อ Pokemon M1-M5 ราคาป้าย 1 ซอง / คน\n\n🔑 QR Code: ${qrCode}\n\nแสดง QR Code ในโปรไฟล์หน้างานได้เลยครับ 🙌`,
+          message: `✅ ลงทะเบียนเข้างานสำเร็จ!\n\n📍 งาน: ${event.title ?? "งาน"}\n📅 วันที่: ${eventDate}\n📌 สถานที่: ${event.location ?? ""}\n\n🎫 สิทธิ์ของคุณ:\n${perkLines}\n\n🔑 QR Code: ${qrCode}\n\nแสดง QR Code ในโปรไฟล์หน้างานได้เลยครับ 🙌`,
         },
       }),
     });
