@@ -28,7 +28,6 @@ type BookingWithEvent = Booking & {
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-const PACK_PRICE = 49;
 
 const STATUS_STYLE: Record<string, string> = {
   completed: "bg-green-50 text-green-700",
@@ -205,15 +204,6 @@ export default function ProfilePage() {
   const [showLineBanner, setShowLineBanner] = useState(false);
   const [installed, setInstalled] = useState(false);
 
-  // ── Inline Booster Pack payment (PromptPay) ──
-  const [payReg, setPayReg] = useState<GenReg | null>(null);   // reg ที่กำลังจ่าย / เปิด overlay
-  const [payLoading, setPayLoading] = useState(false);
-  const [payError, setPayError] = useState("");
-  const [payQrImage, setPayQrImage] = useState<string | null>(null);
-  const [payIntentId, setPayIntentId] = useState("");
-  const [payDone, setPayDone] = useState(false);
-  const payPollRef = useRef<NodeJS.Timeout | null>(null);
-
   // ── PWA ──
   useEffect(() => {
     window.addEventListener("beforeinstallprompt", (e) => {
@@ -345,78 +335,6 @@ export default function ProfilePage() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
-
-  // ── เคลียร์ poll เมื่อออกจากหน้า ──
-  useEffect(() => () => { if (payPollRef.current) clearInterval(payPollRef.current); }, []);
-
-  // ── ซื้อ Booster Pack ราคาป้าย → สร้าง QR PromptPay แล้วโชว์ overlay จ่ายเงินในหน้านี้เลย ──
-  async function handleBuyPack(g: GenReg) {
-    if (payLoading) return;
-    setPayError("");
-    setPayDone(false);
-    setPayQrImage(null);
-    setPayIntentId("");
-    setPayReg(g);          // เปิด overlay (สถานะ loading)
-    setPayLoading(true);
-    try {
-      const { data: { user }, error: userErr } = await supabase.auth.getUser();
-      if (userErr || !user) { router.push("/login"); return; }
-
-      const res = await fetch("/api/stripe/charge", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: PACK_PRICE,
-          description: `Booster Pack ราคาป้าย — ${(g.events as any)?.title ?? "Event"}`,
-          paymentMethod: "promptpay",
-          email: (profile as any)?.email ?? user.email ?? "guest@thecardlist.com",
-
-          // metadata เดียวกับหน้า ticket — webhook ใช้ผูก payment กับ general_registrations
-          metadata: {
-            type: "general_pack",
-            user_id: user.id,
-            reg_id: g.id,
-            event_id: g.event_id,
-          },
-          userId: user.id,
-          eventId: g.event_id,
-        }),
-      });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-
-      setPayIntentId(data.paymentIntentId);
-      setPayQrImage(data.qrImage);
-
-      payPollRef.current = setInterval(async () => {
-        const s = await fetch(`/api/stripe/charge?paymentIntentId=${data.paymentIntentId}`);
-        const sd = await s.json();
-        if (sd.status === "succeeded") {
-          if (payPollRef.current) clearInterval(payPollRef.current);
-          setPayDone(true);
-          loadData();   // refresh pack_paid → การ์ดอัพเดทเป็น "ชำระแล้ว"
-        } else if (sd.status === "canceled" || sd.status === "requires_payment_method") {
-          if (payPollRef.current) clearInterval(payPollRef.current);
-          setPayError("การชำระเงินล้มเหลว กรุณาลองใหม่");
-        }
-      }, 3000);
-    } catch (err: any) {
-      setPayError(err?.message ?? "เกิดข้อผิดพลาด");
-    } finally {
-      setPayLoading(false);
-    }
-  }
-
-  function closePay() {
-    if (payPollRef.current) clearInterval(payPollRef.current);
-    payPollRef.current = null;
-    setPayReg(null);
-    setPayQrImage(null);
-    setPayIntentId("");
-    setPayError("");
-    setPayDone(false);
-    setPayLoading(false);
-  }
 
   // ── Logout ──
   async function handleLogout() {
@@ -856,42 +774,16 @@ export default function ProfilePage() {
                     <p className="text-[10px] text-center text-zinc-400 font-mono mt-2 mb-3">{g.qr_code}</p>
                     {/* สิทธิ์ — โชว์เฉพาะ event ที่เปิดสิทธิ์นี้ไว้ (general_perk_enabled) */}
                     {(g.events as any)?.general_perk_enabled !== false && (
-                      <>
-                        <div className="bg-zinc-50 rounded-xl p-3 space-y-2">
-                          <p className="text-[10px] font-semibold text-zinc-500 tracking-widest uppercase">สิทธิ์ของคุณ</p>
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm">🏷️</span>
-                              <span className="text-[11px] text-zinc-700">ซื้อ Pokemon ราคาป้าย</span>
-                            </div>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${g.pack_used >= 1 ? "bg-red-50 text-red-600" : "bg-green-50 text-green-700"}`}>
-                              {g.pack_used >= 1 ? "ใช้แล้ว" : "1 ซอง"}
-                            </span>
+                      <div className="bg-zinc-50 rounded-xl p-3 space-y-2">
+                        <p className="text-[10px] font-semibold text-zinc-500 tracking-widest uppercase">สิทธิ์ของคุณ</p>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-sm">🎲</span>
+                            <span className="text-[11px] text-zinc-700">สิทธิ์ลุ้นซื้อ ชุด “30th CELEBRATION” FUTURISTIC RARE</span>
                           </div>
+                          <span className="flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600">ลุ้นหน้างาน</span>
                         </div>
-                        {/* pack_paid status + ปุ่มซื้อ */}
-                        <div className="mt-3">
-                          {g.pack_paid ? (
-                            <div className="flex items-center justify-center gap-2 bg-green-50 rounded-xl px-3 py-2">
-                              <span className="text-green-600 text-sm">✅</span>
-                              <p className="text-[11px] text-green-700 font-semibold">ชำระ ฿49 แล้ว — รับซองได้หน้างาน</p>
-                            </div>
-                          ) : (
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-center gap-2 bg-amber-50 rounded-xl px-3 py-2">
-                                <span className="text-amber-600 text-sm">💰</span>
-                                <p className="text-[11px] text-amber-700">ยังไม่ได้ซื้อ Booster Pack ล่วงหน้า</p>
-                              </div>
-                              <button
-                                onClick={() => handleBuyPack(g)}
-                                disabled={payLoading && payReg?.id === g.id}
-                                className="w-full py-2.5 rounded-xl text-xs font-bold bg-zinc-900 text-white hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                                {payLoading && payReg?.id === g.id ? "กำลังสร้าง QR..." : "🛍️ ซื้อ Booster Pack ราคาป้าย ฿49"}
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </>
+                      </div>
                     )}
                     <p className="text-[9px] text-zinc-400 text-center mt-3">แสดง QR Code นี้หน้างานเพื่อใช้สิทธิ์</p>
                   </div>
@@ -922,32 +814,12 @@ export default function ProfilePage() {
                     {/* สิทธิ์ */}
                     <div className="bg-amber-50 rounded-xl p-3 space-y-2">
                       <p className="text-[10px] font-semibold text-zinc-500 tracking-widest uppercase">สิทธิ์ของคุณ</p>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">🎁</span>
-                          <span className="text-[11px] text-zinc-700">Pokemon M2 (JP) ฟรี</span>
-                        </div>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${p.free_pack_redeemed ? "bg-red-50 text-red-600" : "bg-green-50 text-green-700"}`}>
-                          {p.free_pack_redeemed ? "รับแล้ว" : "1 ซอง"}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">🏷️</span>
-                          <span className="text-[11px] text-zinc-700">ซื้อ M1/M3/M4 ราคาป้าย</span>
-                        </div>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${p.free_pack_used >= p.free_pack_quota ? "bg-red-50 text-red-600" : "bg-green-50 text-green-700"}`}>
-                          {p.free_pack_quota - p.free_pack_used}/{p.free_pack_quota} ซอง
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
                           <span className="text-sm">🎲</span>
-                          <span className="text-[11px] text-zinc-700">ลุ้น MA5 Box</span>
+                          <span className="text-[11px] text-zinc-700">สิทธิ์ลุ้นซื้อ ชุด “30th CELEBRATION” FUTURISTIC RARE</span>
                         </div>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${p.ma5_slot === true ? "bg-green-50 text-green-700" : p.ma5_slot === false ? "bg-red-50 text-red-600" : "bg-zinc-100 text-zinc-500"}`}>
-                          {p.ma5_slot === true ? "✅ ได้สิทธิ์!" : p.ma5_slot === false ? "❌ ไม่ได้" : "รอสุ่มหน้างาน"}
-                        </span>
+                        <span className="flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600">ลุ้นหน้างาน</span>
                       </div>
                     </div>
                     <p className="text-[9px] text-zinc-400 text-center mt-3">แสดง QR Code นี้หน้างานเพื่อใช้สิทธิ์</p>
@@ -960,94 +832,6 @@ export default function ProfilePage() {
 
 
       </div>
-
-      {/* ─── Overlay: จ่ายเงิน Booster Pack (PromptPay) ─── */}
-      {payReg && (
-        <div className="fixed inset-0 z-[70] bg-white flex flex-col">
-          <header className="sticky top-0 bg-white border-b border-zinc-100 flex items-center gap-3 px-4 h-12 flex-shrink-0">
-            <button onClick={closePay} className="text-zinc-400" aria-label="ปิด">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path d="M12 5l-5 5 5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-            <span className="text-sm font-semibold text-zinc-900">{payDone ? "ชำระเงินสำเร็จ" : "สแกนจ่าย PromptPay"}</span>
-          </header>
-
-          <div className="flex-1 overflow-y-auto px-5 py-8 flex flex-col items-center">
-            {payDone ? (
-              <div className="w-full max-w-xs flex flex-col items-center text-center pt-4">
-                <div className="w-16 h-16 bg-green-50 rounded-2xl flex items-center justify-center mb-5">
-                  <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-                    <path d="M6 14l6 6L22 8" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </div>
-                <h2 className="text-lg font-bold text-zinc-900 mb-2">ชำระเงินสำเร็จ!</h2>
-                <p className="text-sm text-zinc-400 mb-6">สิทธิ์ซื้อ Booster Pack ราคาป้าย 1 ซองพร้อมแล้ว</p>
-                <div className="bg-zinc-50 rounded-2xl p-4 w-full mb-6 text-left space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-[11px] text-zinc-400">งาน</span>
-                    <span className="text-[11px] font-semibold text-zinc-900">{(payReg.events as any)?.title ?? "—"}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-[11px] text-zinc-400">สิทธิ์</span>
-                    <span className="text-[11px] font-semibold text-green-700">🛍️ Booster Pack ราคาป้าย 1 ซอง ✅</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-[11px] text-zinc-400">วิธีรับ</span>
-                    <span className="text-[11px] text-zinc-600">แสดง QR Code หน้างาน</span>
-                  </div>
-                </div>
-                <button onClick={closePay} className="btn-primary w-full py-3.5">เสร็จสิ้น →</button>
-              </div>
-            ) : (
-              <>
-                <div className="text-center mb-6">
-                  <p className="text-[11px] text-zinc-400 mb-1">ชำระผ่าน PromptPay</p>
-                  <p className="text-3xl font-bold text-zinc-900">฿{PACK_PRICE}</p>
-                  <p className="text-xs text-zinc-400 mt-1">Booster Pack ราคาป้าย — {(payReg.events as any)?.title ?? ""}</p>
-                </div>
-                <div className="bg-white border-2 border-zinc-100 rounded-3xl p-6 mb-6 w-full max-w-xs">
-                  {payQrImage ? (
-                    <Image src={payQrImage} alt="PromptPay QR" width={240} height={240} className="w-full" unoptimized />
-                  ) : (
-                    <div className="w-full aspect-square bg-zinc-100 rounded-2xl animate-pulse" />
-                  )}
-                  <p className="text-center text-[11px] text-zinc-400 mt-3">สแกนด้วยแอปธนาคารหรือ Wallet</p>
-                </div>
-                {!payError && (
-                  <div className="w-full max-w-xs bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3 mb-4 text-center">
-                    <div className="flex items-center justify-center gap-2 mb-1">
-                      <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
-                      <p className="text-xs font-semibold text-amber-800">รอการชำระเงิน...</p>
-                    </div>
-                    <p className="text-[10px] text-amber-600">ระบบจะอัพเดทอัตโนมัติหลังจ่ายเสร็จ</p>
-                  </div>
-                )}
-                {payError && (
-                  <div className="w-full max-w-xs bg-red-50 border border-red-100 rounded-xl px-4 py-3 mb-4">
-                    <p className="text-[11px] text-red-600 text-center">{payError}</p>
-                    <button onClick={() => handleBuyPack(payReg)} className="w-full mt-2 text-[11px] font-bold text-red-700 underline">
-                      ลองสร้าง QR ใหม่
-                    </button>
-                  </div>
-                )}
-                {payIntentId && (
-                  <div className="w-full max-w-xs bg-zinc-50 rounded-2xl p-3 space-y-1.5">
-                    <div className="flex justify-between text-[11px]">
-                      <span className="text-zinc-400">ยอดชำระ</span>
-                      <span className="font-semibold text-zinc-900">฿{PACK_PRICE}</span>
-                    </div>
-                    <div className="flex justify-between text-[11px]">
-                      <span className="text-zinc-400">Payment ID</span>
-                      <span className="font-mono text-zinc-500 text-[9px]">{payIntentId.slice(0, 16)}...</span>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-      )}
 
       <BottomNav />
     </div>
