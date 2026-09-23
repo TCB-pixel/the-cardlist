@@ -122,6 +122,7 @@ export default function TournamentPage() {
     const { data: evData } = await supabase
       .from("events")
       .select("*")
+      .eq("hidden", false)
       .order("date", { ascending: true });
 
     if (!evData) { setEventsLoading(false); return; }
