@@ -203,6 +203,20 @@ export default function ThaiArtistCardsPage() {
     return catOk && artistOk;
   }), [visible, activeCategory, activeArtist, categoryById, artistById]);
 
+  // จัดกลุ่มตามศิลปิน เพื่อให้เห็นว่าการ์ดของใครจบตรงไหน แทนที่จะต่อกันเป็นพืดเดียว
+  // เรียงตามลำดับเดียวกับแถบเลือกศิลปิน และตัดศิลปินที่ไม่เหลือการ์ดหลังกรองออก
+  const groups = useMemo(() => {
+    const byArtist = new Map<string, ArtistCard[]>();
+    filtered.forEach((c) => {
+      const list = byArtist.get(c.artist_id);
+      if (list) list.push(c);
+      else byArtist.set(c.artist_id, [c]);
+    });
+    return artists
+      .map((a) => ({ artist: a, cards: byArtist.get(a.id) ?? [] }))
+      .filter((g) => g.cards.length > 0);
+  }, [filtered, artists]);
+
   const categoryTabs = [ALL, ...categories.map((c) => c.name)];
   const artistTabs = [ALL, ...artists.map((a) => a.name)];
 
@@ -264,14 +278,36 @@ export default function ThaiArtistCardsPage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {filtered.map((card) => (
-              <CardTile key={card.id} card={card}
-                artist={artistById.get(card.artist_id)}
-                category={categoryById.get(card.category_id ?? "")}
-                onClick={() => setSelected(card)} />
-            ))}
-          </div>
+          activeArtist !== ALL ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {filtered.map((card) => (
+                <CardTile key={card.id} card={card}
+                  artist={artistById.get(card.artist_id)}
+                  category={categoryById.get(card.category_id ?? "")}
+                  onClick={() => setSelected(card)} />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {groups.map(({ artist, cards: artistCards }) => (
+                <section key={artist.id}>
+                  <div className="flex items-baseline gap-2 mb-2.5">
+                    <h2 className="text-xs font-bold text-zinc-900">{artist.name}</h2>
+                    <span className="text-[10px] text-zinc-400 flex-shrink-0">{artistCards.length} ใบ</span>
+                    <span className="flex-1 h-px bg-zinc-200" />
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {artistCards.map((card) => (
+                      <CardTile key={card.id} card={card}
+                        artist={artist}
+                        category={categoryById.get(card.category_id ?? "")}
+                        onClick={() => setSelected(card)} />
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          )
         )}
       </div>
 
