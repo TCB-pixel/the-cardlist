@@ -30,6 +30,7 @@ type Event = {
   lucky_draw_prizes: string[] | null;
   require_fb_follow: boolean;
   lucky_draw_image_url: string | null;
+  hidden: boolean;
 };
 
 const TCG_COLOR: Record<string, string> = {
@@ -111,7 +112,7 @@ export default function EventsPage() {
   useEffect(() => {
     async function load() {
       const [{ data: eventsData }, { data: { session } }] = await Promise.all([
-        supabase.from("events").select("*").order("date", { ascending: true }),
+        supabase.from("events").select("*").eq("hidden", false).order("date", { ascending: true }),
         supabase.auth.getSession(),
       ]);
       setEvents(eventsData ?? []);

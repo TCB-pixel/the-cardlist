@@ -47,12 +47,16 @@ export async function POST(request: NextRequest) {
   }
 
   // เช็คว่าลงทะเบียนไปแล้วไหม
+  // ใช้ maybeSingle + limit(1): .single() จะ error ทั้งตอนไม่เจอและตอนเจอหลายแถว
+  // ทำให้ data เป็น null เหมือนกัน แล้วไหลไป insert ซ้ำเพิ่มอีก
   const { data: existing } = await supabase
     .from("general_registrations")
     .select("id, qr_code")
     .eq("user_id", session.user.id)
     .eq("event_id", eventId)
-    .single();
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
 
   if (existing) {
     return NextResponse.json({ qrCode: existing.qr_code, alreadyRegistered: true });
@@ -67,15 +71,28 @@ export async function POST(request: NextRequest) {
     qr_code: qrCode,
   });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    // 23505 = unique violation: อีกคำขอชนะไปก่อน ส่งใบลงทะเบียนที่มีอยู่กลับไป ไม่ต้องแจ้ง error
+    if (error.code === "23505") {
+      const { data: winner } = await supabase
+        .from("general_registrations")
+        .select("qr_code")
+        .eq("user_id", session.user.id)
+        .eq("event_id", eventId)
+        .limit(1)
+        .maybeSingle();
+      if (winner) return NextResponse.json({ qrCode: winner.qr_code, alreadyRegistered: true });
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
   // ส่ง LINE แจ้งเตือน
   if (profile?.line_user_id) {
+    // สิทธิ์ตามที่ตั้งไว้ในอีเวนต์เท่านั้น — สิทธิ์ซื้อ Pokemon M1-M5 ราคาป้ายถูกยกเลิกไปแล้ว (896120d)
     const prizes: string[] = event.lucky_draw_enabled ? (event.lucky_draw_prizes ?? []) : [];
-    const perkLines = [
-      "• ซื้อ Pokemon M1-M5 ราคาป้าย 1 ซอง / คน",
-      ...prizes.map((p) => `• ลุ้นรับ ${p}`),
-    ].join("\n");
+    const perkSection = prizes.length
+      ? `\n\n🎫 สิทธิ์ของคุณ:\n${prizes.map((p) => `• ลุ้นรับ ${p}`).join("\n")}`
+      : "";
 
     const eventDate = event.date
       ? new Date(event.date).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" })
@@ -88,7 +105,7 @@ export async function POST(request: NextRequest) {
         lineUserId: profile.line_user_id,
         type: "broadcast",
         data: {
-          message: `✅ ลงทะเบียนเข้างานสำเร็จ!\n\n📍 งาน: ${event.title ?? "งาน"}\n📅 วันที่: ${eventDate}\n📌 สถานที่: ${event.location ?? ""}\n\n🎫 สิทธิ์ของคุณ:\n${perkLines}\n\n🔑 QR Code: ${qrCode}\n\nแสดง QR Code ในโปรไฟล์หน้างานได้เลยครับ 🙌`,
+          message: `✅ ลงทะเบียนเข้างานสำเร็จ!\n\n📍 งาน: ${event.title ?? "งาน"}\n📅 วันที่: ${eventDate}\n📌 สถานที่: ${event.location ?? ""}${perkSection}\n\n🔑 QR Code: ${qrCode}\n\nแสดง QR Code ในโปรไฟล์หน้างานได้เลยครับ 🙌`,
         },
       }),
     });

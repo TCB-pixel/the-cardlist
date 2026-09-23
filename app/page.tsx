@@ -73,12 +73,14 @@ export default function HomePage() {
         }
       } catch {}
 
-      // โหลด events
+      // โหลด events — งานหลายวันต้องอยู่จนถึงวันสิ้นสุด ไม่ใช่หายตั้งแต่วันที่สอง
+      const today = new Date().toISOString().split("T")[0];
       try {
         const { data: evData } = await supabase
           .from("events")
           .select("id, title, location, date, max_slots, booked_slots, event_type")
-          .gte("date", new Date().toISOString().split("T")[0])
+          .eq("hidden", false)
+          .or(`date_end.gte.${today},and(date_end.is.null,date.gte.${today})`)
           .order("date", { ascending: true })
           .limit(3);
         setEvents(evData ?? []);

@@ -20,6 +20,7 @@ type Row = {
   event_title: string;
   pack_paid: boolean | null;
   fb_clicked: boolean;
+  user_id: string | null;
 };
 
 type Winner = { key: string; name: string; ticket_type: string; event_title: string; prize: string };
@@ -79,8 +80,8 @@ export default function AdminRafflePage() {
     [rows]
   );
 
-  // คนที่เข้าเงื่อนไข filter (ก่อนหักผู้ที่ถูกสุ่มไปแล้ว)
-  const pool = useMemo(() => {
+  // รายการลงทะเบียนที่เข้าเงื่อนไข filter (ยังไม่รวมสิทธิ์ต่อคน)
+  const matching = useMemo(() => {
     return rows.filter((r) => {
       if (approvedOnly && r.status !== "approved") return false;
       if (eventFilter !== "all" && r.event_title !== eventFilter) return false;
@@ -90,6 +91,22 @@ export default function AdminRafflePage() {
       return true;
     });
   }, [rows, approvedOnly, eventFilter, typeFilter, packPaidOnly, fbFollowedOnly]);
+
+  // 1 คน = 1 สิทธิ์ เสมอ
+  // คนที่ลงทะเบียนหลายงานมีหลายแถว ถ้าโยนเข้าโถทั้งหมดจะได้โอกาสถูกรางวัลหลายเท่าคนอื่น
+  // เก็บแถวแรกของแต่ละ user_id (แถวเรียงจากใหม่ไปเก่าอยู่แล้ว) แถวที่ไม่มี user_id ถือเป็นคนละคน
+  const pool = useMemo(() => {
+    const seen = new Set<string>();
+    return matching.filter((r) => {
+      if (!r.user_id) return true;
+      if (seen.has(r.user_id)) return false;
+      seen.add(r.user_id);
+      return true;
+    });
+  }, [matching]);
+
+  // จำนวนสิทธิ์ที่ถูกยุบ — โชว์ให้แอดมินเห็นว่าทำไมตัวเลขไม่ตรงกับจำนวนแถว
+  const mergedCount = matching.length - pool.length;
 
   const wonKeys = useMemo(() => new Set(winners.map((w) => w.key)), [winners]);
   const remaining = useMemo(
@@ -177,7 +194,12 @@ export default function AdminRafflePage() {
         <div className="text-right">
           <p className="text-2xl font-bold text-zinc-900 leading-none">{remaining.length}</p>
           <p className="text-[11px] text-zinc-400 mt-1">
-            พร้อมสุ่ม · สุ่มไปแล้ว {winners.length} · ในกลุ่ม {pool.length}
+            พร้อมสุ่ม · สุ่มไปแล้ว {winners.length} · ในกลุ่ม {pool.length} คน
+            {mergedCount > 0 && (
+              <span className="block text-amber-600 mt-0.5">
+                รวมสิทธิ์ให้แล้ว {mergedCount} รายการ — คนที่ลงทะเบียนหลายงานได้ 1 สิทธิ์เท่านั้น
+              </span>
+            )}
           </p>
         </div>
       </div>

@@ -24,6 +24,7 @@ type Event = {
   lucky_draw_prizes: string[] | null;
   require_fb_follow: boolean;
   lucky_draw_image_url: string | null;
+  hidden: boolean;
 };
 
 const TYPE_LABEL: Record<EventType, string> = {
@@ -57,6 +58,11 @@ function fromISO(iso: string) {
   if (!iso) return { day: "", month: "", year: "" };
   const [y, m, d] = iso.split("-");
   return { day: d, month: m, year: y };
+}
+
+function isPastEvent(ev: { date: string; date_end: string | null }) {
+  const today = new Date().toISOString().split("T")[0];
+  return (ev.date_end || ev.date) < today;
 }
 
 type DateParts = { day: string; month: string; year: string };
@@ -262,11 +268,28 @@ export default function AdminEventsPage() {
     await load();
   }
 
+  async function toggleHidden(ev: Event) {
+    const { error: err } = await supabase.from("events").update({ hidden: !ev.hidden }).eq("id", ev.id);
+    if (err) { setError(err.message); return; }
+    await load();
+  }
+
+  async function hideAllPast() {
+    const ids = events.filter((e) => !e.hidden && isPastEvent(e)).map((e) => e.id);
+    if (ids.length === 0) return;
+    const { error: err } = await supabase.from("events").update({ hidden: true }).in("id", ids);
+    if (err) { setError(err.message); return; }
+    await load();
+  }
+
   async function handleDelete(id: string) {
     await supabase.from("events").delete().eq("id", id);
     setDeleteId(null);
     await load();
   }
+
+  const hiddenCount = events.filter((e) => e.hidden).length;
+  const pastVisibleCount = events.filter((e) => !e.hidden && isPastEvent(e)).length;
 
   const inputCls = "w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2.5 text-sm text-zinc-900 outline-none focus:border-zinc-400 transition-colors";
   const labelCls = "text-[11px] font-semibold text-zinc-500 tracking-wide block mb-1.5";
@@ -278,8 +301,18 @@ export default function AdminEventsPage() {
 
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between mb-5">
-        <span className="text-xs text-zinc-400">{events.length} อีเวนต์</span>
+      <div className="flex items-center justify-between mb-5 gap-3 flex-wrap">
+        <span className="text-xs text-zinc-400">
+          {events.length} อีเวนต์
+          {hiddenCount > 0 && <span className="text-orange-500"> · ซ่อนอยู่ {hiddenCount}</span>}
+        </span>
+
+        {pastVisibleCount > 0 && (
+          <button onClick={hideAllPast}
+            className="text-xs font-semibold text-orange-700 bg-orange-50 border border-orange-200 rounded-xl px-3 py-2 hover:bg-orange-100 transition-colors">
+            🙈 ซ่อนงานที่จบแล้ว ({pastVisibleCount})
+          </button>
+        )}
         <button onClick={openAdd}
           className="flex items-center gap-2 bg-zinc-900 text-white text-xs font-semibold px-4 py-2.5 rounded-xl hover:bg-zinc-700">
           <span className="text-base leading-none">+</span> สร้างอีเวนต์
@@ -315,6 +348,12 @@ export default function AdminEventsPage() {
                         <h3 className="text-sm font-bold text-zinc-900">{ev.title}</h3>
                         <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-full ${TYPE_COLOR[type]}`}>{TYPE_LABEL[type]}</span>
                         <span className="text-[9px] font-semibold bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded-full">{ev.tcg}</span>
+                        {isPastEvent(ev) && (
+                          <span className="text-[9px] font-semibold bg-zinc-200 text-zinc-600 px-2 py-0.5 rounded-full">จบแล้ว</span>
+                        )}
+                        {ev.hidden && (
+                          <span className="text-[9px] font-semibold bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">🙈 ซ่อนอยู่</span>
+                        )}
                       </div>
                       <p className="text-xs text-zinc-500">
                         📍 {ev.location} · 📅 {formatDate(ev.date)}{ev.date_end ? ` – ${formatDate(ev.date_end)}` : ""} · 🕐 {ev.time?.slice(0, 5)} น.
@@ -339,6 +378,11 @@ export default function AdminEventsPage() {
                       )}
                     </div>
                     <div className="flex gap-2 flex-shrink-0">
+                      <button onClick={() => toggleHidden(ev)}
+                        title={ev.hidden ? "แสดงในหน้าเว็บอีกครั้ง" : "ซ่อนจากหน้าเว็บฝั่งลูกค้า"}
+                        className={`text-xs border rounded-lg px-3 py-1.5 ${ev.hidden ? "text-green-600 border-green-200 hover:bg-green-50" : "text-zinc-500 border-zinc-200 hover:bg-zinc-50"}`}>
+                        {ev.hidden ? "แสดง" : "ซ่อน"}
+                      </button>
                       <button onClick={() => openEdit(ev)} className="text-xs text-zinc-500 border border-zinc-200 rounded-lg px-3 py-1.5 hover:bg-zinc-50">แก้ไข</button>
                       <button onClick={() => setDeleteId(ev.id)} className="text-xs text-red-400 border border-red-100 rounded-lg px-3 py-1.5 hover:bg-red-50">ลบ</button>
                     </div>
