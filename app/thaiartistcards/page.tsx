@@ -7,6 +7,34 @@ import type { Artist, ArtistCard, ArtistCategory } from "@/lib/types";
 
 const ALL = "ทั้งหมด";
 
+// ─── ลายน้ำ SAMPLE ทับรูปการ์ด ───
+// ป้องกันการเอารูปไปใช้ต่อ วางทับเฉพาะรูป ไม่บังชื่อ/แท็กด้านล่าง
+// pointer-events-none เพื่อให้ยังกดการ์ดเพื่อเปิดรายละเอียดได้ตามเดิม
+// เงาดำจาง ๆ ช่วยให้อ่านออกทั้งบนการ์ดสีสว่างและสีเข้ม
+function SampleWatermark({ size = "sm" }: { size?: "sm" | "lg" }) {
+  const rows = size === "lg" ? 7 : 5;
+  const perRow = 3;
+  const cls = size === "lg" ? "text-[15px] tracking-[0.35em]" : "text-[8px] tracking-[0.25em]";
+
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none select-none" aria-hidden="true">
+      <div className="absolute inset-[-25%] flex flex-col justify-around -rotate-[22deg]">
+        {Array.from({ length: rows }).map((_, r) => (
+          <div key={r} className="flex justify-around">
+            {Array.from({ length: perRow }).map((__, c) => (
+              <span key={c}
+                className={`font-black text-white/45 whitespace-nowrap ${cls}`}
+                style={{ textShadow: "0 1px 2px rgba(0,0,0,0.35)" }}>
+                SAMPLE
+              </span>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── การ์ดหนึ่งใบในกริด ───
 function CardTile({ card, artist, category, onClick }: {
   card: ArtistCard;
@@ -24,6 +52,7 @@ function CardTile({ card, artist, category, onClick }: {
         ) : (
           <div className="w-full h-full flex items-center justify-center text-2xl text-zinc-300">🎨</div>
         )}
+        <SampleWatermark />
         {card.limited_count != null && (
           <span className="absolute top-1.5 right-1.5 bg-zinc-900/85 text-white text-[8px] font-bold px-1.5 py-0.5 rounded tracking-wider">
             LTD {card.limited_count}
@@ -86,6 +115,7 @@ function CardDetail({ card, artist, category, onClose }: {
           ) : (
             <div className="w-full h-full flex items-center justify-center text-4xl text-zinc-300">🎨</div>
           )}
+          <SampleWatermark size="lg" />
           <button onClick={onClose}
             className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 text-zinc-600 flex items-center justify-center text-lg leading-none">
             ×
