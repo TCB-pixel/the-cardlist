@@ -24,6 +24,9 @@ type Order = {
   province: string | null;
   postal_code: string | null;
   tracking_no: string | null;
+  shipping_fee: number | null;
+  confirm_email_sent_at: string | null;
+  confirm_email_error: string | null;
   order_items: OrderItem[];
 };
 
@@ -156,7 +159,13 @@ export default function AdminOrdersPage() {
                       <span className="text-zinc-500">฿{(Number(it.price) * it.qty).toLocaleString()}</span>
                     </div>
                   ))}
-                  <div className="flex justify-between text-xs font-bold pt-1">
+                  {Number(o.shipping_fee ?? 0) > 0 && (
+                    <div className="flex justify-between text-xs">
+                      <span className="text-zinc-500">ค่าบริการจัดส่ง</span>
+                      <span className="text-zinc-500">฿{Number(o.shipping_fee).toLocaleString()}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-xs font-bold pt-1 border-t border-zinc-100 mt-1">
                     <span>รวม</span>
                     <span>฿{Number(o.total_amount).toLocaleString()}</span>
                   </div>
@@ -176,6 +185,18 @@ export default function AdminOrdersPage() {
                     <p className="text-red-500">⚠ ไม่มีที่อยู่ (ออเดอร์เก่าก่อนเปิดฟอร์ม — ติดต่อลูกค้า: {o.email ?? "ไม่มีอีเมล"})</p>
                   )}
                 </div>
+
+                {/* สถานะอีเมลยืนยัน */}
+                {o.confirm_email_sent_at ? (
+                  <p className="text-[11px] text-green-600 mt-2">
+                    ✉️ ส่งอีเมลยืนยันแล้ว {new Date(o.confirm_email_sent_at).toLocaleString("th-TH")}
+                  </p>
+                ) : o.confirm_email_error ? (
+                  <div className="bg-red-50 border border-red-100 rounded-xl px-3 py-2 mt-2">
+                    <p className="text-[11px] text-red-600 font-semibold">⚠ อีเมลยืนยันส่งไม่สำเร็จ — ลูกค้ายังไม่ได้รับ</p>
+                    <p className="text-[10px] text-red-400 mt-0.5 break-all">{o.confirm_email_error}</p>
+                  </div>
+                ) : null}
 
                 {/* Actions */}
                 {o.status === "paid" && (
