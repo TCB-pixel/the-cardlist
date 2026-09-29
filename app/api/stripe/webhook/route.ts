@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { renderOrderConfirmEmail, type OrderEmailData } from "@/lib/order-email";
 import Stripe from "stripe";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
@@ -38,68 +39,22 @@ async function sendLineNotify(payload: Record<string, unknown>) {
   }
 }
 
-function escapeHtml(s: string) {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
 // ─────────────────────────────────────────────────────────────
 // ส่งอีเมลยืนยันคำสั่งซื้อผ่าน Resend (best-effort — ล้มเหลวไม่ทำให้ webhook พัง)
 // ─────────────────────────────────────────────────────────────
-async function sendOrderConfirmEmail(o: {
-  email: string | null;
-  items: any[];
-  total: number; // บาท
-  shipping: ShopShipping | null;
-  orderId: string;
-}) {
+/**
+ * ส่งอีเมลยืนยันคำสั่งซื้อ และคืนผลลัพธ์ให้ผู้เรียกบันทึกลงออเดอร์
+ * ของเดิมล้มเหลวแล้วเงียบ ลูกค้าไม่ได้อีเมลโดยไม่มีใครรู้ — ตอนนี้เก็บเหตุผลไว้เสมอ
+ */
+async function sendOrderConfirmEmail(o: OrderEmailData & { email: string | null }): Promise<
+  { ok: true } | { ok: false; error: string }
+> {
   const key = process.env.RESEND_API_KEY;
-  if (!key || !o.email) {
-    console.log("ข้ามอีเมลยืนยัน (ไม่มี RESEND_API_KEY หรือ email)");
-    return;
-  }
+  if (!key) return { ok: false, error: "ไม่ได้ตั้งค่า RESEND_API_KEY" };
+  if (!o.email) return { ok: false, error: "ไม่มีอีเมลของลูกค้า" };
+
   const from =
     process.env.ORDER_EMAIL_FROM ?? "The Cardlist <orders@thecardlistbkk.com>";
-
-  const itemsHtml = o.items
-    .map(
-      (it: any) =>
-        `<tr>
-          <td style="padding:6px 0;color:#27272a">${escapeHtml(String(it.name ?? ""))}</td>
-          <td style="padding:6px 0;color:#71717a;text-align:center">x${Number(it.qty)}</td>
-          <td style="padding:6px 0;color:#27272a;text-align:right">฿${(
-            Number(it.price) * Number(it.qty)
-          ).toLocaleString()}</td>
-        </tr>`
-    )
-    .join("");
-
-  const a = o.shipping;
-  const addrHtml = a
-    ? `${escapeHtml(a.name ?? "")}<br>` +
-      `${escapeHtml(a.line1 ?? "")} ${escapeHtml(a.line2 ?? "")}<br>` +
-      `${escapeHtml(a.city ?? "")} ${escapeHtml(a.state ?? "")} ${escapeHtml(
-        a.postal_code ?? ""
-      )}<br>` +
-      `โทร ${escapeHtml(a.phone ?? "")}`
-    : "-";
-
-  const html = `
-  <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:480px;margin:auto;color:#18181b">
-    <h2 style="margin:0 0 4px">ยืนยันคำสั่งซื้อ ✅</h2>
-    <p style="color:#71717a;margin:0 0 16px">ขอบคุณที่สั่งซื้อกับ The Cardlist</p>
-    <table style="width:100%;border-collapse:collapse;font-size:14px;border-top:1px solid #e4e4e7;border-bottom:1px solid #e4e4e7">
-      ${itemsHtml}
-    </table>
-    <p style="text-align:right;font-weight:700;margin:12px 0 20px">รวมทั้งหมด ฿${o.total.toLocaleString()}</p>
-    <p style="font-weight:600;margin:0 0 4px">📦 ที่อยู่จัดส่ง</p>
-    <p style="color:#3f3f46;font-size:14px;line-height:1.6;margin:0 0 20px">${addrHtml}</p>
-    <p style="color:#a1a1aa;font-size:12px">เลขคำสั่งซื้อ: ${o.orderId}</p>
-    <p style="color:#3f3f46;font-size:14px">ทีมงานจะแพ็คและจัดส่งให้เร็วๆ นี้ครับ 🙌</p>
-  </div>`;
 
   try {
     const res = await fetch("https://api.resend.com/emails", {
@@ -112,14 +67,18 @@ async function sendOrderConfirmEmail(o: {
         from,
         to: [o.email],
         subject: "ยืนยันคำสั่งซื้อ • The Cardlist",
-        html,
+        html: renderOrderConfirmEmail(o),
       }),
     });
     if (!res.ok) {
-      console.error("Resend error:", res.status, await res.text());
+      const body = (await res.text()).slice(0, 300);
+      console.error("Resend error:", res.status, body);
+      return { ok: false, error: `Resend ${res.status}: ${body}` };
     }
-  } catch (err) {
-    console.error("Resend failed (ข้ามไป):", err);
+    return { ok: true };
+  } catch (err: any) {
+    console.error("Resend failed:", err);
+    return { ok: false, error: String(err?.message ?? err).slice(0, 300) };
   }
 }
 
@@ -277,9 +236,10 @@ async function createShopOrder(
     paymentId: string;
     shipping: ShopShipping | null;
     cardFee: number; // บาท — ค่าธรรมเนียมบัตรเครดิต/เดบิต 3% ที่รวมอยู่ใน amountTotal แล้ว (0 ถ้าจ่าย PromptPay)
+    shippingFee: number; // บาท — ค่าบริการจัดส่งต่อคำสั่งซื้อ รวมอยู่ใน amountTotal แล้ว
   }
 ) {
-  const { email, itemsJson, amountTotal, paymentId, shipping, cardFee } = opts;
+  const { email, itemsJson, amountTotal, paymentId, shipping, cardFee, shippingFee } = opts;
 
   // กันยิงซ้ำ
   const { data: existingOrder } = await supabase
@@ -321,6 +281,7 @@ async function createShopOrder(
       user_id: userId,
       email: email,
       total_amount: amountTotal / 100,
+      shipping_fee: shippingFee,
       status: "paid",
       payment_id: paymentId,
       // ── ที่อยู่จัดส่ง (มาจากฟอร์ม Stripe) ──
@@ -405,13 +366,25 @@ async function createShopOrder(
   }
 
   // ── ยืนยันคำสั่งซื้อ: อีเมล + LINE (best-effort) ──
-  await sendOrderConfirmEmail({
+  const emailResult = await sendOrderConfirmEmail({
     email,
     items,
     total: amountTotal / 100,
+    shippingFee,
+    cardFee,
     shipping,
     orderId: order.id,
   });
+
+  // บันทึกผลไว้เสมอ เพื่อให้หน้าแอดมินเห็นว่าออเดอร์ไหนอีเมลไม่ถึงลูกค้า
+  await supabase
+    .from("orders")
+    .update(
+      emailResult.ok
+        ? { confirm_email_sent_at: new Date().toISOString(), confirm_email_error: null }
+        : { confirm_email_sent_at: null, confirm_email_error: emailResult.error }
+    )
+    .eq("id", order.id);
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -467,6 +440,7 @@ async function routeByType(
     paymentId: string;
     shipping: ShopShipping | null;
     cardFee: number;
+    shippingFee: number;
   }
 ) {
   const t = (p.type || "").toLowerCase();
@@ -493,6 +467,7 @@ async function routeByType(
       paymentId: p.paymentId,
       shipping: p.shipping,
       cardFee: p.cardFee,
+      shippingFee: p.shippingFee,
     });
   } else {
     console.warn("ไม่รู้จัก payment type:", t, p.paymentId);
@@ -544,6 +519,7 @@ export async function POST(request: NextRequest) {
           paymentId: pi.id,
           shipping: null,
           cardFee: 0,
+          shippingFee: Number(pi.metadata?.shipping_fee || 0),
         });
         break;
       }
@@ -623,5 +599,6 @@ function sessionParams(s: Stripe.Checkout.Session) {
     paymentId,
     shipping,
     cardFee: Number(s.metadata?.card_fee || 0),
+    shippingFee: Number(s.metadata?.shipping_fee || 0),
   };
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { SHIPPING_FEE } from "@/lib/order-email";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 
@@ -140,7 +141,10 @@ export async function POST(request: NextRequest) {
     // ── ค่าธรรมเนียมบัตรเครดิต/เดบิต 3% — แสดงเป็นรายการแยกชัดเจน ไม่ซ่อนในราคาสินค้า ──
     // เก็บเฉพาะตอนจ่ายด้วยบัตรเท่านั้น ไม่เก็บกับ PromptPay
     const subtotal = compactItems.reduce((sum, it) => sum + it.price * it.qty, 0);
+    // ค่าธรรมเนียมบัตรคิดจากราคาสินค้าเท่านั้น ไม่คิดทับค่าจัดส่ง (คงพฤติกรรมเดิมไว้)
     const cardFee = paymentMethod === "card" ? Math.round(subtotal * 0.03) : 0;
+    // ค่าบริการจัดส่ง คิดต่อ 1 คำสั่งซื้อ ไม่ใช่ต่อชิ้น
+    const shippingFee = SHIPPING_FEE;
 
     const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = items.map((it: any) => ({
       price_data: {
@@ -153,6 +157,15 @@ export async function POST(request: NextRequest) {
       },
       quantity: Number(it.qty),
     }));
+
+    lineItems.push({
+      price_data: {
+        currency: "thb",
+        product_data: { name: "ค่าบริการจัดส่ง" },
+        unit_amount: shippingFee * 100,
+      },
+      quantity: 1,
+    });
 
     if (cardFee > 0) {
       lineItems.push({
@@ -182,6 +195,7 @@ export async function POST(request: NextRequest) {
         email: email ?? "",
         items: itemsJson,
         card_fee: String(cardFee),
+        shipping_fee: String(shippingFee),
       },
       success_url: `${SITE_URL}/shop/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${SITE_URL}/shop`,

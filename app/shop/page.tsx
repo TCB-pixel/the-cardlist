@@ -4,6 +4,7 @@ import Image from "next/image";
 import BottomNav from "@/components/BottomNav";
 import TopBar from "@/components/TopBar";
 import { createClient } from "@/lib/supabase";
+import { SHIPPING_FEE } from "@/lib/order-email";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -228,6 +229,9 @@ export default function ShopPage() {
   // ── Cart ──
   const totalItems = cart.reduce((s, i) => s + i.qty, 0);
   const totalPrice = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  // ค่าจัดส่งคิดต่อคำสั่งซื้อ ตะกร้าว่างไม่ต้องคิด
+  const shippingFee = cart.length > 0 ? SHIPPING_FEE : 0;
+  const cardFee = Math.round(totalPrice * 0.03);
 
   function addToCart(p: Product) {
     setCart((prev) => {
@@ -453,9 +457,21 @@ export default function ShopPage() {
             </div>
             {/* Checkout - always visible at bottom */}
             <div className="flex-shrink-0 px-5 pt-3 pb-6 border-t border-zinc-100 bg-white">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs text-zinc-500">ยอดสินค้า</span>
-                <span className="text-base font-bold text-zinc-900">฿{totalPrice.toLocaleString()}</span>
+              <div className="space-y-1 mb-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-zinc-500">ยอดสินค้า</span>
+                  <span className="text-xs text-zinc-700">฿{totalPrice.toLocaleString()}</span>
+                </div>
+                {shippingFee > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-zinc-500">ค่าบริการจัดส่ง</span>
+                    <span className="text-xs text-zinc-700">฿{shippingFee.toLocaleString()}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between pt-1.5 border-t border-zinc-100">
+                  <span className="text-xs font-semibold text-zinc-700">รวม</span>
+                  <span className="text-base font-bold text-zinc-900">฿{(totalPrice + shippingFee).toLocaleString()}</span>
+                </div>
               </div>
               {cart.length > 0 && (
                 <div className="space-y-2">
@@ -463,7 +479,7 @@ export default function ShopPage() {
                     onClick={() => startCheckout("promptpay")}
                     disabled={checkingOut !== null}
                     className="btn-primary w-full py-3.5 text-center text-sm font-semibold disabled:opacity-50">
-                    {checkingOut === "promptpay" ? "กำลังไปหน้าชำระเงิน..." : `ชำระผ่าน PromptPay — ฿${totalPrice.toLocaleString()} (ไม่มีค่าธรรมเนียม)`}
+                    {checkingOut === "promptpay" ? "กำลังไปหน้าชำระเงิน..." : `ชำระผ่าน PromptPay — ฿${(totalPrice + shippingFee).toLocaleString()} (ไม่มีค่าธรรมเนียมบัตร)`}
                   </button>
                   <button
                     onClick={() => startCheckout("card")}
@@ -471,10 +487,10 @@ export default function ShopPage() {
                     className="w-full py-3.5 text-center text-sm font-semibold rounded-xl border border-zinc-200 text-zinc-700 active:opacity-70 transition-opacity disabled:opacity-50">
                     {checkingOut === "card"
                       ? "กำลังไปหน้าชำระเงิน..."
-                      : `ชำระด้วยบัตรเครดิต/เดบิต — ฿${(totalPrice + Math.round(totalPrice * 0.03)).toLocaleString()}`}
+                      : `ชำระด้วยบัตรเครดิต/เดบิต — ฿${(totalPrice + shippingFee + cardFee).toLocaleString()}`}
                   </button>
                   <p className="text-[10px] text-zinc-400 text-center">
-                    การชำระด้วยบัตรมีค่าธรรมเนียม 3% ของยอดสินค้า (ธนาคาร/เครือข่ายบัตรเรียกเก็บ) แสดงแยกให้เห็นชัดเจนก่อนชำระเงินเสมอ
+                    ค่าบริการจัดส่ง ฿{SHIPPING_FEE.toLocaleString()} ต่อคำสั่งซื้อ · การชำระด้วยบัตรมีค่าธรรมเนียม 3% ของยอดสินค้า (ธนาคาร/เครือข่ายบัตรเรียกเก็บ) แสดงแยกให้เห็นชัดเจนก่อนชำระเงินเสมอ
                   </p>
                 </div>
               )}
