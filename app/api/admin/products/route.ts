@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, sub, price, stock, category, tcg, badge, rarity, image_url, description, cost_price } = body;
+    const { name, sub, sku, price, stock, category, tcg, badge, rarity, image_url, description, cost_price } = body;
 
     if (!name || price === undefined || stock === undefined) {
       return NextResponse.json({ error: "กรอกข้อมูลไม่ครบ" }, { status: 400 });
@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
     const { data, error } = await admin
       .from("products")
       .insert({
-        name, sub: sub ?? "", price, stock,
+        name, sub: sub ?? "", sku: (sku ?? "").trim() || null, price, stock,
         category, tcg, badge: badge ?? "", rarity: rarity ?? "",
         image_url: image_url ?? null, description: description ?? "",
         cost_price: cost_price === undefined || cost_price === "" ? null : Number(cost_price),
@@ -107,7 +107,13 @@ export async function POST(req: NextRequest) {
       .select("*")
       .single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    if (error) {
+      // unique index products_sku_key — บอกให้ชัดว่า SKU ซ้ำ ไม่ใช่ error ดิบจาก Postgres
+      if (error.code === "23505" && error.message.includes("sku")) {
+        return NextResponse.json({ error: "SKU นี้ถูกใช้กับสินค้าอื่นแล้ว" }, { status: 400 });
+      }
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
 
     // ถ้าเพิ่มมาพร้อมสต็อกตั้งต้น > 0 ให้บันทึกลง log ว่าเป็นการรับเข้าครั้งแรก
     if (Number(stock) > 0) {
@@ -176,7 +182,7 @@ export async function PATCH(req: NextRequest) {
 
     // ── กรณีแก้ไขข้อมูลสินค้าปกติ ──
     const update: Record<string, unknown> = {};
-    for (const key of ["name", "sub", "price", "stock", "category", "tcg", "badge", "rarity", "image_url", "description", "active", "cost_price"]) {
+    for (const key of ["name", "sub", "sku", "price", "stock", "category", "tcg", "badge", "rarity", "image_url", "description", "active", "cost_price"]) {
       if (body[key] !== undefined) update[key] = body[key] === "" && key === "cost_price" ? null : body[key];
     }
     if (Object.keys(update).length === 0) {
@@ -190,7 +196,13 @@ export async function PATCH(req: NextRequest) {
       .select("*")
       .single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    if (error) {
+      // unique index products_sku_key — บอกให้ชัดว่า SKU ซ้ำ ไม่ใช่ error ดิบจาก Postgres
+      if (error.code === "23505" && error.message.includes("sku")) {
+        return NextResponse.json({ error: "SKU นี้ถูกใช้กับสินค้าอื่นแล้ว" }, { status: 400 });
+      }
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     return NextResponse.json({ product: data });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "เกิดข้อผิดพลาด" }, { status: 500 });

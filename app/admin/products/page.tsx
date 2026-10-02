@@ -10,6 +10,7 @@ type Product = {
   id: string;
   name: string;
   sub: string;
+  sku: string | null;
   price: number;
   stock: number;
   category: string;
@@ -59,7 +60,7 @@ const LOTTERY_ENTRY_LABEL: Record<string, string> = {
 };
 
 const EMPTY: Omit<Product, "id" | "active"> = {
-  name: "", sub: "", price: 0, stock: 0,
+  name: "", sub: "", sku: "", price: 0, stock: 0,
   category: "Single Cards", tcg: "One Piece",
   badge: "", rarity: "", image_url: null, description: "",
   cost_price: null,
@@ -78,8 +79,14 @@ const MOVEMENT_LABEL: Record<string, string> = {
   adjustment: "ปรับปรุง",
 };
 
-const TCG_LIST    = ["One Piece", "Pokémon", "MTG", "Dragon Ball", "All"];
-const CAT_LIST    = ["Single Cards", "Sealed Box", "Pre-order", "Accessories"];
+// ตัวเลือก TCG / หมวดหมู่ ย้ายไปเก็บใน DB แล้ว แอดมินเพิ่มเองได้จาก dropdown
+const ADD_NEW = "__add_new__";
+
+// SKU ตั้งต้น: อักษรย่อ TCG + เลขสุ่ม (แอดมินแก้เองได้) — ความซ้ำกันกันไว้ที่ unique index ใน DB อีกชั้น
+function suggestSku(tcg: string) {
+  const prefix = (tcg || "XX").replace(/[^A-Za-z]/g, "").slice(0, 2).toUpperCase() || "XX";
+  return `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`;
+}
 const BADGE_LIST  = ["", "NEW", "HOT", "PRE-ORDER", "RARE"];
 const RARITY_LIST = ["", "Common", "Uncommon", "Rare", "Super Rare", "Secret Rare"];
 
@@ -138,6 +145,36 @@ export default function AdminProductsPage() {
   }
 
   // ── Load products ──
+  const [tcgList, setTcgList] = useState<string[]>([]);
+  const [catList, setCatList] = useState<string[]>([]);
+
+  const loadOptions = useCallback(async () => {
+    try {
+      const res = await authedFetch("/api/admin/product-options");
+      const data = await res.json();
+      if (res.ok) { setTcgList(data.tcg ?? []); setCatList(data.category ?? []); }
+    } catch { /* ignore */ }
+  }, []);
+
+  // เลือก "+ เพิ่มใหม่" ใน dropdown -> ถามชื่อแล้วบันทึกเข้า DB ทันที
+  async function addOption(kind: "tcg" | "category") {
+    const label = kind === "tcg" ? "TCG" : "หมวดหมู่";
+    const value = window.prompt(`ชื่อ${label}ใหม่`)?.trim();
+    if (!value) return null;
+    try {
+      const res = await authedFetch("/api/admin/product-options", {
+        method: "POST", body: JSON.stringify({ kind, value }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error ?? "เพิ่มตัวเลือกไม่สำเร็จ"); return null; }
+      await loadOptions();
+      return data.value as string;
+    } catch {
+      setError("เพิ่มตัวเลือกไม่สำเร็จ");
+      return null;
+    }
+  }
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -151,7 +188,7 @@ export default function AdminProductsPage() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); loadOptions(); }, [load, loadOptions]);
 
   // ── Image upload (ตรง Supabase Storage — ไม่ใช่ตาราง products จึงไม่โดน RLS เขียนตรง) ──
   async function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -190,7 +227,7 @@ export default function AdminProductsPage() {
   function openEdit(p: Product) {
     setEditing(p);
     setForm({
-      name: p.name, sub: p.sub, price: p.price, stock: p.stock,
+      name: p.name, sub: p.sub, sku: p.sku ?? "", price: p.price, stock: p.stock,
       category: p.category, tcg: p.tcg, badge: p.badge, rarity: p.rarity,
       image_url: p.image_url, description: p.description,
       cost_price: p.cost_price,
@@ -386,7 +423,8 @@ export default function AdminProductsPage() {
   const filtered = products.filter((p) => {
     if (filterTcg !== "All" && p.tcg !== filterTcg) return false;
     if (search && !p.name.toLowerCase().includes(search.toLowerCase()) &&
-        !p.sub.toLowerCase().includes(search.toLowerCase())) return false;
+        !p.sub.toLowerCase().includes(search.toLowerCase()) &&
+        !(p.sku ?? "").toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
 
@@ -473,7 +511,7 @@ export default function AdminProductsPage() {
                   </td>
                   <td className="px-4 py-3">
                     <p className="text-xs font-semibold text-zinc-900">{p.name}</p>
-                    <p className="text-[10px] text-zinc-400 mt-0.5">{p.sub}</p>
+                    <p className="text-[10px] font-mono text-zinc-400 mt-0.5">{p.sku ?? "—"}</p>
                   </td>
                   <td className="px-4 py-3 text-xs text-zinc-600">{p.tcg}</td>
                   <td className="px-4 py-3 text-xs text-zinc-600">{p.category}</td>
@@ -586,9 +624,17 @@ export default function AdminProductsPage() {
                   onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
               </div>
               <div>
-                <label className={labelCls}>ชื่อย่อ / ชุด</label>
-                <input className={inputCls} placeholder="เช่น One Piece — OP-01" value={form.sub}
-                  onChange={e => setForm(f => ({ ...f, sub: e.target.value }))} />
+                <label className={labelCls}>SKU</label>
+                <div className="flex gap-2">
+                  <input className={inputCls} placeholder="เช่น ON-0001 (เว้นว่าง = สร้างให้อัตโนมัติ)"
+                    value={form.sku ?? ""}
+                    onChange={e => setForm(f => ({ ...f, sku: e.target.value.toUpperCase() }))} />
+                  <button type="button" onClick={() => setForm(f => ({ ...f, sku: suggestSku(f.tcg) }))}
+                    className="flex-shrink-0 border border-zinc-200 text-zinc-600 text-xs font-semibold px-3 rounded-xl hover:bg-zinc-50">
+                    สุ่มให้
+                  </button>
+                </div>
+                <p className="text-[10px] text-zinc-400 mt-1">รหัสสินค้าสำหรับเชื่อมกับระบบอื่น · ห้ามซ้ำกับสินค้าอื่น</p>
               </div>
               <div>
                 <label className={labelCls}>รายละเอียด</label>
@@ -616,15 +662,27 @@ export default function AdminProductsPage() {
                 <div>
                   <label className={labelCls}>TCG</label>
                   <select className={inputCls} value={form.tcg}
-                    onChange={e => setForm(f => ({ ...f, tcg: e.target.value }))}>
-                    {TCG_LIST.map(t => <option key={t}>{t}</option>)}
+                    onChange={async e => {
+                      if (e.target.value !== ADD_NEW) { setForm(f => ({ ...f, tcg: e.target.value })); return; }
+                      const v = await addOption("tcg");
+                      if (v) setForm(f => ({ ...f, tcg: v }));
+                    }}>
+                    {tcgList.map(t => <option key={t}>{t}</option>)}
+                    {form.tcg && !tcgList.includes(form.tcg) && <option>{form.tcg}</option>}
+                    <option value={ADD_NEW}>+ เพิ่ม TCG ใหม่...</option>
                   </select>
                 </div>
                 <div>
                   <label className={labelCls}>หมวดหมู่</label>
                   <select className={inputCls} value={form.category}
-                    onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
-                    {CAT_LIST.map(c => <option key={c}>{c}</option>)}
+                    onChange={async e => {
+                      if (e.target.value !== ADD_NEW) { setForm(f => ({ ...f, category: e.target.value })); return; }
+                      const v = await addOption("category");
+                      if (v) setForm(f => ({ ...f, category: v }));
+                    }}>
+                    {catList.map(c => <option key={c}>{c}</option>)}
+                    {form.category && !catList.includes(form.category) && <option>{form.category}</option>}
+                    <option value={ADD_NEW}>+ เพิ่มหมวดหมู่ใหม่...</option>
                   </select>
                 </div>
                 <div>
