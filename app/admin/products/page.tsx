@@ -18,6 +18,8 @@ type Product = {
   badge: string;
   rarity: string;
   image_url: string | null;
+  images?: string[];
+  badge_set_at?: string | null;
   description: string;
   active: boolean;
   cost_price: number | null;
@@ -62,7 +64,7 @@ const LOTTERY_ENTRY_LABEL: Record<string, string> = {
 const EMPTY: Omit<Product, "id" | "active"> = {
   name: "", sub: "", sku: "", price: 0, stock: 0,
   category: "Single Cards", tcg: "One Piece",
-  badge: "", rarity: "", image_url: null, description: "",
+  badge: "", rarity: "", image_url: null, images: [], description: "",
   cost_price: null,
 };
 
@@ -107,6 +109,7 @@ export default function AdminProductsPage() {
   const [saving, setSaving]       = useState(false);
   const [deleting, setDeleting]   = useState(false);
   const [uploadingImg, setUploadingImg] = useState(false);
+  const extraFileRef = useRef<HTMLInputElement>(null);
   const [imgPreview, setImgPreview]     = useState<string | null>(null);
   const [error, setError]         = useState("");
 
@@ -215,6 +218,37 @@ export default function AdminProductsPage() {
     e.target.value = "";
   }
 
+  // ── รูปเพิ่มเติม — เลือกได้หลายไฟล์พร้อมกัน ──
+  async function handleExtraImages(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    const current = form.images ?? [];
+    if (current.length + files.length > 8) {
+      setError("ใส่รูปเพิ่มเติมได้ไม่เกิน 8 รูป");
+      e.target.value = "";
+      return;
+    }
+    setUploadingImg(true);
+    setError("");
+    const urls: string[] = [];
+    for (const file of files) {
+      if (file.size > 3 * 1024 * 1024) { setError(`${file.name} ใหญ่เกิน 3MB`); continue; }
+      const ext = file.name.split(".").pop();
+      const path = `products/extra-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("products").upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) { setError("อัปโหลดรูปไม่สำเร็จ: " + upErr.message); continue; }
+      urls.push(supabase.storage.from("products").getPublicUrl(path).data.publicUrl);
+    }
+    if (urls.length) setForm(f => ({ ...f, images: [...(f.images ?? []), ...urls] }));
+    setUploadingImg(false);
+    e.target.value = "";
+  }
+
+  function removeExtraImage(url: string) {
+    setForm(f => ({ ...f, images: (f.images ?? []).filter(u => u !== url) }));
+  }
+
   // ── Open modals ──
   function openAdd() {
     setEditing(null);
@@ -229,7 +263,7 @@ export default function AdminProductsPage() {
     setForm({
       name: p.name, sub: p.sub, sku: p.sku ?? "", price: p.price, stock: p.stock,
       category: p.category, tcg: p.tcg, badge: p.badge, rarity: p.rarity,
-      image_url: p.image_url, description: p.description,
+      image_url: p.image_url, images: p.images ?? [], description: p.description,
       cost_price: p.cost_price,
     });
     setImgPreview(p.image_url);
@@ -615,6 +649,32 @@ export default function AdminProductsPage() {
                     <p className="text-[10px] text-zinc-400">PNG, JPG, WebP · ไม่เกิน 3MB</p>
                   </div>
                 </div>
+              </div>
+
+              {/* ── รูปเพิ่มเติม (ลูกค้าเลื่อนดูในหน้ารายละเอียดสินค้า) ── */}
+              <div>
+                <label className={labelCls}>รูปเพิ่มเติม</label>
+                <input ref={extraFileRef} type="file" multiple accept="image/jpeg,image/png,image/webp"
+                  className="hidden" onChange={handleExtraImages} />
+                {(form.images ?? []).length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {(form.images ?? []).map((url) => (
+                      <div key={url} className="relative w-16 h-16 rounded-lg overflow-hidden border border-zinc-200 bg-zinc-50">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={url} alt="" className="w-full h-full object-cover" />
+                        <button type="button" onClick={() => removeExtraImage(url)}
+                          className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/60 text-white text-[11px] leading-none">
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <button type="button" onClick={() => extraFileRef.current?.click()} disabled={uploadingImg}
+                  className="w-full border border-zinc-200 rounded-xl py-2.5 text-xs text-zinc-600 hover:bg-zinc-50 transition-colors disabled:opacity-50">
+                  {uploadingImg ? "⏳ กำลังอัปโหลด..." : "🖼️ เพิ่มรูป (เลือกหลายรูปพร้อมกันได้)"}
+                </button>
+                <p className="text-[10px] text-zinc-400 mt-1">สูงสุด 8 รูป · ลูกค้าเลื่อนดูได้ตอนกดเข้าไปดูสินค้า</p>
               </div>
 
               {/* ── Text fields ── */}

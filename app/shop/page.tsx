@@ -19,6 +19,9 @@ type Product = {
   badge: string;
   rarity: string;
   image_url: string | null;
+  images?: string[];
+  badge_set_at?: string | null;
+  description?: string | null;
 };
 
 type CartItem = { id: string; name: string; price: number; qty: number };
@@ -32,8 +35,17 @@ type LotteryInfo = {
 
 // ─── Config ────────────────────────────────────────────────────────────────
 
-const TCG_TABS       = ["All", "One Piece", "Pokémon", "MTG", "Dragon Ball"];
-const CATEGORIES     = ["ทั้งหมด", "Sealed Box", "Single Cards", "Pre-order", "Accessories"];
+const ALL_TCG        = "All";
+const ALL_CAT        = "ทั้งหมด";
+// NEW หายเองเมื่อครบ 14 วันนับจากวันที่ตั้ง badge
+const NEW_BADGE_DAYS = 14;
+
+function badgeOf(p: { badge: string; badge_set_at?: string | null }) {
+  if (p.badge !== "NEW") return p.badge;
+  if (!p.badge_set_at) return p.badge;
+  const ageDays = (Date.now() - new Date(p.badge_set_at).getTime()) / 86400000;
+  return ageDays > NEW_BADGE_DAYS ? "" : p.badge;
+}
 const BADGE_CLASS: Record<string, string> = {
   "PRE-ORDER": "badge-pre",
   "HOT":       "badge-hot",
@@ -70,7 +82,8 @@ export default function ShopPage() {
   const [products, setProducts]           = useState<Product[]>([]);
   const [loading, setLoading]             = useState(true);
   const [activeTab, setActiveTab]         = useState("All");
-  const [activeCategory, setActiveCategory] = useState("ทั้งหมด");
+  const [activeCategory, setActiveCategory] = useState(ALL_CAT);
+  const [detail, setDetail] = useState<Product | null>(null);
   const [sort, setSort]                   = useState("default");
   const [search, setSearch]               = useState("");
   const [cart, setCart]                   = useState<CartItem[]>([]);
@@ -93,16 +106,32 @@ export default function ShopPage() {
     } catch { /* ignore */ }
   }, [cart]);
 
+  // แท็บมาจากสินค้าที่ขายอยู่จริง หมวดหมู่/TCG ที่แอดมินเพิ่มใหม่จึงโผล่เองโดยไม่ต้องแก้โค้ด
+  const tcgTabs = useMemo(() => {
+    const found = Array.from(new Set(products.map((p) => p.tcg).filter(Boolean)));
+    return [ALL_TCG, ...found.filter((t) => t !== ALL_TCG).sort()];
+  }, [products]);
+
+  const categoryTabs = useMemo(() => {
+    const found = Array.from(new Set(products.map((p) => p.category).filter(Boolean)));
+    return [ALL_CAT, ...found.sort()];
+  }, [products]);
+
   // ── Fetch products from Supabase ──
   useEffect(() => {
     async function load() {
       setLoading(true);
       const { data } = await supabase
         .from("products")
-        .select("id, name, sub, price, stock, category, tcg, badge, rarity, image_url")
+        .select("id, name, sub, description, price, stock, category, tcg, badge, badge_set_at, rarity, image_url, product_images(url, order)")
         .eq("active", true)
         .order("created_at", { ascending: false });
-      setProducts((data as Product[]) ?? []);
+      setProducts(((data ?? []) as any[]).map((p) => ({
+        ...p,
+        images: (p.product_images ?? [])
+          .sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0))
+          .map((i: any) => i.url),
+      })) as Product[]);
       setLoading(false);
     }
     load();
@@ -212,7 +241,7 @@ export default function ShopPage() {
   const filtered = useMemo(() => {
     return products.filter((p) => {
       if (activeTab !== "All" && p.tcg !== activeTab) return false;
-      if (activeCategory !== "ทั้งหมด" && p.category !== activeCategory) return false;
+      if (activeCategory !== ALL_CAT && p.category !== activeCategory) return false;
       if (search) {
         const q = search.toLowerCase();
         const hay = `${p.name ?? ""} ${p.sub ?? ""}`.toLowerCase();
@@ -285,7 +314,7 @@ export default function ShopPage() {
 
       {/* TCG Tabs */}
       <div className="flex overflow-x-auto scrollbar-hide bg-white border-b border-zinc-100">
-        {TCG_TABS.map((tab) => (
+        {tcgTabs.map((tab) => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             className={`flex-shrink-0 text-[11px] px-4 py-2.5 tracking-wide border-b-2 transition-colors ${
               activeTab === tab ? "border-zinc-900 text-zinc-900 font-semibold" : "border-transparent text-zinc-400"
@@ -297,7 +326,7 @@ export default function ShopPage() {
 
       {/* Category chips */}
       <div className="flex gap-2 overflow-x-auto scrollbar-hide px-4 py-3 bg-white">
-        {CATEGORIES.map((cat) => (
+        {categoryTabs.map((cat) => (
           <button key={cat} onClick={() => setActiveCategory(cat)}
             className={`flex-shrink-0 text-[10px] px-3 py-1.5 rounded-full border tracking-wide transition-colors ${
               activeCategory === cat ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 text-zinc-500 bg-white"
@@ -345,9 +374,9 @@ export default function ShopPage() {
               <div key={p.id} className="card overflow-hidden">
                 {/* Product Image */}
                 <div className="relative">
-                  {p.badge && (
-                    <span className={`absolute top-2 left-2 z-10 ${BADGE_CLASS[p.badge] ?? "badge-pre"}`}>
-                      {p.badge}
+                  {badgeOf(p) && (
+                    <span className={`absolute top-2 left-2 z-10 ${BADGE_CLASS[badgeOf(p)] ?? "badge-pre"}`}>
+                      {badgeOf(p)}
                     </span>
                   )}
                   {lot && (
@@ -356,7 +385,7 @@ export default function ShopPage() {
                     </span>
                   )}
                   {p.image_url ? (
-                    <div className="h-36 relative bg-zinc-50 overflow-hidden">
+                    <div className="h-36 relative bg-zinc-50 overflow-hidden cursor-pointer" onClick={() => setDetail(p)}>
                       <Image
                         src={p.image_url}
                         alt={p.name}
@@ -372,7 +401,8 @@ export default function ShopPage() {
 
                 {/* Info */}
                 <div className="p-2.5">
-                  <p className="text-[11px] font-semibold text-zinc-900 leading-snug line-clamp-2">{p.name}</p>
+                  <p onClick={() => setDetail(p)}
+                    className="text-[11px] font-semibold text-zinc-900 leading-snug line-clamp-2 cursor-pointer hover:underline">{p.name}</p>
                   <p className="text-[9px] text-zinc-400 mt-0.5 leading-tight truncate">{p.sub}</p>
                   <p className="text-[13px] font-bold text-zinc-900 mt-2">฿{p.price.toLocaleString()}</p>
                   <p className="text-[9px] text-zinc-400 mt-0.5">
@@ -510,7 +540,104 @@ export default function ShopPage() {
         </div>
       )}
 
+      {/* ── รายละเอียดสินค้า + แกลเลอรีรูป ── */}
+      {detail && (
+        <ProductDetail
+          product={detail}
+          lottery={lotteries[detail.id]}
+          onClose={() => setDetail(null)}
+          onAdd={() => { addToCart(detail); setDetail(null); }}
+        />
+      )}
+
       <BottomNav />
+    </div>
+  );
+}
+
+// ─── รายละเอียดสินค้า ────────────────────────────────────────────────────────
+
+function ProductDetail({ product, lottery, onClose, onAdd }: {
+  product: Product;
+  lottery?: LotteryInfo;
+  onClose: () => void;
+  onAdd: () => void;
+}) {
+  // รูปปกมาก่อน แล้วตามด้วยรูปเพิ่มเติม
+  const gallery = [product.image_url, ...(product.images ?? [])].filter(Boolean) as string[];
+  const [active, setActive] = useState(0);
+  const badge = badgeOf(product);
+
+  return (
+    <div className="fixed inset-0 z-[60] bg-black/60 flex items-end sm:items-center justify-center" onClick={onClose}>
+      <div className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}>
+
+        {/* รูปใหญ่ */}
+        <div className="relative aspect-square bg-zinc-50">
+          {gallery.length > 0 ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src={gallery[active]} alt={product.name} className="w-full h-full object-contain p-4" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-4xl text-zinc-300">🃏</div>
+          )}
+          {badge && (
+            <span className={`absolute top-3 left-3 ${BADGE_CLASS[badge] ?? "badge-pre"}`}>{badge}</span>
+          )}
+          <button onClick={onClose}
+            className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 text-zinc-600 flex items-center justify-center text-lg leading-none">
+            ×
+          </button>
+        </div>
+
+        {/* รูปย่อย — โชว์เมื่อมีมากกว่า 1 รูป */}
+        {gallery.length > 1 && (
+          <div className="flex gap-2 overflow-x-auto scrollbar-hide px-4 pt-3">
+            {gallery.map((url, i) => (
+              <button key={url} onClick={() => setActive(i)}
+                className={`flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-colors ${
+                  i === active ? "border-zinc-900" : "border-zinc-100"}`}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url} alt="" className="w-full h-full object-cover" />
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="px-4 py-4">
+          <div className="flex items-center gap-1.5 flex-wrap mb-2">
+            <span className="text-[9px] bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded tracking-wider">{product.tcg}</span>
+            <span className="text-[9px] bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded tracking-wider">{product.category}</span>
+            {product.rarity && <span className="badge-rare">{product.rarity}</span>}
+          </div>
+
+          <h2 className="text-base font-semibold text-zinc-900 leading-snug">{product.name}</h2>
+          {product.sub && <p className="text-[11px] text-zinc-400 mt-0.5">{product.sub}</p>}
+
+          <p className="text-xl font-bold text-zinc-900 mt-3">฿{product.price.toLocaleString()}</p>
+          <p className="text-[11px] text-zinc-400 mt-0.5">
+            {product.stock <= 0 ? "หมดสต็อก" : product.stock <= 3 ? `เหลือ ${product.stock} ชิ้น` : "มีสต็อก"}
+          </p>
+
+          {product.description && (
+            <div className="mt-4 pt-4 border-t border-zinc-100">
+              <p className="text-[9px] text-zinc-400 tracking-widest font-semibold mb-1.5">รายละเอียด</p>
+              <p className="text-xs text-zinc-600 leading-relaxed whitespace-pre-line">{product.description}</p>
+            </div>
+          )}
+
+          {lottery ? (
+            <p className="mt-4 text-center text-[11px] text-purple-700 bg-purple-50 border border-purple-100 rounded-xl py-2.5">
+              🎟️ สินค้านี้ต้องขอสิทธิ์ซื้อ — กดที่ปุ่มในหน้ารายการสินค้า
+            </p>
+          ) : (
+            <button onClick={onAdd} disabled={product.stock <= 0}
+              className="mt-4 w-full bg-zinc-900 text-white text-xs font-semibold py-3 rounded-xl active:opacity-70 disabled:opacity-30">
+              {product.stock <= 0 ? "หมดสต็อก" : "+ เพิ่มลงตะกร้า"}
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
