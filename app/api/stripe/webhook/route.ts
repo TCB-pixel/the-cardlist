@@ -421,6 +421,58 @@ ${addrText}
     });
   }
 
+  // ── แจ้งทีมงานทาง LINE ว่ามีออเดอร์เข้า ──
+  // ผู้รับตั้งค่าได้ที่ /admin/settings ไม่ต้อง deploy ใหม่เวลาเปลี่ยนคนดูแล
+  try {
+    const { data: setting } = await supabase
+      .from("site_settings")
+      .select("value")
+      .eq("key", "order_notify_line_ids")
+      .maybeSingle();
+
+    const recipients = (setting?.value ?? "")
+      .split(",")
+      .map((v: string) => v.trim())
+      .filter(Boolean);
+
+    if (recipients.length > 0) {
+      const subtotal = items.reduce(
+        (sum: number, it: any) => sum + Number(it.price) * Number(it.qty),
+        0
+      );
+      const a = shipping;
+      const addrText = a
+        ? `${a.name ?? ""}\n${a.line1 ?? ""} ${a.line2 ?? ""}\n${a.city ?? ""} ${a.state ?? ""} ${a.postal_code ?? ""}\nโทร ${a.phone ?? "-"}`
+        : "— ไม่มีที่อยู่ —";
+
+      const staffMessage = `🛒 มีคำสั่งซื้อใหม่
+
+🧾 ${order.id.slice(0, 8)}
+👤 ${a?.name ?? "-"} (${email ?? "ไม่มีอีเมล"})
+
+📦 รายการ:
+${items.map((it: any) => `• ${it.name} x${it.qty}`).join("\n")}
+
+ราคาสินค้า ฿${subtotal.toLocaleString()}
+ค่าจัดส่ง ฿${shippingFee.toLocaleString()}${cardFee > 0 ? `\nค่าธรรมเนียมบัตร ฿${cardFee.toLocaleString()}` : ""}
+รวม ฿${(amountTotal / 100).toLocaleString()}
+
+🚚 จัดส่งถึง:
+${addrText}
+
+ดูและกดจัดส่งได้ที่ ${SITE_URL}/admin/orders`;
+
+      // ส่งทีละคน คนหนึ่งพังไม่ควรทำให้คนอื่นไม่ได้รับ
+      await Promise.all(
+        recipients.map((id: string) =>
+          sendLineNotify({ lineUserId: id, type: "broadcast", data: { message: staffMessage } })
+        )
+      );
+    }
+  } catch (err) {
+    console.error("แจ้งทีมงานทาง LINE ไม่สำเร็จ (ข้ามไป):", err);
+  }
+
   console.log("✅ Shop order created for:", userId);
 }
 
