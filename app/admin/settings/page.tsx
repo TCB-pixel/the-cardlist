@@ -7,6 +7,7 @@ export default function AdminSettingsPage() {
   const { can: canDo } = useAdmin();
   const [fbUrl, setFbUrl] = useState("");
   const [lineIds, setLineIds] = useState("");
+  const [emails, setEmails] = useState("");
   const [lineStaff, setLineStaff] = useState<{ name: string; email: string; line_user_id: string }[]>([]);
   const [savedKey, setSavedKey] = useState<string | null>(null);
   const [stats, setStats] = useState({ totalMembers: 0, fbClicked: 0 });
@@ -36,6 +37,7 @@ export default function AdminSettingsPage() {
       if (!res.ok) throw new Error(json.error || "โหลดข้อมูลไม่สำเร็จ");
       setFbUrl(json.settings?.facebook_page_url ?? "");
       setLineIds(json.settings?.order_notify_line_ids ?? "");
+      setEmails(json.settings?.order_notify_emails ?? "");
       setLineStaff(json.lineStaff ?? []);
       setStats(json.stats);
     } catch (e: any) {
@@ -170,6 +172,29 @@ export default function AdminSettingsPage() {
             {saving ? "กำลังบันทึก..." : "บันทึก"}
           </button>
           {saved && savedKey === "order_notify_line_ids" && (
+            <span className="text-[11px] text-green-600 font-semibold">✓ บันทึกแล้ว</span>
+          )}
+        </div>
+      </div>
+
+      {/* ── แจ้งออเดอร์ใหม่ทางอีเมล ── */}
+      <div className="bg-white border border-zinc-100 rounded-2xl p-5 mt-4">
+        <h2 className="text-sm font-semibold text-zinc-900">แจ้งออเดอร์ใหม่ทางอีเมล</h2>
+        <p className="text-[11px] text-zinc-400 mt-0.5 mb-4">
+          ทุกครั้งที่ลูกค้าจ่ายเงินสำเร็จ ระบบส่งสรุปออเดอร์ไปที่อีเมลเหล่านี้ (ใส่ได้หลายอีเมล คั่นด้วยจุลภาค)
+        </p>
+        <input value={emails} onChange={(e) => setEmails(e.target.value)}
+          placeholder="owner@example.com, staff@example.com"
+          className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2.5 text-sm text-zinc-900 outline-none focus:border-zinc-400" />
+        <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mt-3">
+          ⚠️ อีเมลจะส่งถึงได้ก็ต่อเมื่อยืนยันโดเมนที่ Resend แล้ว — ถ้ายังไม่ยืนยัน ระบบจะบันทึกเหตุผลไว้ในออเดอร์ และยังแจ้งทาง LINE ตามปกติ
+        </p>
+        <div className="flex items-center gap-3 mt-4">
+          <button onClick={() => saveKey("order_notify_emails", emails)} disabled={saving || loading || !canDo("news:edit")}
+            className="bg-zinc-900 text-white text-xs font-semibold px-5 py-2.5 rounded-xl hover:bg-zinc-700 disabled:opacity-40">
+            {saving ? "กำลังบันทึก..." : "บันทึก"}
+          </button>
+          {saved && savedKey === "order_notify_emails" && (
             <span className="text-[11px] text-green-600 font-semibold">✓ บันทึกแล้ว</span>
           )}
         </div>

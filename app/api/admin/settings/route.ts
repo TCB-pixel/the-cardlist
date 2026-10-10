@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { adminDb, requireAdmin } from "@/lib/require-admin";
 
-const ALLOWED_KEYS = ["facebook_page_url", "order_notify_line_ids"] as const;
+const ALLOWED_KEYS = ["facebook_page_url", "order_notify_line_ids", "order_notify_emails"] as const;
 
 // LINE user id = U + hex 32 ตัว, group = C..., room = R...
 const LINE_ID_RE = /^[UCR][0-9a-f]{32}$/;
@@ -84,6 +84,16 @@ export async function PATCH(req: Request) {
         );
       }
       clean = Array.from(new Set(ids)).join(",");
+    }
+
+    if (key === "order_notify_emails") {
+      // ปล่อยค่าว่างได้ = ไม่แจ้งเตือนทางอีเมล
+      const emails = clean.split(",").map((v) => v.trim().toLowerCase()).filter(Boolean);
+      const bad = emails.filter((e) => !/^[^s@]+@[^s@]+.[^s@]+$/.test(e));
+      if (bad.length) {
+        return NextResponse.json({ error: `อีเมลไม่ถูกต้อง: ${bad.join(", ")}` }, { status: 400 });
+      }
+      clean = Array.from(new Set(emails)).join(",");
     }
 
     const { error } = await adminDb

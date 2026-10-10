@@ -1,6 +1,7 @@
 // ── Logic เติมเต็มคำสั่งซื้อหลังจ่ายเงิน (แยกออกจาก route เพื่อให้หน้ากู้ออเดอร์เรียกซ้ำได้) ──
 // ไฟล์ route ของ Next.js export ได้เฉพาะ handler จึงต้องเก็บส่วนนี้ไว้นอก route
 import { renderOrderConfirmEmail, type OrderEmailData } from "@/lib/order-email";
+import { notifyOrder } from "@/lib/order-notify";
 import Stripe from "stripe";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
@@ -372,113 +373,18 @@ async function createShopOrder(
     console.error("อัปเดตสถานะ lottery_entries เป็น purchased ไม่สำเร็จ:", err);
   }
 
-  // ── ยืนยันคำสั่งซื้อ: อีเมล + LINE (best-effort) ──
-  const emailResult = await sendOrderConfirmEmail({
+  // ── แจ้งยืนยันออเดอร์: ลูกค้า (อีเมล + LINE การ์ด) และทีมงาน (อีเมล + LINE การ์ด) ──
+  // แต่ละช่องทางพังแยกกัน ไม่ลามไปช่องอื่น และออเดอร์ถูกสร้างเสร็จไปก่อนแล้ว
+  await notifyOrder(supabase, {
+    orderId: order.id,
+    userId,
     email,
     items,
-    total: amountTotal / 100,
+    amountTotal,
     shippingFee,
     cardFee,
     shipping,
-    orderId: order.id,
   });
-
-  // บันทึกผลไว้เสมอ เพื่อให้หน้าแอดมินเห็นว่าออเดอร์ไหนอีเมลไม่ถึงลูกค้า
-  await supabase
-    .from("orders")
-    .update(
-      emailResult.ok
-        ? { confirm_email_sent_at: new Date().toISOString(), confirm_email_error: null }
-        : { confirm_email_sent_at: null, confirm_email_error: emailResult.error }
-    )
-    .eq("id", order.id);
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("line_user_id")
-    .eq("id", userId)
-    .single();
-
-  if (profile?.line_user_id) {
-    const itemLines = items
-      .map((it: any) => `• ${it.name} x${it.qty}`)
-      .join("\n");
-    const a = shipping;
-    const addrText = a
-      ? `${a.name ?? ""}\n${a.line1 ?? ""} ${a.line2 ?? ""}\n${a.city ?? ""} ${
-          a.state ?? ""
-        } ${a.postal_code ?? ""}\nโทร ${a.phone ?? ""}`
-      : "-";
-    await sendLineNotify({
-      lineUserId: profile.line_user_id,
-      type: "broadcast",
-      data: {
-        message: `✅ ชำระเงินสำเร็จ! ขอบคุณที่สั่งซื้อกับ The Cardlist
-
-🧾 รายการ:
-${itemLines}
-
-รวม ฿${(amountTotal / 100).toLocaleString()}
-
-📦 จัดส่งถึง:
-${addrText}
-
-ทีมงานจะแพ็คและจัดส่งให้เร็วๆ นี้ครับ 🙌`,
-      },
-    });
-  }
-
-  // ── แจ้งทีมงานทาง LINE ว่ามีออเดอร์เข้า ──
-  // ผู้รับตั้งค่าได้ที่ /admin/settings ไม่ต้อง deploy ใหม่เวลาเปลี่ยนคนดูแล
-  try {
-    const { data: setting } = await supabase
-      .from("site_settings")
-      .select("value")
-      .eq("key", "order_notify_line_ids")
-      .maybeSingle();
-
-    const recipients = (setting?.value ?? "")
-      .split(",")
-      .map((v: string) => v.trim())
-      .filter(Boolean);
-
-    if (recipients.length > 0) {
-      const subtotal = items.reduce(
-        (sum: number, it: any) => sum + Number(it.price) * Number(it.qty),
-        0
-      );
-      const a = shipping;
-      const addrText = a
-        ? `${a.name ?? ""}\n${a.line1 ?? ""} ${a.line2 ?? ""}\n${a.city ?? ""} ${a.state ?? ""} ${a.postal_code ?? ""}\nโทร ${a.phone ?? "-"}`
-        : "— ไม่มีที่อยู่ —";
-
-      const staffMessage = `🛒 มีคำสั่งซื้อใหม่
-
-🧾 ${order.id.slice(0, 8)}
-👤 ${a?.name ?? "-"} (${email ?? "ไม่มีอีเมล"})
-
-📦 รายการ:
-${items.map((it: any) => `• ${it.name} x${it.qty}`).join("\n")}
-
-ราคาสินค้า ฿${subtotal.toLocaleString()}
-ค่าจัดส่ง ฿${shippingFee.toLocaleString()}${cardFee > 0 ? `\nค่าธรรมเนียมบัตร ฿${cardFee.toLocaleString()}` : ""}
-รวม ฿${(amountTotal / 100).toLocaleString()}
-
-🚚 จัดส่งถึง:
-${addrText}
-
-ดูและกดจัดส่งได้ที่ ${SITE_URL}/admin/orders`;
-
-      // ส่งทีละคน คนหนึ่งพังไม่ควรทำให้คนอื่นไม่ได้รับ
-      await Promise.all(
-        recipients.map((id: string) =>
-          sendLineNotify({ lineUserId: id, type: "broadcast", data: { message: staffMessage } })
-        )
-      );
-    }
-  } catch (err) {
-    console.error("แจ้งทีมงานทาง LINE ไม่สำเร็จ (ข้ามไป):", err);
-  }
 
   console.log("✅ Shop order created for:", userId);
 }

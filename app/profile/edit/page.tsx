@@ -16,6 +16,8 @@ export default function EditProfilePage() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
+  const [receiptEmail, setReceiptEmail] = useState("");
+  const [authEmail, setAuthEmail] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -43,6 +45,8 @@ export default function EditProfilePage() {
         setFirstName(data.first_name ?? "");
         setLastName(data.last_name ?? "");
         setPhone(data.phone ?? "");
+        setReceiptEmail(data.receipt_email ?? "");
+        setAuthEmail(data.email ?? "");
         setAvatarUrl(data.avatar_url ?? null);
       }
       const { count } = await supabase
@@ -68,6 +72,11 @@ export default function EditProfilePage() {
     if (!displayName.trim()) { setError("กรุณากรอกชื่อที่แสดง"); return; }
     if (!username.trim()) { setError("กรุณากรอก Username"); return; }
     // เก็บเบอร์เป็นตัวเลขล้วน ให้ค้นหน้าร้านเจอแน่นอน
+    const emailTrim = receiptEmail.trim().toLowerCase();
+    if (emailTrim && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim)) {
+      setError("อีเมลไม่ถูกต้อง — ตรวจสอบรูปแบบอีกครั้ง เช่น name@gmail.com");
+      return;
+    }
     const phoneDigits = phone.replace(/\D/g, "");
     if (phoneDigits && !/^0\d{8,9}$/.test(phoneDigits)) {
       setError("เบอร์โทรไม่ถูกต้อง — กรอกเป็นตัวเลข 9-10 หลัก ขึ้นต้นด้วย 0");
@@ -101,6 +110,7 @@ export default function EditProfilePage() {
           first_name: firstName.trim() || null,
           last_name: lastName.trim() || null,
           phone: phoneDigits || null,
+          receipt_email: emailTrim || null,
           avatar_url: newAvatarUrl,
         })
         .eq("id", userId);
@@ -234,6 +244,20 @@ export default function EditProfilePage() {
               value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={20} />
             <p className="text-[10px] text-zinc-400 mt-1">
               พนักงานใช้ค้นหาคุณตอนบันทึกรอบเล่น เผื่อกรณีเปิด QR ไม่ได้
+            </p>
+          </div>
+
+          {/* ── อีเมลรับใบเสร็จ ── */}
+          <div>
+            <label className="text-[11px] font-semibold text-zinc-500 tracking-wide block mb-1.5">
+              อีเมลรับใบเสร็จ / ยืนยันคำสั่งซื้อ
+            </label>
+            <input type="email" inputMode="email" className="input" placeholder="name@gmail.com"
+              value={receiptEmail} onChange={(e) => setReceiptEmail(e.target.value)} maxLength={120} />
+            <p className="text-[10px] text-zinc-400 mt-1">
+              {/^line_[a-z0-9]+@thecardlist\.com$/i.test(authEmail)
+                ? "บัญชีที่ล็อกอินด้วย LINE ไม่มีอีเมลจริง — กรอกอีเมลของคุณเพื่อรับใบเสร็จทางอีเมลด้วย (ไม่บังคับ)"
+                : "ถ้าไม่กรอก เราจะส่งไปที่อีเมลที่ใช้สมัคร"}
             </p>
           </div>
         </div>
