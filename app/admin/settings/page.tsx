@@ -8,6 +8,8 @@ export default function AdminSettingsPage() {
   const [fbUrl, setFbUrl] = useState("");
   const [lineIds, setLineIds] = useState("");
   const [emails, setEmails] = useState("");
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; text: string } | null>(null);
   const [lineStaff, setLineStaff] = useState<{ name: string; email: string; line_user_id: string }[]>([]);
   const [savedKey, setSavedKey] = useState<string | null>(null);
   const [stats, setStats] = useState({ totalMembers: 0, fbClicked: 0 });
@@ -48,6 +50,28 @@ export default function AdminSettingsPage() {
   }, [authedFetch]);
 
   useEffect(() => { load(); }, [load]);
+
+  // ส่งอีเมลทดสอบผ่าน Resend จริง (ใช้ key และผู้ส่งเดียวกับระบบออเดอร์)
+  async function sendTestEmail() {
+    const first = emails.split(",").map((v) => v.trim()).filter(Boolean)[0];
+    if (!first) { setTestResult({ ok: false, text: "ใส่อีเมลผู้รับแจ้งเตือนก่อน แล้วค่อยกดทดสอบ" }); return; }
+    setTesting(true); setTestResult(null);
+    try {
+      const res = await authedFetch("/api/admin/email-test", {
+        method: "POST", body: JSON.stringify({ to: first }),
+      });
+      const json = await res.json();
+      if (json.ok) {
+        setTestResult({ ok: true, text: `ส่งแล้วไปที่ ${json.to} (ผู้ส่ง: ${json.from}) — เช็คกล่องจดหมาย รวมถึงโฟลเดอร์สแปม` });
+      } else {
+        setTestResult({ ok: false, text: json.error ?? "ส่งไม่สำเร็จ" });
+      }
+    } catch (e: any) {
+      setTestResult({ ok: false, text: e?.message ?? "ส่งไม่สำเร็จ" });
+    } finally {
+      setTesting(false);
+    }
+  }
 
   async function saveKey(key: string, value: string) {
     setSaving(true); setError(""); setSaved(false); setSavedKey(null);
@@ -197,7 +221,17 @@ export default function AdminSettingsPage() {
           {saved && savedKey === "order_notify_emails" && (
             <span className="text-[11px] text-green-600 font-semibold">✓ บันทึกแล้ว</span>
           )}
+          <button onClick={sendTestEmail} disabled={testing || loading || !canDo("orders:edit")}
+            className="border border-zinc-200 text-zinc-600 text-xs font-semibold px-4 py-2.5 rounded-xl hover:bg-zinc-50 disabled:opacity-40">
+            {testing ? "กำลังส่ง..." : "✉️ ส่งอีเมลทดสอบ"}
+          </button>
         </div>
+        {testResult && (
+          <p className={`text-[11px] rounded-lg px-3 py-2 mt-3 border ${
+            testResult.ok ? "text-green-700 bg-green-50 border-green-100" : "text-red-600 bg-red-50 border-red-100"}`}>
+            {testResult.ok ? "✅ " : "❌ "}{testResult.text}
+          </p>
+        )}
       </div>
     </div>
   );
