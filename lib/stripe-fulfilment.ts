@@ -281,6 +281,10 @@ async function createShopOrder(
     .insert({
       user_id: userId,
       email: email,
+      // orders มียอดเงิน 2 คอลัมน์: total (เก่า NOT NULL) และ total_amount (ที่ทุกหน้าอ่าน)
+      // ต้องเขียนทั้งคู่ — เคยเขียนแค่ total_amount ทำให้ insert พังทุกครั้ง (null ใน total)
+      // webhook ตอบ 500 และไม่มีออเดอร์ถูกสร้างเลยแม้ลูกค้าจ่ายเงินแล้ว
+      total: amountTotal / 100,
       total_amount: amountTotal / 100,
       shipping_fee: shippingFee,
       status: "paid",
@@ -309,6 +313,8 @@ async function createShopOrder(
       product_id: item.id,
       name: item.name,
       price: item.price,
+      // order_items มีจำนวน 2 คอลัมน์ (quantity NOT NULL default 1 / qty ที่หน้าเว็บอ่าน) เขียนทั้งคู่ให้ตรงกัน
+      quantity: item.qty,
       qty: item.qty,
     }))
   );
