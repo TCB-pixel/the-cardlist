@@ -247,7 +247,7 @@ export default function AdminOrdersPage() {
                 </button>
 
                 {/* Actions */}
-                {o.status === "paid" && (
+                {(o.status === "paid" || o.status === "shipped") && (
                   <button onClick={() => setIshipFor(o)}
                     className="mt-3 text-xs font-semibold border border-zinc-900 text-zinc-900 rounded-lg px-4 py-2 hover:bg-zinc-50">
                     📦 สร้างพัสดุที่ iShip

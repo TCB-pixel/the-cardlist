@@ -206,7 +206,8 @@ export async function POST(req: Request) {
     let shipped = false;
     let notify: unknown = null;
     const carrier = ourCarrier(courier);
-    if (s.env === "prod" && carrier) {
+    // เฉพาะออเดอร์ที่ยัง "ชำระแล้ว" — ออเดอร์ที่จัดส่งไปแล้วห้ามเขียนทับเลขพัสดุเดิมที่แจ้งลูกค้าไปแล้ว
+    if (s.env === "prod" && carrier && o.status === "paid") {
       const tracking = cleanTracking(created.trackingNumber);
       const { error: upErr } = await adminDb
         .from("orders")
