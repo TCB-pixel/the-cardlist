@@ -33,7 +33,9 @@ async function loadSettings() {
     province: m.get("iship_sender_province") ?? "",
     zipcode: m.get("iship_sender_zipcode") ?? "",
   };
-  return { env, parcel, sender, courier: m.get("iship_default_courier") || "KerryExpress" };
+  // ปิดไว้ตั้งต้น: สร้างพัสดุแล้วแค่เก็บเลขไว้ที่ออเดอร์ ไม่เปลี่ยนสถานะ ไม่แจ้งลูกค้า
+  const autoShip = m.get("iship_auto_ship") === "on";
+  return { env, autoShip, parcel, sender, courier: m.get("iship_default_courier") || "KerryExpress" };
 }
 
 const missingParty = (p: IshipParty, label: string): string[] =>
@@ -207,7 +209,7 @@ export async function POST(req: Request) {
     let notify: unknown = null;
     const carrier = ourCarrier(courier);
     // เฉพาะออเดอร์ที่ยัง "ชำระแล้ว" — ออเดอร์ที่จัดส่งไปแล้วห้ามเขียนทับเลขพัสดุเดิมที่แจ้งลูกค้าไปแล้ว
-    if (s.env === "prod" && carrier && o.status === "paid") {
+    if (s.env === "prod" && s.autoShip && carrier && o.status === "paid") {
       const tracking = cleanTracking(created.trackingNumber);
       const { error: upErr } = await adminDb
         .from("orders")

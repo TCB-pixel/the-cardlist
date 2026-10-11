@@ -5,7 +5,7 @@ const ALLOWED_KEYS = ["facebook_page_url", "order_notify_line_ids", "order_notif
 
 // ค่าตั้งค่า iShip — ตรวจรูปแบบรายตัว กันค่าเพี้ยนไปทำให้สร้างพัสดุผิด (และหักเครดิต)
 const ISHIP_KEYS = [
-  "iship_env", "iship_default_courier",
+  "iship_env", "iship_default_courier", "iship_auto_ship",
   "iship_parcel_weight_kg", "iship_parcel_width_cm", "iship_parcel_length_cm", "iship_parcel_height_cm",
   "iship_sender_name", "iship_sender_phone", "iship_sender_address",
   "iship_sender_district", "iship_sender_amphure", "iship_sender_province", "iship_sender_zipcode",
@@ -115,6 +115,9 @@ export async function PATCH(req: Request) {
         if (auth.caller.role !== "owner") {
           return NextResponse.json({ error: "เฉพาะเจ้าของร้าน (owner) สลับระหว่างทดสอบ/ของจริงได้" }, { status: 403 });
         }
+      }
+      if (key === "iship_auto_ship" && clean !== "on" && clean !== "off") {
+        return NextResponse.json({ error: "ต้องเป็น on หรือ off" }, { status: 400 });
       }
       if (key === "iship_default_courier" && !/^[A-Za-z0-9_]{2,40}$/.test(clean)) {
         return NextResponse.json({ error: "รหัสขนส่งไม่ถูกต้อง (ใช้รหัสจาก iShip เช่น KerryExpress)" }, { status: 400 });

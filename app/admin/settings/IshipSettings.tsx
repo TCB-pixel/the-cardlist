@@ -54,11 +54,11 @@ export default function IshipSettings() {
     })();
   }, [authedFetch]);
 
-  async function save(keys: string[]) {
+  async function save(keys: string[], override?: Record<string, string>) {
     setSavingKey(keys[0]); setMsg(null);
     try {
       for (const key of keys) {
-        const res = await authedFetch("/api/admin/settings", { method: "PATCH", body: JSON.stringify({ key, value: vals[key] ?? "" }) });
+        const res = await authedFetch("/api/admin/settings", { method: "PATCH", body: JSON.stringify({ key, value: override?.[key] ?? vals[key] ?? "" }) });
         const json = await res.json();
         if (!res.ok) throw new Error(json.error ?? "บันทึกไม่สำเร็จ");
         if (json.value !== undefined && json.value !== null) setVals((v) => ({ ...v, [key]: json.value }));
@@ -120,6 +120,25 @@ export default function IshipSettings() {
           </button>
         </div>
         {!isOwner && <p className="text-[10px] text-zinc-500 mt-2">การสลับโหมดทำได้เฉพาะเจ้าของร้าน (owner)</p>}
+      </div>
+
+      {/* แจ้งลูกค้าอัตโนมัติ */}
+      <div className="rounded-xl border border-zinc-200 px-4 py-3 mb-5 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold text-zinc-900">
+            {vals.iship_auto_ship === "on" ? "✅ เปิด: สร้างพัสดุแล้วเปลี่ยนเป็น \"จัดส่งแล้ว\" และแจ้งลูกค้าทันที" : "⏸ ปิด: สร้างพัสดุแล้วเก็บเลขไว้เฉย ๆ ไม่แจ้งลูกค้า"}
+          </p>
+          <p className="text-[10px] text-zinc-500 mt-0.5">ช่วงทดสอบให้ปิดไว้ — เปิดเมื่อพร้อมใช้งานจริง (มีผลเฉพาะโหมดของจริง)</p>
+        </div>
+        <button disabled={disabled || savingKey !== null}
+          onClick={async () => {
+            const next = vals.iship_auto_ship === "on" ? "off" : "on";
+            setVals((v) => ({ ...v, iship_auto_ship: next }));
+            await save(["iship_auto_ship"], { iship_auto_ship: next });
+          }}
+          className="text-xs font-semibold border border-zinc-300 bg-white rounded-lg px-3 py-1.5 hover:bg-zinc-50 disabled:opacity-40">
+          {vals.iship_auto_ship === "on" ? "ปิด" : "เปิด"}
+        </button>
       </div>
 
       {/* ผู้ส่ง */}
