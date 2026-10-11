@@ -58,7 +58,7 @@ export default function IshipSettings() {
     setSavingKey(keys[0]); setMsg(null);
     try {
       for (const key of keys) {
-        const res = await authedFetch("/api/admin/settings", { method: "POST", body: JSON.stringify({ key, value: vals[key] ?? "" }) });
+        const res = await authedFetch("/api/admin/settings", { method: "PATCH", body: JSON.stringify({ key, value: vals[key] ?? "" }) });
         const json = await res.json();
         if (!res.ok) throw new Error(json.error ?? "บันทึกไม่สำเร็จ");
         if (json.value !== undefined && json.value !== null) setVals((v) => ({ ...v, [key]: json.value }));
@@ -78,7 +78,7 @@ export default function IshipSettings() {
     setVals((v) => ({ ...v, iship_env: next }));
     setSavingKey("iship_env"); setMsg(null);
     try {
-      const res = await authedFetch("/api/admin/settings", { method: "POST", body: JSON.stringify({ key: "iship_env", value: next }) });
+      const res = await authedFetch("/api/admin/settings", { method: "PATCH", body: JSON.stringify({ key: "iship_env", value: next }) });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "สลับไม่สำเร็จ");
       setMsg({ ok: true, text: next === "prod" ? "สลับเป็นของจริงแล้ว — การสร้างพัสดุจะหักเครดิตจริง" : "สลับเป็นโหมดทดสอบแล้ว" });
