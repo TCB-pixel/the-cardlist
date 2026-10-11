@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase";
+import { CARRIERS, carrierById, trackingLooksValid } from "@/lib/carriers";
 
 type OrderItem = {
   id: string;
@@ -24,6 +25,9 @@ type Order = {
   province: string | null;
   postal_code: string | null;
   tracking_no: string | null;
+  carrier: string | null;
+  shipped_notified_at: string | null;
+  shipped_notify_error: string | null;
   shipping_fee: number | null;
   confirm_email_sent_at: string | null;
   confirm_email_error: string | null;
@@ -45,6 +49,7 @@ export default function AdminOrdersPage() {
   const [filter, setFilter] = useState<string>("all");
   const [trackingDraft, setTrackingDraft] = useState<Record<string, string>>({});
   const [resending, setResending] = useState<string | null>(null);
+  const [carrierDraft, setCarrierDraft] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<string | null>(null);
 
   async function authedFetch(input: string, init?: RequestInit) {
@@ -100,15 +105,28 @@ export default function AdminOrdersPage() {
 
   async function markShipped(o: Order) {
     const tracking = (trackingDraft[o.id] ?? o.tracking_no ?? "").trim();
+    const carrier = carrierDraft[o.id] ?? o.carrier ?? "";
+    if (!carrier) { alert("เลือกขนส่งก่อนกดจัดส่ง"); return; }
+    if (!tracking) { alert("กรอกเลขพัสดุก่อนกดจัดส่ง — ลูกค้าจะได้ตามพัสดุได้"); return; }
+    if (!trackingLooksValid(carrier, tracking)) {
+      const c = carrierById(carrier);
+      if (!window.confirm(`เลขพัสดุนี้ดูไม่ตรงรูปแบบของ ${c?.name} (${c?.hint})\nยืนยันว่าถูกต้องและส่งแจ้งลูกค้าเลยไหม?`)) return;
+    }
     setSaving(o.id);
     try {
       const res = await authedFetch("/api/admin/orders", {
         method: "PATCH",
-        body: JSON.stringify({ orderId: o.id, status: "shipped", tracking_no: tracking }),
+        body: JSON.stringify({ orderId: o.id, status: "shipped", carrier, tracking_no: tracking }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "บันทึกไม่สำเร็จ");
       await load();
+      // บอกผลการแจ้งลูกค้าให้ชัด จะได้ไม่ต้องเดาว่าลูกค้ารู้หรือยัง
+      const n = data.notify;
+      if (n) {
+        if (n.ok) alert("บันทึกแล้ว และแจ้งเลขพัสดุให้ลูกค้าแล้ว" + (n.line === "sent" ? " (LINE)" : "") + (n.email === "sent" ? " (อีเมล)" : ""));
+        else alert("บันทึกการจัดส่งแล้ว แต่แจ้งลูกค้าไม่สำเร็จ — โปรดแจ้งเองทางโทรศัพท์\n" + (n.errors ?? []).join("\n"));
+      }
     } catch (e: any) {
       alert(e.message);
     } finally {
@@ -229,9 +247,16 @@ export default function AdminOrdersPage() {
                 {/* Actions */}
                 {o.status === "paid" && (
                   <div className="flex gap-2 mt-3">
+                    <select
+                      className="text-xs border border-zinc-200 rounded-lg px-2 py-2 outline-none bg-white"
+                      value={carrierDraft[o.id] ?? o.carrier ?? ""}
+                      onChange={(e) => setCarrierDraft((d) => ({ ...d, [o.id]: e.target.value }))}>
+                      <option value="">เลือกขนส่ง</option>
+                      {CARRIERS.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
                     <input
                       type="text"
-                      placeholder="เลขพัสดุ (ถ้ามี)"
+                      placeholder="เลขพัสดุ"
                       className="flex-1 text-xs border border-zinc-200 rounded-lg px-3 py-2 outline-none"
                       value={trackingDraft[o.id] ?? o.tracking_no ?? ""}
                       onChange={(e) => setTrackingDraft((d) => ({ ...d, [o.id]: e.target.value }))}
@@ -245,7 +270,20 @@ export default function AdminOrdersPage() {
                   </div>
                 )}
                 {o.status === "shipped" && o.tracking_no && (
-                  <p className="text-[11px] text-zinc-500 mt-2">🚚 เลขพัสดุ: <span className="font-mono">{o.tracking_no}</span></p>
+                  <div className="mt-2 space-y-1">
+                    <p className="text-[11px] text-zinc-500">
+                      🚚 {carrierById(o.carrier)?.name ?? "ไม่ระบุขนส่ง"} · เลขพัสดุ: <span className="font-mono">{o.tracking_no}</span>
+                    </p>
+                    {o.shipped_notified_at ? (
+                      <p className="text-[11px] text-green-600">
+                        ✅ แจ้งลูกค้าแล้ว {new Date(o.shipped_notified_at).toLocaleString("th-TH")}
+                      </p>
+                    ) : (
+                      <p className="text-[11px] text-red-600">
+                        ⚠ ยังไม่ได้แจ้งลูกค้า{o.shipped_notify_error ? ` — ${o.shipped_notify_error}` : ""}
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
             );

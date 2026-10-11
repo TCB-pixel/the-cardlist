@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { carrierById, cleanTracking, trackingLooksValid } from "@/lib/carriers";
+import { notifyShipped } from "@/lib/order-notify";
 
 function getAdminSupabase() {
   return createClient(
@@ -67,11 +69,35 @@ export async function PATCH(request: NextRequest) {
 
   const updates: Record<string, unknown> = {};
   if (typeof body.status === "string") updates.status = body.status;           // paid | shipped | cancelled
-  if (typeof body.tracking_no === "string") updates.tracking_no = body.tracking_no;
+  if (typeof body.carrier === "string") {
+    if (body.carrier && !carrierById(body.carrier)) {
+      return NextResponse.json({ error: "ไม่รู้จักขนส่งนี้" }, { status: 400 });
+    }
+    updates.carrier = body.carrier || null;
+  }
+  if (typeof body.tracking_no === "string") updates.tracking_no = cleanTracking(body.tracking_no);
   if (typeof body.note === "string") updates.note = body.note;
 
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: "ไม่มีข้อมูลให้แก้ไข" }, { status: 400 });
+  }
+
+  // ── ก่อนบันทึก: ดูค่าเดิม เพื่อรู้ว่าเลขพัสดุเปลี่ยนจริงไหม (กันแจ้งซ้ำ) ──
+  const { data: before } = await auth.supabase
+    .from("orders")
+    .select("status, carrier, tracking_no, shipped_notified_at, shipped_notify_tracking")
+    .eq("id", orderId)
+    .maybeSingle();
+  if (!before) return NextResponse.json({ error: "ไม่พบออเดอร์" }, { status: 404 });
+
+  const nextStatus = (updates.status as string | undefined) ?? before.status;
+  const nextCarrier = (updates.carrier as string | null | undefined) ?? before.carrier;
+  const nextTracking = (updates.tracking_no as string | undefined) ?? before.tracking_no ?? "";
+
+  // จัดส่งแล้วต้องมีขนส่งและเลขพัสดุ ไม่งั้นลูกค้าตามพัสดุไม่ได้ — ปฏิเสธตั้งแต่ต้น
+  if (nextStatus === "shipped") {
+    if (!nextCarrier) return NextResponse.json({ error: "เลือกขนส่งก่อนกดจัดส่ง" }, { status: 400 });
+    if (!nextTracking) return NextResponse.json({ error: "กรอกเลขพัสดุก่อนกดจัดส่ง" }, { status: 400 });
   }
 
   const { error } = await auth.supabase
@@ -80,5 +106,33 @@ export async function PATCH(request: NextRequest) {
     .eq("id", orderId);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true });
+
+  // ── แจ้งลูกค้า: สถานะ shipped + มีเลข + (ยังไม่เคยแจ้ง หรือเลขเปลี่ยนจากที่เคยแจ้ง) ──
+  let notify: unknown = null;
+  const alreadyToldThisNumber =
+    !!before.shipped_notified_at && before.shipped_notify_tracking === nextTracking;
+
+  if (nextStatus === "shipped" && nextCarrier && nextTracking && !alreadyToldThisNumber) {
+    try {
+      const r = await notifyShipped(auth.supabase, orderId);
+      if (r.ok) {
+        await auth.supabase.from("orders").update({ shipped_notify_tracking: nextTracking }).eq("id", orderId);
+      }
+      notify = r;
+    } catch (e: any) {
+      // บันทึกสถานะสำเร็จแล้ว แจ้งลูกค้าพังต้องไม่ทำให้การจัดส่งดูเหมือนล้มเหลว
+      console.error("notifyShipped failed:", e);
+      notify = { ok: false, errors: [String(e?.message ?? e).slice(0, 200)] };
+    }
+  }
+
+  return NextResponse.json({
+    ok: true,
+    notify,
+    // เตือนเฉพาะรูปแบบเลขดูแปลก ไม่ปฏิเสธ (ขนส่งเปลี่ยนรูปแบบได้)
+    warning:
+      nextCarrier && nextTracking && !trackingLooksValid(nextCarrier, nextTracking)
+        ? "รูปแบบเลขพัสดุดูไม่ตรงกับขนส่งที่เลือก — ตรวจสอบอีกครั้งว่าพิมพ์ถูกไหม"
+        : null,
+  });
 }

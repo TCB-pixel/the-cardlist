@@ -6,6 +6,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { renderOrderConfirmEmail, escapeHtml } from "@/lib/order-email";
 import { buildOrderFlex, pushFlex } from "@/lib/line-order-flex";
+import { buildShippedFlex } from "@/lib/line-shipped-flex";
+import { carrierById, trackingLink, cleanTracking } from "@/lib/carriers";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://thecardlistbkk.com";
 
@@ -281,4 +283,97 @@ export async function resendCustomerLineCard(
 
   const r = await pushFlex(profile.line_user_id, flex);
   return r.ok ? { ok: true, to: "LINE ของลูกค้า" } : { ok: false, error: r.error };
+}
+
+
+// ─────────────────────────────────────────────────────────────
+// แจ้งลูกค้าว่าจัดส่งแล้ว + เลขพัสดุ (LINE การ์ด + อีเมล)
+// ─────────────────────────────────────────────────────────────
+
+export type ShippedResult = {
+  ok: boolean;
+  line: "sent" | "failed" | "no_line";
+  email: "sent" | "failed" | "no_email";
+  errors: string[];
+};
+
+// ส่งเมื่อ: สถานะ shipped + มีขนส่ง + มีเลขพัสดุ
+// กันซ้ำ: จดเวลา/เลขที่แจ้งไว้ใน orders — แก้เลขพัสดุใหม่แล้วจะแจ้งอีกครั้งด้วยเลขที่ถูกต้อง
+export async function notifyShipped(
+  supabase: SupabaseClient,
+  orderId: string
+): Promise<ShippedResult> {
+  const errors: string[] = [];
+  const result: ShippedResult = { ok: false, line: "no_line", email: "no_email", errors };
+
+  const { data: o } = await supabase
+    .from("orders")
+    .select("id, user_id, email, status, carrier, tracking_no, shipped_notified_at, shipped_notify_error, note, order_items(product_id, name, qty)")
+    .eq("id", orderId)
+    .maybeSingle();
+  if (!o) { errors.push("ไม่พบออเดอร์"); return result; }
+
+  const carrier = carrierById(o.carrier);
+  const tracking = cleanTracking(o.tracking_no ?? "");
+  if (!carrier || !tracking) { errors.push("ยังไม่มีขนส่งหรือเลขพัสดุ"); return result; }
+
+  const { data: profile } = await supabase
+    .from("profiles").select("line_user_id, receipt_email").eq("id", o.user_id).maybeSingle();
+
+  const rows = (o.order_items ?? []) as { product_id: string; name: string; qty: number }[];
+  const ids = rows.map((r) => r.product_id).filter(Boolean);
+  const imageById = new Map<string, string | null>();
+  if (ids.length > 0) {
+    const { data: prods } = await supabase.from("products").select("id, image_url").in("id", ids);
+    for (const p of prods ?? []) imageById.set(p.id, p.image_url ?? null);
+  }
+  const itemLines = rows.map((r) => ({
+    name: String(r.name ?? "สินค้า"), qty: Number(r.qty), imageUrl: imageById.get(r.product_id) ?? null,
+  }));
+  const orderRef = String(o.id).slice(0, 8).toUpperCase();
+  const page = trackingLink(carrier.id, tracking);
+
+  // ── LINE ──
+  if (profile?.line_user_id) {
+    const r = await pushFlex(
+      profile.line_user_id,
+      buildShippedFlex({ orderRef, carrierName: carrier.name, trackingNo: tracking, trackPage: page, itemLines, siteUrl: SITE_URL }) as any
+    );
+    result.line = r.ok ? "sent" : "failed";
+    if (!r.ok) errors.push(`LINE: ${r.error}`);
+  }
+
+  // ── อีเมล (ใช้อีเมลจริงเท่านั้น ตัดอีเมลปลอมของ LINE ทิ้ง) ──
+  const email =
+    (profile?.receipt_email && profile.receipt_email.trim()) ||
+    (o.email && !isFakeLineEmail(o.email) ? o.email : null);
+  if (email) {
+    const list = itemLines.map((i) => `<li>${escapeHtml(i.name)} × ${i.qty}</li>`).join("");
+    const html =
+      `<div style="font-family:Arial,sans-serif;max-width:480px">` +
+      `<h2 style="margin:0 0 4px">🚚 สินค้าของคุณถูกจัดส่งแล้ว</h2>` +
+      `<p style="color:#71717a;margin:0 0 16px">ออเดอร์ #${orderRef}</p>` +
+      `<p style="margin:0">ขนส่ง: <b>${escapeHtml(carrier.name)}</b></p>` +
+      `<p style="margin:4px 0 16px">เลขพัสดุ: <b style="font-size:18px;letter-spacing:1px">${escapeHtml(tracking)}</b></p>` +
+      `<ul style="color:#52525b;padding-left:18px">${list}</ul>` +
+      (page ? `<p><a href="${page}">เปิดหน้าติดตามพัสดุของ ${escapeHtml(carrier.name)}</a> (คัดลอกเลขพัสดุไปวาง)</p>` : "") +
+      `<p style="color:#a1a1aa;font-size:12px">ดูคำสั่งซื้อทั้งหมดได้ที่ ${SITE_URL}/orders</p></div>`;
+    const r = await sendEmail([email], `🚚 จัดส่งแล้ว #${orderRef} · ${carrier.name} ${tracking}`, html);
+    result.email = r.ok ? "sent" : "failed";
+    if (!r.ok) errors.push(`อีเมล: ${r.error}`);
+  }
+
+  // สำเร็จถ้าถึงลูกค้าอย่างน้อย 1 ช่องทาง
+  result.ok = result.line === "sent" || result.email === "sent";
+
+  await supabase
+    .from("orders")
+    .update(
+      result.ok
+        ? { shipped_notified_at: new Date().toISOString(), shipped_notify_error: errors.length ? errors.join(" | ").slice(0, 500) : null }
+        : { shipped_notify_error: (errors.join(" | ") || "ลูกค้าไม่มี LINE และไม่มีอีเมลจริง — แจ้งเองทางโทรศัพท์").slice(0, 500) }
+    )
+    .eq("id", orderId);
+
+  return result;
 }
