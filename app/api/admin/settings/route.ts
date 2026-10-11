@@ -3,6 +3,16 @@ import { adminDb, requireAdmin } from "@/lib/require-admin";
 
 const ALLOWED_KEYS = ["facebook_page_url", "order_notify_line_ids", "order_notify_emails"] as const;
 
+// ค่าตั้งค่า iShip — ตรวจรูปแบบรายตัว กันค่าเพี้ยนไปทำให้สร้างพัสดุผิด (และหักเครดิต)
+const ISHIP_KEYS = [
+  "iship_env", "iship_default_courier",
+  "iship_parcel_weight_kg", "iship_parcel_width_cm", "iship_parcel_length_cm", "iship_parcel_height_cm",
+  "iship_sender_name", "iship_sender_phone", "iship_sender_address",
+  "iship_sender_district", "iship_sender_amphure", "iship_sender_province", "iship_sender_zipcode",
+] as const;
+const isIshipKey = (k: unknown): k is (typeof ISHIP_KEYS)[number] =>
+  typeof k === "string" && (ISHIP_KEYS as readonly string[]).includes(k);
+
 // LINE user id = U + hex 32 ตัว, group = C..., room = R...
 const LINE_ID_RE = /^[UCR][0-9a-f]{32}$/;
 
@@ -57,7 +67,7 @@ export async function PATCH(req: Request) {
 
   try {
     const { key, value } = await req.json();
-    if (!ALLOWED_KEYS.includes(key)) {
+    if (!ALLOWED_KEYS.includes(key) && !isIshipKey(key)) {
       return NextResponse.json({ error: "ไม่รู้จักค่าตั้งค่านี้" }, { status: 400 });
     }
 
@@ -94,6 +104,36 @@ export async function PATCH(req: Request) {
         return NextResponse.json({ error: `อีเมลไม่ถูกต้อง: ${bad.join(", ")}` }, { status: 400 });
       }
       clean = Array.from(new Set(emails)).join(",");
+    }
+
+    if (isIshipKey(key)) {
+      // iship_env เปลี่ยนได้เฉพาะ owner — ตัวที่ตัดสินว่าสร้างพัสดุหักเครดิตจริงหรือแค่ทดสอบ
+      if (key === "iship_env") {
+        if (clean !== "uat" && clean !== "prod") {
+          return NextResponse.json({ error: "สภาพแวดล้อมต้องเป็น uat หรือ prod เท่านั้น" }, { status: 400 });
+        }
+        if (auth.caller.role !== "owner") {
+          return NextResponse.json({ error: "เฉพาะเจ้าของร้าน (owner) สลับระหว่างทดสอบ/ของจริงได้" }, { status: 403 });
+        }
+      }
+      if (key === "iship_default_courier" && !/^[A-Za-z0-9_]{2,40}$/.test(clean)) {
+        return NextResponse.json({ error: "รหัสขนส่งไม่ถูกต้อง (ใช้รหัสจาก iShip เช่น KerryExpress)" }, { status: 400 });
+      }
+      if (/^iship_parcel_/.test(key)) {
+        const n = Number(clean);
+        if (!Number.isFinite(n) || n <= 0 || n > 100) {
+          return NextResponse.json({ error: "ต้องเป็นตัวเลขมากกว่า 0 และไม่เกิน 100" }, { status: 400 });
+        }
+      }
+      if (key === "iship_sender_zipcode" && clean && !/^\d{5}$/.test(clean)) {
+        return NextResponse.json({ error: "รหัสไปรษณีย์ต้องเป็นตัวเลข 5 หลัก" }, { status: 400 });
+      }
+      if (key === "iship_sender_phone" && clean) {
+        clean = clean.replace(/\D/g, "").replace(/^66/, "0");
+        if (!/^0\d{8,9}$/.test(clean)) {
+          return NextResponse.json({ error: "เบอร์โทรผู้ส่งไม่ถูกต้อง" }, { status: 400 });
+        }
+      }
     }
 
     const { error } = await adminDb

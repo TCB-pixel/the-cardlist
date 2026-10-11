@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
+import IshipSettings from "./IshipSettings";
 import { useAdmin } from "@/lib/admin-context";
 
 export default function AdminSettingsPage() {
@@ -233,6 +234,8 @@ export default function AdminSettingsPage() {
           </p>
         )}
       </div>
+
+      <IshipSettings />
     </div>
   );
 }

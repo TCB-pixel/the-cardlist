@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase";
+import IshipDialog from "./IshipDialog";
 import { CARRIERS, carrierById, trackingLooksValid } from "@/lib/carriers";
 
 type OrderItem = {
@@ -51,6 +52,7 @@ export default function AdminOrdersPage() {
   const [resending, setResending] = useState<string | null>(null);
   const [carrierDraft, setCarrierDraft] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<string | null>(null);
+  const [ishipFor, setIshipFor] = useState<Order | null>(null);
 
   async function authedFetch(input: string, init?: RequestInit) {
     const { data: { session } } = await supabase.auth.getSession();
@@ -246,7 +248,13 @@ export default function AdminOrdersPage() {
 
                 {/* Actions */}
                 {o.status === "paid" && (
-                  <div className="flex gap-2 mt-3">
+                  <button onClick={() => setIshipFor(o)}
+                    className="mt-3 text-xs font-semibold border border-zinc-900 text-zinc-900 rounded-lg px-4 py-2 hover:bg-zinc-50">
+                    📦 สร้างพัสดุที่ iShip
+                  </button>
+                )}
+                {o.status === "paid" && (
+                  <div className="flex gap-2 mt-2">
                     <select
                       className="text-xs border border-zinc-200 rounded-lg px-2 py-2 outline-none bg-white"
                       value={carrierDraft[o.id] ?? o.carrier ?? ""}
@@ -289,6 +297,20 @@ export default function AdminOrdersPage() {
             );
           })}
         </div>
+      )}
+      {ishipFor && (
+        <IshipDialog
+          orderId={ishipFor.id}
+          orderRef={ishipFor.id.slice(0, 8).toUpperCase()}
+          onClose={() => setIshipFor(null)}
+          onCreated={(tracking, env) => {
+            setIshipFor(null);
+            load();
+            alert(env === "prod"
+              ? "สร้างพัสดุแล้ว เลข " + tracking + " — ออเดอร์ขึ้นสถานะจัดส่งและแจ้งลูกค้าแล้ว (ถ้าขนส่งรู้จัก) ตรวจผลที่การ์ดออเดอร์"
+              : "สร้างพัสดุทดสอบ (UAT) แล้ว เลข " + tracking + " — ไม่ได้เปลี่ยนสถานะออเดอร์และไม่ได้แจ้งลูกค้า");
+          }}
+        />
       )}
     </div>
   );
