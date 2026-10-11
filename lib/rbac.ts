@@ -9,7 +9,8 @@ export type Permission =
   | "members:view" | "members:edit"
   | "artists:view" | "artists:create" | "artists:edit" | "artists:delete"
   | "play:view" | "play:scan" | "play:manage"
-  | "staff:view" | "staff:create" | "staff:edit" | "staff:delete";
+  | "staff:view" | "staff:create" | "staff:edit" | "staff:delete"
+  | "chatbot:view" | "chatbot:edit";
 
 const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
   owner: [
@@ -22,6 +23,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
     "artists:view", "artists:create", "artists:edit", "artists:delete",
     "play:view", "play:scan", "play:manage",
     "staff:view", "staff:create", "staff:edit", "staff:delete",
+    "chatbot:view", "chatbot:edit",
   ],
   head_staff: [
     "dashboard:view",
@@ -33,6 +35,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
     "artists:view", "artists:create", "artists:edit", "artists:delete",
     "play:view", "play:scan", "play:manage",
     "staff:view", "staff:create", "staff:edit",
+    "chatbot:view", "chatbot:edit",
     // head_staff ลบ staff ไม่ได้, สร้าง/แก้ได้แค่ staff (ไม่ใช่ owner/head_staff)
   ],
   staff: [
@@ -46,6 +49,8 @@ const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
     // staff หน้าร้านต้องสแกนบันทึกการมาเล่นได้ แต่ตั้งค่าสิทธิ์/แก้รางวัลไม่ได้
     "play:view", "play:scan",
     "staff:view",
+    // staff ดูแชทได้ แต่แก้ข้อมูลร้าน/อนุมัติคำตอบไม่ได้
+    "chatbot:view",
   ],
 };
 

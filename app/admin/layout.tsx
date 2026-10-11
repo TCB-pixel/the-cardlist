@@ -71,6 +71,17 @@ const NAV: NavGroup[] = [
     ],
   },
   {
+    group: "แชทบอท LINE",
+    items: [
+      { href: "/admin/chatbot/pending", label: "รออนุมัติ", permission: "chatbot:view",
+        icon: <><circle cx="10" cy="10" r="7.5" stroke="currentColor" strokeWidth="1.3" fill="none"/><path d="M10 6v4l2.5 2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" fill="none"/></> },
+      { href: "/admin/chatbot/history", label: "ประวัติแชท", permission: "chatbot:view",
+        icon: <path d="M3 4.5A1.5 1.5 0 014.5 3h11A1.5 1.5 0 0117 4.5v8a1.5 1.5 0 01-1.5 1.5H8l-4 3v-3h0.5A1.5 1.5 0 013 12.5v-8z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" fill="none"/> },
+      { href: "/admin/chatbot/knowledge", label: "ข้อมูลร้านสำหรับ AI", permission: "chatbot:view",
+        icon: <><path d="M4 3h9l3 3v11H4z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" fill="none"/><line x1="7" y1="9" x2="13" y2="9" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><line x1="7" y1="12" x2="13" y2="12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></> },
+    ],
+  },
+  {
     group: "ระบบ",
     items: [
       { href: "/admin/settings", label: "ตั้งค่าเว็บไซต์", permission: "news:view",

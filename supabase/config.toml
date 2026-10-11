@@ -1,0 +1,22 @@
+# LINE และ pg_cron ไม่ได้ส่ง Supabase JWT มา — สองฟังก์ชันนี้ตรวจสิทธิ์เอง
+# (line-webhook ตรวจ x-line-signature, daily-summary ตรวจรหัสลับใน Vault)
+[functions.line-webhook]
+verify_jwt = false
+
+[functions.daily-summary]
+verify_jwt = false
+
+# บอทสั่งงานทีม — team-bot ตรวจ x-line-signature (TEAM_LINE_CHANNEL_SECRET), team-jobs ตรวจรหัสลับใน Vault
+[functions.team-bot]
+verify_jwt = false
+
+[functions.team-jobs]
+verify_jwt = false
+
+# ซิงก์สินค้า Loyverse → เว็บ (loyverse-web-sync) — pg_cron / ปุ่มแอดมิน (ผ่าน loyverse_sync_now) ส่งรหัสลับใน Vault มา
+[functions.loyverse-web-sync]
+verify_jwt = false
+
+# คัดลอกข้อมูล Loyverse ทั้งหมดไป schema loyverse ทุก 10 นาที (รายงานยอดขาย) — ตรวจรหัสลับ loyverse_cron_secret ใน Vault
+[functions.loyverse-sync]
+verify_jwt = false
