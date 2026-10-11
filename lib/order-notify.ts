@@ -218,3 +218,67 @@ export async function notifyOrder(supabase: SupabaseClient, n: NotifyInput) {
     await supabase.from("orders").update({ note: note.slice(0, 1000) }).eq("id", orderId);
   }
 }
+
+
+// ── ส่งการ์ดยืนยันออเดอร์ให้ "ลูกค้า" ซ้ำ (LINE เท่านั้น) ──
+// ใช้เมื่อออเดอร์ถูกสร้างก่อนระบบแจ้งเตือนใหม่ หรือลูกค้าถามหาสถานะ
+// อ่านจากออเดอร์ที่บันทึกไว้ในฐานข้อมูล จึงไม่ต้องพึ่งข้อมูลจาก Stripe
+// จงใจไม่แจ้งทีมงานและไม่ส่งอีเมล เพื่อไม่ให้การกดส่งซ้ำไปรบกวนช่องทางอื่น
+export async function resendCustomerLineCard(
+  supabase: SupabaseClient,
+  orderId: string
+): Promise<{ ok: true; to: string } | { ok: false; error: string }> {
+  const { data: o } = await supabase
+    .from("orders")
+    .select("id, user_id, total_amount, shipping_fee, recipient_name, phone, address_line1, address_line2, district, province, postal_code, order_items(product_id, name, price, qty)")
+    .eq("id", orderId)
+    .maybeSingle();
+  if (!o) return { ok: false, error: "ไม่พบออเดอร์นี้" };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("line_user_id")
+    .eq("id", o.user_id)
+    .maybeSingle();
+  if (!profile?.line_user_id) return { ok: false, error: "ลูกค้ารายนี้ยังไม่ได้ผูกบัญชี LINE" };
+
+  const rows = (o.order_items ?? []) as { product_id: string; name: string; price: number; qty: number }[];
+  const ids = rows.map((r) => r.product_id).filter(Boolean);
+  const imageById = new Map<string, string | null>();
+  if (ids.length > 0) {
+    const { data: prods } = await supabase.from("products").select("id, image_url").in("id", ids);
+    for (const p of prods ?? []) imageById.set(p.id, p.image_url ?? null);
+  }
+  const lines = rows.map((r) => ({
+    name: String(r.name ?? "สินค้า"),
+    price: Number(r.price),
+    qty: Number(r.qty),
+    imageUrl: imageById.get(r.product_id) ?? null,
+  }));
+
+  const shippingFee = Number(o.shipping_fee ?? 0);
+  const total = Number(o.total_amount ?? 0);
+  const subtotal = lines.reduce((s, l) => s + l.price * l.qty, 0);
+  // ส่วนต่างที่ไม่ใช่สินค้า/ค่าส่ง = ค่าธรรมเนียมบัตร (ถ้ามี)
+  const cardFee = Math.max(0, Math.round((total - subtotal - shippingFee) * 100) / 100);
+
+  const addr: NotifyShipping = {
+    name: o.recipient_name, phone: o.phone, line1: o.address_line1, line2: o.address_line2,
+    city: o.district, state: o.province, postal_code: o.postal_code, country: "TH",
+  };
+
+  const flex = buildOrderFlex({
+    orderRef: String(o.id).slice(0, 8).toUpperCase(),
+    items: lines,
+    subtotal,
+    shippingFee,
+    cardFee,
+    total,
+    shippingName: addr.name,
+    shippingAddress: addressText(addr) || null,
+    siteUrl: SITE_URL,
+  });
+
+  const r = await pushFlex(profile.line_user_id, flex);
+  return r.ok ? { ok: true, to: "LINE ของลูกค้า" } : { ok: false, error: r.error };
+}

@@ -44,6 +44,7 @@ export default function AdminOrdersPage() {
   const [err, setErr] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("all");
   const [trackingDraft, setTrackingDraft] = useState<Record<string, string>>({});
+  const [resending, setResending] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
 
   async function authedFetch(input: string, init?: RequestInit) {
@@ -74,6 +75,28 @@ export default function AdminOrdersPage() {
   }
 
   useEffect(() => { load(); }, []);
+
+  // ส่งการ์ดยืนยันออเดอร์ให้ลูกค้าทาง LINE อีกครั้ง (ถามยืนยันก่อน เพราะเป็นข้อความถึงลูกค้าจริง)
+  async function resendConfirm(o: Order) {
+    if (resending) return;
+    const who = o.recipient_name || o.email || "ลูกค้า";
+    if (!window.confirm(`ส่งการ์ดยืนยันออเดอร์ #${o.id.slice(0, 8).toUpperCase()} ให้ ${who} ทาง LINE อีกครั้งใช่ไหม?`)) return;
+    setResending(o.id);
+    try {
+      const res = await authedFetch("/api/admin/orders/resend-confirm", {
+        method: "POST",
+        body: JSON.stringify({ orderId: o.id }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error ?? "ส่งไม่สำเร็จ");
+      window.alert("ส่งการ์ดยืนยันให้ลูกค้าแล้ว");
+      load();
+    } catch (e: any) {
+      window.alert("ส่งไม่สำเร็จ: " + (e?.message ?? "ไม่ทราบสาเหตุ"));
+    } finally {
+      setResending(null);
+    }
+  }
 
   async function markShipped(o: Order) {
     const tracking = (trackingDraft[o.id] ?? o.tracking_no ?? "").trim();
@@ -197,6 +220,11 @@ export default function AdminOrdersPage() {
                     <p className="text-[10px] text-red-400 mt-0.5 break-all">{o.confirm_email_error}</p>
                   </div>
                 ) : null}
+
+                <button onClick={() => resendConfirm(o)} disabled={resending === o.id}
+                  className="mt-2 text-[11px] text-zinc-500 border border-zinc-200 rounded-lg px-3 py-1.5 hover:bg-zinc-50 disabled:opacity-40">
+                  {resending === o.id ? "กำลังส่ง..." : "📨 ส่งการ์ดยืนยันซ้ำทาง LINE"}
+                </button>
 
                 {/* Actions */}
                 {o.status === "paid" && (
