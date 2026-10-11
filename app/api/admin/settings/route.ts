@@ -99,7 +99,7 @@ export async function PATCH(req: Request) {
     if (key === "order_notify_emails") {
       // ปล่อยค่าว่างได้ = ไม่แจ้งเตือนทางอีเมล
       const emails = clean.split(",").map((v) => v.trim().toLowerCase()).filter(Boolean);
-      const bad = emails.filter((e) => !/^[^s@]+@[^s@]+.[^s@]+$/.test(e));
+      const bad = emails.filter((e) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
       if (bad.length) {
         return NextResponse.json({ error: `อีเมลไม่ถูกต้อง: ${bad.join(", ")}` }, { status: 400 });
       }
