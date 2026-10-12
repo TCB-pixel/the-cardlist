@@ -113,6 +113,12 @@ export async function POST(req: NextRequest) {
     const { name, sub, sku, price, stock, category, tcg, badge, rarity, image_url, description, cost_price, images } = body;
     const is_preorder = body.is_preorder === true;
     const preorder_release_date = is_preorder && /^\d{4}-\d{2}-\d{2}$/.test(body.preorder_release_date ?? "") ? body.preorder_release_date : null;
+    const preorder_deposit = is_preorder && Number(body.preorder_deposit) > 0 ? Number(body.preorder_deposit) : null;
+    const preorder_close_at = is_preorder && body.preorder_close_at && !isNaN(new Date(body.preorder_close_at).getTime())
+      ? new Date(body.preorder_close_at).toISOString() : null;
+    if (preorder_deposit !== null && preorder_deposit >= Number(price)) {
+      return NextResponse.json({ error: "ค่ามัดจำต้องน้อยกว่าราคาเต็ม" }, { status: 400 });
+    }
 
     if (!name || price === undefined || stock === undefined) {
       return NextResponse.json({ error: "กรอกข้อมูลไม่ครบ" }, { status: 400 });
@@ -127,7 +133,7 @@ export async function POST(req: NextRequest) {
         cost_price: cost_price === undefined || cost_price === "" ? null : Number(cost_price),
         // เริ่มนับอายุ badge ตั้งแต่ตอนตั้งค่า — NEW จะหายเองเมื่อครบ 14 วัน
         badge_set_at: badge ? new Date().toISOString() : null,
-        is_preorder, preorder_release_date,
+        is_preorder, preorder_release_date, preorder_deposit, preorder_close_at,
         active: true,
       })
       .select("*")
@@ -218,6 +224,13 @@ export async function PATCH(req: NextRequest) {
       update.is_preorder = body.is_preorder === true;
       update.preorder_release_date =
         update.is_preorder && /^\d{4}-\d{2}-\d{2}$/.test(body.preorder_release_date ?? "") ? body.preorder_release_date : null;
+      update.preorder_deposit = update.is_preorder && Number(body.preorder_deposit) > 0 ? Number(body.preorder_deposit) : null;
+      update.preorder_close_at = update.is_preorder && body.preorder_close_at && !isNaN(new Date(body.preorder_close_at).getTime())
+        ? new Date(body.preorder_close_at).toISOString() : null;
+      const priceNow = body.price !== undefined ? Number(body.price) : undefined;
+      if (update.preorder_deposit !== null && priceNow !== undefined && (update.preorder_deposit as number) >= priceNow) {
+        return NextResponse.json({ error: "ค่ามัดจำต้องน้อยกว่าราคาเต็ม" }, { status: 400 });
+      }
     }
     // เปลี่ยน badge = เริ่มนับ 14 วันใหม่ / ล้าง badge = ล้างวันที่ด้วย
     if (body.badge !== undefined) {

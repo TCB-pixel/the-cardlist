@@ -2,7 +2,7 @@
 // ไฟล์ route ของ Next.js export ได้เฉพาะ handler จึงต้องเก็บส่วนนี้ไว้นอก route
 import { renderOrderConfirmEmail, type OrderEmailData } from "@/lib/order-email";
 import { notifyOrder } from "@/lib/order-notify";
-import { preorderLabel } from "@/lib/preorder";
+import { preorderLabel, depositOf } from "@/lib/preorder";
 import Stripe from "stripe";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
@@ -312,7 +312,7 @@ async function createShopOrder(
   // พรีออเดอร์: ดูสถานะจากฐานข้อมูลจริง ไม่เชื่อค่าที่มากับตะกร้า — ใส่ป้ายท้ายชื่อให้ทุกช่องทางแจ้งลูกค้าเห็นตรงกัน
   const { data: poRows } = await supabase
     .from("products")
-    .select("id, is_preorder, preorder_release_date")
+    .select("id, price, is_preorder, preorder_release_date, preorder_deposit")
     .in("id", items.map((i: any) => i.id).filter(Boolean));
   const poMap = new Map((poRows ?? []).map((r: any) => [r.id, r]));
 
@@ -324,7 +324,9 @@ async function createShopOrder(
       order_id: order.id,
       product_id: item.id,
       is_preorder: isPre,
-      name: isPre ? preorderLabel(String(item.name), po.preorder_release_date) : item.name,
+      // มัดจำ: เก็บราคาเต็มไว้ เพื่อให้หลังบ้านรู้ยอดค้างชำระ (price = ที่ลูกค้าจ่ายแล้วจริง)
+      full_price: isPre && depositOf(po) ? Number(po.price) : null,
+      name: isPre ? preorderLabel(String(item.name), po) : item.name,
       price: item.price,
       // order_items มีจำนวน 2 คอลัมน์ (quantity NOT NULL default 1 / qty ที่หน้าเว็บอ่าน) เขียนทั้งคู่ให้ตรงกัน
       quantity: item.qty,

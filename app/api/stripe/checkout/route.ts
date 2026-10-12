@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SHIPPING_FEE } from "@/lib/order-email";
-import { preorderLabel } from "@/lib/preorder";
+import { preorderLabel, payableOf, depositOf, isPreorderClosed } from "@/lib/preorder";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     const ids = items.map((it: any) => it.id).filter(Boolean);
     const { data: products, error: prodErr } = await supabase
       .from("products")
-      .select("id, name, stock, is_preorder, preorder_release_date")
+      .select("id, name, price, stock, is_preorder, preorder_release_date, preorder_deposit, preorder_close_at")
       .in("id", ids);
 
     if (prodErr) {
@@ -72,6 +72,12 @@ export async function POST(request: NextRequest) {
       const wantQty = Number(it.qty);
       if (!p) {
         return NextResponse.json({ error: `ไม่พบสินค้า: ${it.name ?? it.id}` }, { status: 400 });
+      }
+      if (isPreorderClosed(p as any)) {
+        return NextResponse.json({ error: `${p.name} ปิดรับพรีออเดอร์แล้ว กรุณาเอาออกจากตะกร้า` }, { status: 400 });
+      }
+      if (!Number.isInteger(wantQty) || wantQty < 1) {
+        return NextResponse.json({ error: "จำนวนสินค้าไม่ถูกต้อง" }, { status: 400 });
       }
       if (p.stock < wantQty) {
         return NextResponse.json(
@@ -131,12 +137,16 @@ export async function POST(request: NextRequest) {
 
     // เก็บ items แบบกระชับลง metadata (Stripe จำกัด 500 ตัวอักษร/ฟิลด์) — ไม่รวมค่าธรรมเนียมบัตร
     // (ค่าธรรมเนียมไม่ใช่สินค้า ไม่ต้องตัดสต็อก/สร้าง order_items ให้)
-    const compactItems = items.map((it: any) => ({
-      id: it.id,
-      name: it.name,
-      price: Number(it.price),
-      qty: Number(it.qty),
-    }));
+    // ราคาใช้ค่าจากฐานข้อมูลเสมอ ไม่เชื่อราคาที่ส่งมาจากเบราว์เซอร์ (พรีออเดอร์แบบมัดจำ = จ่ายแค่ค่ามัดจำต่อชิ้น)
+    const compactItems = items.map((it: any) => {
+      const dbp = stockMap.get(it.id) as any;
+      return {
+        id: it.id,
+        name: dbp?.name ?? it.name,
+        price: payableOf(dbp),
+        qty: Number(it.qty),
+      };
+    });
     const itemsJson = JSON.stringify(compactItems);
 
     // ── ค่าธรรมเนียมบัตรเครดิต/เดบิต 3% — แสดงเป็นรายการแยกชัดเจน ไม่ซ่อนในราคาสินค้า ──
@@ -145,11 +155,13 @@ export async function POST(request: NextRequest) {
     // ค่าธรรมเนียมบัตรคิดจากราคาสินค้าเท่านั้น ไม่คิดทับค่าจัดส่ง (คงพฤติกรรมเดิมไว้)
     const cardFee = paymentMethod === "card" ? Math.round(subtotal * 0.03) : 0;
     // ค่าบริการจัดส่ง คิดต่อ 1 คำสั่งซื้อ ไม่ใช่ต่อชิ้น
-    const shippingFee = SHIPPING_FEE;
+    // ออเดอร์ที่มีแต่ค่ามัดจำ ยังไม่ส่งของ จึงยังไม่เก็บค่าจัดส่ง (เก็บตอนชำระส่วนที่เหลือ)
+    const hasShippableNow = items.some((it: any) => !depositOf(stockMap.get(it.id) as any));
+    const shippingFee = hasShippableNow ? SHIPPING_FEE : 0;
 
     const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = items.map((it: any) => {
       const dbp = stockMap.get(it.id) as any;
-      const displayName = dbp?.is_preorder ? preorderLabel(String(it.name), dbp.preorder_release_date) : it.name;
+      const displayName = dbp?.is_preorder ? preorderLabel(String(dbp.name), dbp) : dbp?.name ?? it.name;
       return {
       price_data: {
         currency: "thb",
@@ -157,20 +169,22 @@ export async function POST(request: NextRequest) {
           name: displayName,
           ...(it.image_url ? { images: [it.image_url] } : {}),
         },
-        unit_amount: Number(it.price) * 100,
+        unit_amount: Math.round(payableOf(dbp) * 100),
       },
       quantity: Number(it.qty),
     };
     });
 
-    lineItems.push({
-      price_data: {
-        currency: "thb",
-        product_data: { name: "ค่าบริการจัดส่ง" },
-        unit_amount: shippingFee * 100,
-      },
-      quantity: 1,
-    });
+    if (shippingFee > 0) {
+      lineItems.push({
+        price_data: {
+          currency: "thb",
+          product_data: { name: "ค่าบริการจัดส่ง" },
+          unit_amount: shippingFee * 100,
+        },
+        quantity: 1,
+      });
+    }
 
     if (cardFee > 0) {
       lineItems.push({

@@ -25,6 +25,8 @@ type Product = {
   cost_price: number | null;
   is_preorder?: boolean;
   preorder_release_date?: string | null;
+  preorder_deposit?: number | null;
+  preorder_close_at?: string | null;
 };
 
 type StockMovement = {
@@ -68,8 +70,19 @@ const EMPTY: Omit<Product, "id" | "active"> = {
   category: "Single Cards", tcg: "One Piece",
   badge: "", rarity: "", image_url: null, images: [], description: "",
   cost_price: null,
-  is_preorder: false, preorder_release_date: null,
+  is_preorder: false, preorder_release_date: null, preorder_deposit: null, preorder_close_at: null,
 };
+
+// ISO → ค่าสำหรับ <input type="datetime-local"> ตามเวลาไทย (UTC+7)
+function isoToThaiLocal(iso?: string | null): string {
+  if (!iso) return "";
+  const t = new Date(iso).getTime();
+  return isNaN(t) ? "" : new Date(t + 7 * 3600000).toISOString().slice(0, 16);
+}
+// ค่าจาก datetime-local (เวลาไทย) → ISO
+function thaiLocalToIso(v: string): string | null {
+  return v ? new Date(`${v}:00+07:00`).toISOString() : null;
+}
 
 const STATUS_STYLE: Record<string, string> = {
   "PRE-ORDER": "bg-zinc-100 text-zinc-600",
@@ -269,6 +282,7 @@ export default function AdminProductsPage() {
       image_url: p.image_url, images: p.images ?? [], description: p.description,
       cost_price: p.cost_price,
       is_preorder: !!p.is_preorder, preorder_release_date: p.preorder_release_date ?? null,
+      preorder_deposit: p.preorder_deposit ?? null, preorder_close_at: p.preorder_close_at ?? null,
     });
     setImgPreview(p.image_url);
     setError("");
@@ -767,8 +781,22 @@ export default function AdminProductsPage() {
                       <label className={labelCls}>วันวางจำหน่าย / วันที่คาดว่าจะส่งของ</label>
                       <input type="date" className={inputCls} value={form.preorder_release_date ?? ""}
                         onChange={e => setForm(f => ({ ...f, preorder_release_date: e.target.value || null }))} />
+                      <div className="grid grid-cols-2 gap-2 mt-2">
+                        <div>
+                          <label className={labelCls}>ค่ามัดจำต่อชิ้น (บาท)</label>
+                          <input type="number" min={0} className={inputCls} placeholder="เว้นว่าง = จ่ายเต็ม"
+                            value={form.preorder_deposit ?? ""}
+                            onChange={e => setForm(f => ({ ...f, preorder_deposit: e.target.value === "" ? null : Number(e.target.value) }))} />
+                        </div>
+                        <div>
+                          <label className={labelCls}>ปิดรับออเดอร์ (เวลาไทย)</label>
+                          <input type="datetime-local" className={inputCls}
+                            value={isoToThaiLocal(form.preorder_close_at)}
+                            onChange={e => setForm(f => ({ ...f, preorder_close_at: thaiLocalToIso(e.target.value) }))} />
+                        </div>
+                      </div>
                       <p className="text-[10px] text-zinc-400 mt-1.5">
-                        ช่อง "สต็อก" ใช้เป็นโควต้าที่เปิดรับพรีออเดอร์ — เต็มโควต้าแล้วระบบปิดรับเอง · ลูกค้าจ่ายเต็มจำนวนตอนสั่ง และจัดส่งหลังของเข้า
+                        ช่อง "สต็อก" ใช้เป็นโควต้าที่เปิดรับ — เต็มโควต้าแล้วระบบปิดรับเอง · ใส่ค่ามัดจำ = ลูกค้าจ่ายแค่มัดจำตอนสั่ง ส่วนที่เหลือเก็บตอนสินค้าเข้า (ไม่เก็บค่าจัดส่งตอนมัดจำ) · เลยเวลาปิดรับระบบไม่ให้สั่งเอง
                       </p>
                     </div>
                   )}

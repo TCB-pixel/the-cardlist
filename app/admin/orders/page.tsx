@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase";
 import IshipDialog from "./IshipDialog";
 import { CARRIERS, carrierById, trackingLooksValid } from "@/lib/carriers";
@@ -9,6 +9,7 @@ type OrderItem = {
   name: string;
   price: number;
   qty: number;
+  full_price?: number | null;
 };
 
 type Order = {
@@ -197,10 +198,18 @@ export default function AdminOrdersPage() {
                 {/* Items */}
                 <div className="border-t border-zinc-50 pt-2 space-y-1">
                   {(o.order_items ?? []).map((it) => (
-                    <div key={it.id} className="flex justify-between text-xs">
+                    <Fragment key={it.id}>
+                    <div className="flex justify-between text-xs">
                       <span className="text-zinc-700">{it.name} <span className="text-zinc-400">×{it.qty}</span></span>
                       <span className="text-zinc-500">฿{(Number(it.price) * it.qty).toLocaleString()}</span>
                     </div>
+                    {it.full_price != null && Number(it.full_price) > Number(it.price) && (
+                      <div key={it.id + "-bal"} className="flex justify-between text-[11px] text-amber-700 -mt-0.5">
+                        <span>ค้างชำระเมื่อสินค้าเข้า</span>
+                        <span className="font-semibold">฿{((Number(it.full_price) - Number(it.price)) * it.qty).toLocaleString()}</span>
+                      </div>
+                    )}
+                    </Fragment>
                   ))}
                   {Number(o.shipping_fee ?? 0) > 0 && (
                     <div className="flex justify-between text-xs">

@@ -1,5 +1,5 @@
 "use client";
-import { formatReleaseDate } from "@/lib/preorder";
+import { formatReleaseDate, formatCloseAt, isPreorderClosed, depositOf, payableOf } from "@/lib/preorder";
 import { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import BottomNav from "@/components/BottomNav";
@@ -25,6 +25,8 @@ type Product = {
   description?: string | null;
   is_preorder?: boolean;
   preorder_release_date?: string | null;
+  preorder_deposit?: number | null;
+  preorder_close_at?: string | null;
 };
 
 type CartItem = { id: string; name: string; price: number; qty: number };
@@ -135,7 +137,7 @@ export default function ShopPage() {
       setLoading(true);
       const { data } = await supabase
         .from("products")
-        .select("id, name, sub, description, price, stock, category, tcg, badge, badge_set_at, rarity, image_url, is_preorder, preorder_release_date, product_images(url, order)")
+        .select("id, name, sub, description, price, stock, category, tcg, badge, badge_set_at, rarity, image_url, is_preorder, preorder_release_date, preorder_deposit, preorder_close_at, product_images(url, order)")
         .eq("active", true)
         .order("created_at", { ascending: false });
       setProducts(((data ?? []) as any[]).map((p) => ({
@@ -291,7 +293,9 @@ export default function ShopPage() {
   const totalItems = cart.reduce((s, i) => s + i.qty, 0);
   const totalPrice = cart.reduce((s, i) => s + i.price * i.qty, 0);
   // ค่าจัดส่งคิดต่อคำสั่งซื้อ ตะกร้าว่างไม่ต้องคิด
-  const shippingFee = cart.length > 0 ? SHIPPING_FEE : 0;
+  // มัดจำอย่างเดียว = ยังไม่ส่งของ จึงยังไม่เก็บค่าจัดส่ง (เก็บตอนชำระส่วนที่เหลือ)
+  const hasShippableNow = cart.some((i) => !depositOf((products.find((p) => p.id === i.id) ?? { price: 0 }) as any));
+  const shippingFee = cart.length > 0 && hasShippableNow ? SHIPPING_FEE : 0;
   const cardFee = Math.round(totalPrice * 0.03);
 
   function addToCart(p: Product) {
@@ -301,7 +305,7 @@ export default function ShopPage() {
         if (ex.qty >= p.stock) return prev; // ห้ามเกินสต็อก
         return prev.map((i) => i.id === p.id ? { ...i, qty: i.qty + 1 } : i);
       }
-      return [...prev, { id: p.id, name: p.name, price: p.price, qty: 1 }];
+      return [...prev, { id: p.id, name: p.name, price: payableOf(p as any), qty: 1 }];
     });
     setToast(p.name);
     setTimeout(() => setToast(null), 2000);
@@ -456,21 +460,24 @@ export default function ShopPage() {
                     className="text-[11px] font-semibold text-zinc-900 leading-snug line-clamp-3 cursor-pointer hover:underline">{splitName(p.name).rest}</p>
                   <p className="text-[9px] text-zinc-400 mt-0.5 leading-tight truncate">{p.sub}</p>
                   <p className="text-[13px] font-bold text-zinc-900 mt-2">฿{p.price.toLocaleString()}</p>
+                  {depositOf(p as any) && (
+                    <p className="text-[9px] text-amber-700 font-semibold">มัดจำ ฿{depositOf(p as any)!.toLocaleString()}</p>
+                  )}
                   {p.is_preorder && p.preorder_release_date && (
                     <p className="text-[9px] text-amber-700 font-semibold mt-0.5">วางจำหน่าย {formatReleaseDate(p.preorder_release_date, false)}</p>
                   )}
                   <p className="text-[9px] text-zinc-400 mt-0.5">
                     {p.is_preorder
-                      ? (p.stock <= 0 ? "เต็มโควต้าแล้ว" : p.stock <= 10 ? `เหลือโควต้า ${p.stock}` : "เปิดรับพรีออเดอร์")
+                      ? (isPreorderClosed(p) ? "ปิดรับแล้ว" : p.stock <= 0 ? "เต็มโควต้าแล้ว" : p.stock <= 10 ? `เหลือโควต้า ${p.stock}` : "เปิดรับพรีออเดอร์")
                       : (p.stock <= 0 ? "หมดสต็อก" : p.stock <= 3 ? `เหลือ ${p.stock} ใบ` : "มีสต็อก")}
                   </p>
 
                   {!lot ? (
                     <button
                       onClick={() => addToCart(p)}
-                      disabled={p.stock <= 0}
+                      disabled={p.stock <= 0 || isPreorderClosed(p)}
                       className="mt-2 w-full text-[10px] bg-zinc-900 text-white rounded-lg py-1.5 tracking-wide active:opacity-70 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed">
-                      {p.stock <= 0 ? (p.is_preorder ? "เต็มโควต้า" : "หมดสต็อก") : (p.is_preorder ? "+ พรีออเดอร์" : "+ ตะกร้า")}
+                      {isPreorderClosed(p) ? "ปิดรับแล้ว" : p.stock <= 0 ? (p.is_preorder ? "เต็มโควต้า" : "หมดสต็อก") : (p.is_preorder ? "+ พรีออเดอร์" : "+ ตะกร้า")}
                     </button>
                   ) : lot.status === "open" ? (
                     lot.myEntry ? (
@@ -548,8 +555,11 @@ export default function ShopPage() {
             <div className="flex-shrink-0 px-5 pt-3 pb-6 border-t border-zinc-100 bg-white">
               {cart.some((i) => products.find((p) => p.id === i.id)?.is_preorder) && (
                 <p className="text-[10px] text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mb-3 leading-relaxed">
-                  📦 ตะกร้ามีสินค้า<b>พรีออเดอร์</b> — ชำระเต็มจำนวนตอนสั่ง และจัดส่งหลังสินค้าวางจำหน่าย
-                  (ถ้าสั่งรวมกับสินค้าอื่น จะจัดส่งพร้อมกันเมื่อของครบ)
+                  📦 ตะกร้ามีสินค้า<b>พรีออเดอร์</b> —{" "}
+                  {cart.some((i) => depositOf((products.find((p) => p.id === i.id) ?? { price: 0 }) as any))
+                    ? "ชำระเฉพาะค่ามัดจำตอนนี้ ส่วนที่เหลือชำระเมื่อสินค้าเข้า"
+                    : "ชำระเต็มจำนวนตอนสั่ง"}
+                  {" "}และจัดส่งหลังสินค้าวางจำหน่าย (ถ้าสั่งรวมกับสินค้าอื่น จะจัดส่งพร้อมกันเมื่อของครบ)
                 </p>
               )}
               <div className="space-y-1 mb-3">
@@ -682,13 +692,17 @@ function ProductDetail({ product, lottery, onClose, onAdd }: {
           <p className="text-xl font-bold text-zinc-900 mt-3">฿{product.price.toLocaleString()}</p>
           {product.is_preorder && (
             <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mt-2 leading-relaxed">
-              📦 พรีออเดอร์{product.preorder_release_date ? ` · วางจำหน่าย ${formatReleaseDate(product.preorder_release_date)}` : ""}
-              <br />ชำระเต็มจำนวนตอนสั่ง และจัดส่งหลังสินค้าวางจำหน่าย
+              📦 พรีออเดอร์{product.preorder_release_date ? ` · คาดว่าวางจำหน่าย ${formatReleaseDate(product.preorder_release_date)}` : ""}
+              {depositOf(product as any)
+                ? <><br />มัดจำชุดละ ฿{depositOf(product as any)!.toLocaleString()} (ส่วนที่เหลือ ฿{(product.price - depositOf(product as any)!).toLocaleString()} ชำระเมื่อสินค้าเข้า)</>
+                : <><br />ชำระเต็มจำนวนตอนสั่ง</>}
+              {product.preorder_close_at && <><br />ปิดรับออเดอร์ {formatCloseAt(product.preorder_close_at)}</>}
+              <br />จัดส่งหลังสินค้าวางจำหน่าย
             </p>
           )}
           <p className="text-[11px] text-zinc-400 mt-0.5">
             {product.is_preorder
-              ? (product.stock <= 0 ? "เต็มโควต้าแล้ว" : `เหลือโควต้า ${product.stock}`)
+              ? (isPreorderClosed(product) ? "ปิดรับแล้ว" : product.stock <= 0 ? "เต็มโควต้าแล้ว" : `เหลือโควต้า ${product.stock}`)
               : (product.stock <= 0 ? "หมดสต็อก" : product.stock <= 3 ? `เหลือ ${product.stock} ชิ้น` : "มีสต็อก")}
           </p>
 
@@ -704,9 +718,9 @@ function ProductDetail({ product, lottery, onClose, onAdd }: {
               🎟️ สินค้านี้ต้องขอสิทธิ์ซื้อ — กดที่ปุ่มในหน้ารายการสินค้า
             </p>
           ) : (
-            <button onClick={onAdd} disabled={product.stock <= 0}
+            <button onClick={onAdd} disabled={product.stock <= 0 || isPreorderClosed(product)}
               className="mt-4 w-full bg-zinc-900 text-white text-xs font-semibold py-3 rounded-xl active:opacity-70 disabled:opacity-30">
-              {product.stock <= 0 ? (product.is_preorder ? "เต็มโควต้า" : "หมดสต็อก") : (product.is_preorder ? "+ พรีออเดอร์" : "+ เพิ่มลงตะกร้า")}
+              {isPreorderClosed(product) ? "ปิดรับแล้ว" : product.stock <= 0 ? (product.is_preorder ? "เต็มโควต้า" : "หมดสต็อก") : (product.is_preorder ? "+ พรีออเดอร์" : "+ เพิ่มลงตะกร้า")}
             </button>
           )}
         </div>
