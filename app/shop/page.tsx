@@ -59,6 +59,12 @@ const TCG_COLOR: Record<string, string> = {
   "Dragon Ball": "#1D9E75",
 };
 
+// ชื่อสินค้าที่ขึ้นต้นด้วย "[เกม]" แยกป้ายออกมา ชื่อที่เหลือจะได้ใช้พื้นที่เต็ม ไม่โดนตัดทิ้ง
+function splitName(name: string): { tag: string; rest: string } {
+  const m = /^\s*\[([^\]]{1,24})\]\s*(.*)$/.exec(name ?? "");
+  return m && m[2] ? { tag: m[1], rest: m[2] } : { tag: "", rest: name ?? "" };
+}
+
 // ─── Placeholder card (no image) ──────────────────────────────────────────
 
 function CardPlaceholder({ tcg }: { tcg: string }) {
@@ -85,6 +91,7 @@ export default function ShopPage() {
   const [activeCategory, setActiveCategory] = useState(ALL_CAT);
   const [detail, setDetail] = useState<Product | null>(null);
   const [sort, setSort]                   = useState("default");
+  const [inStockOnly, setInStockOnly]     = useState(false);
   const [search, setSearch]               = useState("");
   const [cart, setCart]                   = useState<CartItem[]>([]);
   const [showCart, setShowCart]           = useState(false);
@@ -242,6 +249,7 @@ export default function ShopPage() {
     return products.filter((p) => {
       if (activeTab !== "All" && p.tcg !== activeTab) return false;
       if (activeCategory !== ALL_CAT && p.category !== activeCategory) return false;
+      if (inStockOnly && p.stock <= 0) return false;
       if (search) {
         const q = search.toLowerCase();
         const hay = `${p.name ?? ""} ${p.sub ?? ""}`.toLowerCase();
@@ -251,9 +259,10 @@ export default function ShopPage() {
     }).sort((a, b) => {
       if (sort === "price_asc")  return a.price - b.price;
       if (sort === "price_desc") return b.price - a.price;
-      return 0;
+      // ค่าเริ่มต้น: ของที่ซื้อได้ขึ้นก่อน หมดสต็อกไปท้าย (ลำดับเดิมคงไว้ในแต่ละกลุ่ม)
+      return Number(a.stock <= 0) - Number(b.stock <= 0);
     });
-  }, [products, activeTab, activeCategory, sort, search]);
+  }, [products, activeTab, activeCategory, sort, search, inStockOnly]);
 
   // ── Cart ──
   const totalItems = cart.reduce((s, i) => s + i.qty, 0);
@@ -324,27 +333,33 @@ export default function ShopPage() {
         ))}
       </div>
 
-      {/* Category chips */}
-      <div className="flex gap-2 overflow-x-auto scrollbar-hide px-4 py-3 bg-white">
-        {categoryTabs.map((cat) => (
-          <button key={cat} onClick={() => setActiveCategory(cat)}
-            className={`flex-shrink-0 text-[10px] px-3 py-1.5 rounded-full border tracking-wide transition-colors ${
-              activeCategory === cat ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 text-zinc-500 bg-white"
-            }`}>
-            {cat}
-          </button>
-        ))}
-      </div>
-
       {/* Sort */}
-      <div className="flex items-center justify-between px-4 py-2 bg-zinc-50">
-        <p className="text-[11px] text-zinc-400">{loading ? "กำลังโหลด..." : `${filtered.length} รายการ`}</p>
-        <select className="text-[11px] text-zinc-600 border border-zinc-100 rounded-lg px-2 py-1 bg-white outline-none"
-          value={sort} onChange={(e) => setSort(e.target.value)}>
-          <option value="default">เรียงตามค่าเริ่มต้น</option>
-          <option value="price_asc">ราคา น้อย → มาก</option>
-          <option value="price_desc">ราคา มาก → น้อย</option>
-        </select>
+      <div className="flex items-center justify-between gap-2 px-4 py-2 bg-zinc-50 flex-wrap">
+        <div className="flex items-center gap-2">
+          <p className="text-[11px] text-zinc-400">{loading ? "กำลังโหลด..." : `${filtered.length} รายการ`}</p>
+          <button onClick={() => setInStockOnly((v) => !v)} aria-pressed={inStockOnly}
+            className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors ${
+              inStockOnly ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 text-zinc-500 bg-white"
+            }`}>
+            เฉพาะมีของ
+          </button>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <select aria-label="หมวดสินค้า"
+            className="text-[11px] text-zinc-600 border border-zinc-100 rounded-lg px-2 py-1 bg-white outline-none max-w-[110px]"
+            value={activeCategory} onChange={(e) => setActiveCategory(e.target.value)}>
+            {categoryTabs.map((cat) => (
+              <option key={cat} value={cat}>{cat === ALL_CAT ? "ทุกหมวด" : cat}</option>
+            ))}
+          </select>
+          <select aria-label="เรียงสินค้า"
+            className="text-[11px] text-zinc-600 border border-zinc-100 rounded-lg px-2 py-1 bg-white outline-none"
+            value={sort} onChange={(e) => setSort(e.target.value)}>
+            <option value="default">เรียงปกติ</option>
+            <option value="price_asc">ราคาต่ำ → สูง</option>
+            <option value="price_desc">ราคาสูง → ต่ำ</option>
+          </select>
+        </div>
       </div>
 
       {/* Product Grid */}
@@ -401,8 +416,13 @@ export default function ShopPage() {
 
                 {/* Info */}
                 <div className="p-2.5">
+                  {splitName(p.name).tag && (
+                    <span className="inline-block text-[8px] font-semibold tracking-wide text-zinc-500 bg-zinc-100 rounded px-1.5 py-0.5 mb-1">
+                      {splitName(p.name).tag}
+                    </span>
+                  )}
                   <p onClick={() => setDetail(p)}
-                    className="text-[11px] font-semibold text-zinc-900 leading-snug line-clamp-2 cursor-pointer hover:underline">{p.name}</p>
+                    className="text-[11px] font-semibold text-zinc-900 leading-snug line-clamp-3 cursor-pointer hover:underline">{splitName(p.name).rest}</p>
                   <p className="text-[9px] text-zinc-400 mt-0.5 leading-tight truncate">{p.sub}</p>
                   <p className="text-[13px] font-bold text-zinc-900 mt-2">฿{p.price.toLocaleString()}</p>
                   <p className="text-[9px] text-zinc-400 mt-0.5">
