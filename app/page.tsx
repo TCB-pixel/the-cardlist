@@ -27,12 +27,17 @@ export default function HomePage() {
   const [displayName, setDisplayName] = useState("");
   const [events, setEvents] = useState<any[]>([]);
   const [news, setNews] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
+  // ยังไม่โหลดเสร็จ ≠ ไม่มีข้อมูล — กันหน้าขึ้น "ยังไม่มี..." แวบหนึ่งก่อนข้อมูลมา
+  const [eventsLoaded, setEventsLoaded] = useState(false);
+  const [newsLoaded, setNewsLoaded] = useState(false);
+  const [productsLoaded, setProductsLoaded] = useState(false);
 
   useEffect(() => {
-    async function init() {
-      const supabase = createClient();
+    const supabase = createClient();
 
-      // เช็ค session
+    // เช็ค session — แยกจากส่วนอื่น ไม่ต้องรอกัน
+    async function loadUser() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setIsLoggedIn(true);
@@ -43,8 +48,9 @@ export default function HomePage() {
           .single();
         setDisplayName(profile?.display_name ?? profile?.username ?? "บัญชีของฉัน");
       }
+    }
 
-      // โหลด banners
+    async function loadBanners() {
       try {
         const { data, error } = await supabase
           .from("banners")
@@ -72,8 +78,10 @@ export default function HomePage() {
           })));
         }
       } catch {}
+    }
 
-      // โหลด events — งานหลายวันต้องอยู่จนถึงวันสิ้นสุด ไม่ใช่หายตั้งแต่วันที่สอง
+    // โหลด events — งานหลายวันต้องอยู่จนถึงวันสิ้นสุด ไม่ใช่หายตั้งแต่วันที่สอง
+    async function loadEvents() {
       const today = new Date().toISOString().split("T")[0];
       try {
         const { data: evData } = await supabase
@@ -85,8 +93,10 @@ export default function HomePage() {
           .limit(3);
         setEvents(evData ?? []);
       } catch {}
+      setEventsLoaded(true);
+    }
 
-      // โหลด news
+    async function loadNews() {
       try {
         const { data: newsData } = await supabase
           .from("news")
@@ -95,8 +105,29 @@ export default function HomePage() {
           .limit(3);
         setNews(newsData ?? []);
       } catch {}
+      setNewsLoaded(true);
     }
-    init();
+
+    // สินค้ามาใหม่ที่ยังมีของ — ให้หน้าแรกพาไปซื้อได้เลย
+    async function loadProducts() {
+      try {
+        const { data } = await supabase
+          .from("products")
+          .select("id, name, price, stock, image_url")
+          .eq("active", true)
+          .gt("stock", 0)
+          .order("created_at", { ascending: false })
+          .limit(6);
+        setProducts(data ?? []);
+      } catch {}
+      setProductsLoaded(true);
+    }
+
+    loadUser();
+    loadBanners();
+    loadEvents();
+    loadNews();
+    loadProducts();
   }, []);
 
   return (
@@ -154,6 +185,38 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* สินค้ามาใหม่ */}
+      {(!productsLoaded || products.length > 0) && (
+        <section className="mb-4">
+          <div className="flex items-center justify-between mb-3 px-4">
+            <h2 className="text-xs font-semibold text-zinc-900 tracking-wide">สินค้ามาใหม่</h2>
+            <Link href="/shop" className="text-[10px] text-zinc-400">ดูทั้งหมด →</Link>
+          </div>
+          <div className="flex gap-2 overflow-x-auto px-4 pb-1 snap-x">
+            {!productsLoaded
+              ? [0, 1, 2].map((i) => (
+                  <div key={i} className="card w-32 flex-shrink-0 overflow-hidden animate-pulse">
+                    <div className="h-32 bg-zinc-100" />
+                    <div className="p-2 space-y-1.5"><div className="h-2.5 bg-zinc-100 rounded w-4/5" /><div className="h-3 bg-zinc-100 rounded w-1/3" /></div>
+                  </div>
+                ))
+              : products.map((p) => (
+                  <Link key={p.id} href="/shop" className="card w-32 flex-shrink-0 overflow-hidden snap-start active:bg-zinc-50">
+                    <div className="h-32 relative bg-zinc-50">
+                      {p.image_url && (
+                        <Image src={p.image_url} alt={p.name} fill sizes="128px" className="object-contain p-2" />
+                      )}
+                    </div>
+                    <div className="p-2">
+                      <p className="text-[11px] text-zinc-800 leading-snug line-clamp-2 min-h-[30px]">{p.name}</p>
+                      <p className="text-xs font-bold text-zinc-900 mt-1">฿{Number(p.price).toLocaleString()}</p>
+                    </div>
+                  </Link>
+                ))}
+          </div>
+        </section>
+      )}
+
       {/* Upcoming Events */}
       <section className="px-4 mb-4">
         <div className="flex items-center justify-between mb-3">
@@ -161,9 +224,16 @@ export default function HomePage() {
           <Link href="/events" className="text-[10px] text-zinc-400">ดูทั้งหมด →</Link>
         </div>
         <div className="space-y-2">
-          {events.length === 0 ? (
-            <div className="card px-4 py-6 text-center">
-              <p className="text-xs text-zinc-400">ยังไม่มีอีเวนต์ที่กำลังมา</p>
+          {!eventsLoaded ? (
+            <div className="card px-4 py-3 flex gap-3 animate-pulse">
+              <div className="w-10 h-12 bg-zinc-100 rounded-xl" />
+              <div className="flex-1 space-y-2 py-1"><div className="h-3 bg-zinc-100 rounded w-3/4" /><div className="h-2.5 bg-zinc-100 rounded w-1/2" /></div>
+            </div>
+          ) : events.length === 0 ? (
+            <div className="card px-4 py-5 text-center">
+              <p className="text-xs text-zinc-500">กำลังเตรียมงานครั้งถัดไป</p>
+              <p className="text-[10px] text-zinc-400 mt-1">ติดตามข่าวสารเพื่อไม่พลาดวันและสถานที่จัดงาน</p>
+              <Link href="/news" className="inline-block mt-3 text-[11px] font-semibold border border-zinc-200 rounded-xl px-4 py-1.5 text-zinc-700">ดูข่าวสารงานที่ผ่านมา</Link>
             </div>
           ) : events.map((ev) => {
             const d = new Date(ev.date);
@@ -206,7 +276,14 @@ export default function HomePage() {
           <Link href="/news" className="text-[10px] text-zinc-400">ดูทั้งหมด →</Link>
         </div>
         <div className="space-y-2">
-          {news.length === 0 ? (
+          {!newsLoaded ? (
+            [0, 1].map((i) => (
+              <div key={i} className="card px-4 py-3 flex gap-3 animate-pulse">
+                <div className="w-10 h-10 bg-zinc-100 rounded-xl" />
+                <div className="flex-1 space-y-2 py-1"><div className="h-2.5 bg-zinc-100 rounded w-1/4" /><div className="h-3 bg-zinc-100 rounded w-4/5" /></div>
+              </div>
+            ))
+          ) : news.length === 0 ? (
             <div className="card px-4 py-6 text-center">
               <p className="text-xs text-zinc-400">ยังไม่มีข่าวสาร</p>
             </div>

@@ -274,8 +274,11 @@ export default function EventsPage() {
               <div className="w-8 h-8 border-2 border-zinc-200 border-t-zinc-900 rounded-full animate-spin" />
             </div>
           ) : events.length === 0 ? (
-            <div className="text-center py-20">
-              <p className="text-sm text-zinc-400">ยังไม่มีอีเวนต์ในขณะนี้</p>
+            <div className="text-center py-16 px-6">
+              <p className="text-3xl mb-3">🗓️</p>
+              <p className="text-sm font-semibold text-zinc-700">กำลังเตรียมงานครั้งถัดไป</p>
+              <p className="text-xs text-zinc-400 mt-1">กดไลค์เพจด้านบนเพื่อรับแจ้งวันและสถานที่ก่อนใคร</p>
+              <Link href="/news" className="inline-block mt-4 text-xs font-semibold border border-zinc-200 rounded-xl px-5 py-2 text-zinc-700">ดูข่าวสารงานที่ผ่านมา</Link>
             </div>
           ) : (
             events.map((ev) => {
