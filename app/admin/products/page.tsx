@@ -23,6 +23,8 @@ type Product = {
   description: string;
   active: boolean;
   cost_price: number | null;
+  is_preorder?: boolean;
+  preorder_release_date?: string | null;
 };
 
 type StockMovement = {
@@ -66,6 +68,7 @@ const EMPTY: Omit<Product, "id" | "active"> = {
   category: "Single Cards", tcg: "One Piece",
   badge: "", rarity: "", image_url: null, images: [], description: "",
   cost_price: null,
+  is_preorder: false, preorder_release_date: null,
 };
 
 const STATUS_STYLE: Record<string, string> = {
@@ -265,6 +268,7 @@ export default function AdminProductsPage() {
       category: p.category, tcg: p.tcg, badge: p.badge, rarity: p.rarity,
       image_url: p.image_url, images: p.images ?? [], description: p.description,
       cost_price: p.cost_price,
+      is_preorder: !!p.is_preorder, preorder_release_date: p.preorder_release_date ?? null,
     });
     setImgPreview(p.image_url);
     setError("");
@@ -751,6 +755,23 @@ export default function AdminProductsPage() {
                     onChange={e => setForm(f => ({ ...f, badge: e.target.value }))}>
                     {BADGE_LIST.map(b => <option key={b} value={b}>{b || "ไม่มี"}</option>)}
                   </select>
+                </div>
+                <div className="col-span-2 rounded-xl border border-amber-100 bg-amber-50/50 px-3 py-2.5">
+                  <label className="flex items-center gap-2 text-xs font-semibold text-zinc-800 cursor-pointer">
+                    <input type="checkbox" checked={!!form.is_preorder}
+                      onChange={e => setForm(f => ({ ...f, is_preorder: e.target.checked, preorder_release_date: e.target.checked ? f.preorder_release_date : null }))} />
+                    สินค้าพรีออเดอร์
+                  </label>
+                  {form.is_preorder && (
+                    <div className="mt-2">
+                      <label className={labelCls}>วันวางจำหน่าย / วันที่คาดว่าจะส่งของ</label>
+                      <input type="date" className={inputCls} value={form.preorder_release_date ?? ""}
+                        onChange={e => setForm(f => ({ ...f, preorder_release_date: e.target.value || null }))} />
+                      <p className="text-[10px] text-zinc-400 mt-1.5">
+                        ช่อง "สต็อก" ใช้เป็นโควต้าที่เปิดรับพรีออเดอร์ — เต็มโควต้าแล้วระบบปิดรับเอง · ลูกค้าจ่ายเต็มจำนวนตอนสั่ง และจัดส่งหลังของเข้า
+                      </p>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className={labelCls}>ความหายาก</label>

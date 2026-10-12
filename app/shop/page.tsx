@@ -1,4 +1,5 @@
 "use client";
+import { formatReleaseDate } from "@/lib/preorder";
 import { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import BottomNav from "@/components/BottomNav";
@@ -22,6 +23,8 @@ type Product = {
   images?: string[];
   badge_set_at?: string | null;
   description?: string | null;
+  is_preorder?: boolean;
+  preorder_release_date?: string | null;
 };
 
 type CartItem = { id: string; name: string; price: number; qty: number };
@@ -40,7 +43,8 @@ const ALL_CAT        = "ทั้งหมด";
 // NEW หายเองเมื่อครบ 14 วันนับจากวันที่ตั้ง badge
 const NEW_BADGE_DAYS = 14;
 
-function badgeOf(p: { badge: string; badge_set_at?: string | null }) {
+function badgeOf(p: { badge: string; badge_set_at?: string | null; is_preorder?: boolean }) {
+  if (p.is_preorder) return "PRE-ORDER";
   if (p.badge !== "NEW") return p.badge;
   if (!p.badge_set_at) return p.badge;
   const ageDays = (Date.now() - new Date(p.badge_set_at).getTime()) / 86400000;
@@ -92,6 +96,7 @@ export default function ShopPage() {
   const [detail, setDetail] = useState<Product | null>(null);
   const [sort, setSort]                   = useState("default");
   const [inStockOnly, setInStockOnly]     = useState(false);
+  const [preorderOnly, setPreorderOnly]   = useState(false);
   const [search, setSearch]               = useState("");
   const [cart, setCart]                   = useState<CartItem[]>([]);
   const [showCart, setShowCart]           = useState(false);
@@ -130,7 +135,7 @@ export default function ShopPage() {
       setLoading(true);
       const { data } = await supabase
         .from("products")
-        .select("id, name, sub, description, price, stock, category, tcg, badge, badge_set_at, rarity, image_url, product_images(url, order)")
+        .select("id, name, sub, description, price, stock, category, tcg, badge, badge_set_at, rarity, image_url, is_preorder, preorder_release_date, product_images(url, order)")
         .eq("active", true)
         .order("created_at", { ascending: false });
       setProducts(((data ?? []) as any[]).map((p) => ({
@@ -250,6 +255,7 @@ export default function ShopPage() {
       if (activeTab !== "All" && p.tcg !== activeTab) return false;
       if (activeCategory !== ALL_CAT && p.category !== activeCategory) return false;
       if (inStockOnly && p.stock <= 0) return false;
+      if (preorderOnly && !p.is_preorder) return false;
       if (search) {
         const q = search.toLowerCase();
         const hay = `${p.name ?? ""} ${p.sub ?? ""}`.toLowerCase();
@@ -262,7 +268,24 @@ export default function ShopPage() {
       // ค่าเริ่มต้น: ของที่ซื้อได้ขึ้นก่อน หมดสต็อกไปท้าย (ลำดับเดิมคงไว้ในแต่ละกลุ่ม)
       return Number(a.stock <= 0) - Number(b.stock <= 0);
     });
-  }, [products, activeTab, activeCategory, sort, search, inStockOnly]);
+  }, [products, activeTab, activeCategory, sort, search, inStockOnly, preorderOnly]);
+
+  // ลิงก์จากหน้าแรก/แบนเนอร์: /shop?category=preorder&tcg=pokemon
+  useEffect(() => {
+    if (loading) return;
+    try {
+      const q = new URLSearchParams(window.location.search);
+      if (q.get("category") === "preorder") setPreorderOnly(true);
+      const tcg = q.get("tcg");
+      if (tcg) {
+        const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f\s]/g, "").toLowerCase();
+        const hit = tcgTabs.find((t) => norm(t) === norm(tcg));
+        if (hit) setActiveTab(hit);
+      }
+    } catch { /* ignore */ }
+    // รันครั้งเดียวหลังสินค้าโหลดเสร็จ (รู้รายชื่อแท็บแล้ว)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
 
   // ── Cart ──
   const totalItems = cart.reduce((s, i) => s + i.qty, 0);
@@ -343,6 +366,14 @@ export default function ShopPage() {
             }`}>
             เฉพาะมีของ
           </button>
+          {products.some((p) => p.is_preorder) && (
+            <button onClick={() => setPreorderOnly((v) => !v)} aria-pressed={preorderOnly}
+              className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors ${
+                preorderOnly ? "bg-amber-500 text-white border-amber-500" : "border-zinc-200 text-zinc-500 bg-white"
+              }`}>
+              พรีออเดอร์
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-1.5">
           <select aria-label="หมวดสินค้า"
@@ -425,8 +456,13 @@ export default function ShopPage() {
                     className="text-[11px] font-semibold text-zinc-900 leading-snug line-clamp-3 cursor-pointer hover:underline">{splitName(p.name).rest}</p>
                   <p className="text-[9px] text-zinc-400 mt-0.5 leading-tight truncate">{p.sub}</p>
                   <p className="text-[13px] font-bold text-zinc-900 mt-2">฿{p.price.toLocaleString()}</p>
+                  {p.is_preorder && p.preorder_release_date && (
+                    <p className="text-[9px] text-amber-700 font-semibold mt-0.5">วางจำหน่าย {formatReleaseDate(p.preorder_release_date, false)}</p>
+                  )}
                   <p className="text-[9px] text-zinc-400 mt-0.5">
-                    {p.stock <= 0 ? "หมดสต็อก" : p.stock <= 3 ? `เหลือ ${p.stock} ใบ` : "มีสต็อก"}
+                    {p.is_preorder
+                      ? (p.stock <= 0 ? "เต็มโควต้าแล้ว" : p.stock <= 10 ? `เหลือโควต้า ${p.stock}` : "เปิดรับพรีออเดอร์")
+                      : (p.stock <= 0 ? "หมดสต็อก" : p.stock <= 3 ? `เหลือ ${p.stock} ใบ` : "มีสต็อก")}
                   </p>
 
                   {!lot ? (
@@ -434,7 +470,7 @@ export default function ShopPage() {
                       onClick={() => addToCart(p)}
                       disabled={p.stock <= 0}
                       className="mt-2 w-full text-[10px] bg-zinc-900 text-white rounded-lg py-1.5 tracking-wide active:opacity-70 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed">
-                      {p.stock <= 0 ? "หมดสต็อก" : "+ ตะกร้า"}
+                      {p.stock <= 0 ? (p.is_preorder ? "เต็มโควต้า" : "หมดสต็อก") : (p.is_preorder ? "+ พรีออเดอร์" : "+ ตะกร้า")}
                     </button>
                   ) : lot.status === "open" ? (
                     lot.myEntry ? (
@@ -495,7 +531,10 @@ export default function ShopPage() {
               ) : cart.map((item) => (
                 <div key={item.id} className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-zinc-900 truncate">{item.name}</p>
+                    <p className="text-xs font-medium text-zinc-900 truncate">
+                      {item.name}
+                      {products.find((p) => p.id === item.id)?.is_preorder && <span className="ml-1.5 text-[9px] font-bold text-amber-700 bg-amber-50 rounded px-1 py-0.5">พรีออเดอร์</span>}
+                    </p>
                     <p className="text-[11px] text-zinc-400 mt-0.5">฿{item.price.toLocaleString()} × {item.qty}</p>
                   </div>
                   <div className="flex items-center gap-3">
@@ -507,6 +546,12 @@ export default function ShopPage() {
             </div>
             {/* Checkout - always visible at bottom */}
             <div className="flex-shrink-0 px-5 pt-3 pb-6 border-t border-zinc-100 bg-white">
+              {cart.some((i) => products.find((p) => p.id === i.id)?.is_preorder) && (
+                <p className="text-[10px] text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mb-3 leading-relaxed">
+                  📦 ตะกร้ามีสินค้า<b>พรีออเดอร์</b> — ชำระเต็มจำนวนตอนสั่ง และจัดส่งหลังสินค้าวางจำหน่าย
+                  (ถ้าสั่งรวมกับสินค้าอื่น จะจัดส่งพร้อมกันเมื่อของครบ)
+                </p>
+              )}
               <div className="space-y-1 mb-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-zinc-500">ยอดสินค้า</span>
@@ -635,8 +680,16 @@ function ProductDetail({ product, lottery, onClose, onAdd }: {
           {product.sub && <p className="text-[11px] text-zinc-400 mt-0.5">{product.sub}</p>}
 
           <p className="text-xl font-bold text-zinc-900 mt-3">฿{product.price.toLocaleString()}</p>
+          {product.is_preorder && (
+            <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mt-2 leading-relaxed">
+              📦 พรีออเดอร์{product.preorder_release_date ? ` · วางจำหน่าย ${formatReleaseDate(product.preorder_release_date)}` : ""}
+              <br />ชำระเต็มจำนวนตอนสั่ง และจัดส่งหลังสินค้าวางจำหน่าย
+            </p>
+          )}
           <p className="text-[11px] text-zinc-400 mt-0.5">
-            {product.stock <= 0 ? "หมดสต็อก" : product.stock <= 3 ? `เหลือ ${product.stock} ชิ้น` : "มีสต็อก"}
+            {product.is_preorder
+              ? (product.stock <= 0 ? "เต็มโควต้าแล้ว" : `เหลือโควต้า ${product.stock}`)
+              : (product.stock <= 0 ? "หมดสต็อก" : product.stock <= 3 ? `เหลือ ${product.stock} ชิ้น` : "มีสต็อก")}
           </p>
 
           {product.description && (
@@ -653,7 +706,7 @@ function ProductDetail({ product, lottery, onClose, onAdd }: {
           ) : (
             <button onClick={onAdd} disabled={product.stock <= 0}
               className="mt-4 w-full bg-zinc-900 text-white text-xs font-semibold py-3 rounded-xl active:opacity-70 disabled:opacity-30">
-              {product.stock <= 0 ? "หมดสต็อก" : "+ เพิ่มลงตะกร้า"}
+              {product.stock <= 0 ? (product.is_preorder ? "เต็มโควต้า" : "หมดสต็อก") : (product.is_preorder ? "+ พรีออเดอร์" : "+ เพิ่มลงตะกร้า")}
             </button>
           )}
         </div>

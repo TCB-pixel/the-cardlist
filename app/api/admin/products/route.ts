@@ -111,6 +111,8 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const { name, sub, sku, price, stock, category, tcg, badge, rarity, image_url, description, cost_price, images } = body;
+    const is_preorder = body.is_preorder === true;
+    const preorder_release_date = is_preorder && /^\d{4}-\d{2}-\d{2}$/.test(body.preorder_release_date ?? "") ? body.preorder_release_date : null;
 
     if (!name || price === undefined || stock === undefined) {
       return NextResponse.json({ error: "กรอกข้อมูลไม่ครบ" }, { status: 400 });
@@ -125,6 +127,7 @@ export async function POST(req: NextRequest) {
         cost_price: cost_price === undefined || cost_price === "" ? null : Number(cost_price),
         // เริ่มนับอายุ badge ตั้งแต่ตอนตั้งค่า — NEW จะหายเองเมื่อครบ 14 วัน
         badge_set_at: badge ? new Date().toISOString() : null,
+        is_preorder, preorder_release_date,
         active: true,
       })
       .select("*")
@@ -209,6 +212,12 @@ export async function PATCH(req: NextRequest) {
     const update: Record<string, unknown> = {};
     for (const key of ["name", "sub", "sku", "price", "stock", "category", "tcg", "badge", "rarity", "image_url", "description", "active", "cost_price"]) {
       if (body[key] !== undefined) update[key] = body[key] === "" && key === "cost_price" ? null : body[key];
+    }
+    // พรีออเดอร์: เปิด/ปิด + วันวางจำหน่าย (ปิดพรีออเดอร์ = ล้างวันที่ด้วย)
+    if (body.is_preorder !== undefined) {
+      update.is_preorder = body.is_preorder === true;
+      update.preorder_release_date =
+        update.is_preorder && /^\d{4}-\d{2}-\d{2}$/.test(body.preorder_release_date ?? "") ? body.preorder_release_date : null;
     }
     // เปลี่ยน badge = เริ่มนับ 14 วันใหม่ / ล้าง badge = ล้างวันที่ด้วย
     if (body.badge !== undefined) {

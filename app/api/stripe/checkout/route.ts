@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SHIPPING_FEE } from "@/lib/order-email";
+import { preorderLabel } from "@/lib/preorder";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
     const ids = items.map((it: any) => it.id).filter(Boolean);
     const { data: products, error: prodErr } = await supabase
       .from("products")
-      .select("id, name, stock")
+      .select("id, name, stock, is_preorder, preorder_release_date")
       .in("id", ids);
 
     if (prodErr) {
@@ -146,17 +147,21 @@ export async function POST(request: NextRequest) {
     // ค่าบริการจัดส่ง คิดต่อ 1 คำสั่งซื้อ ไม่ใช่ต่อชิ้น
     const shippingFee = SHIPPING_FEE;
 
-    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = items.map((it: any) => ({
+    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = items.map((it: any) => {
+      const dbp = stockMap.get(it.id) as any;
+      const displayName = dbp?.is_preorder ? preorderLabel(String(it.name), dbp.preorder_release_date) : it.name;
+      return {
       price_data: {
         currency: "thb",
         product_data: {
-          name: it.name,
+          name: displayName,
           ...(it.image_url ? { images: [it.image_url] } : {}),
         },
         unit_amount: Number(it.price) * 100,
       },
       quantity: Number(it.qty),
-    }));
+    };
+    });
 
     lineItems.push({
       price_data: {

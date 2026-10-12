@@ -2,6 +2,7 @@
 // ไฟล์ route ของ Next.js export ได้เฉพาะ handler จึงต้องเก็บส่วนนี้ไว้นอก route
 import { renderOrderConfirmEmail, type OrderEmailData } from "@/lib/order-email";
 import { notifyOrder } from "@/lib/order-notify";
+import { preorderLabel } from "@/lib/preorder";
 import Stripe from "stripe";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
@@ -308,16 +309,28 @@ async function createShopOrder(
     throw new Error(orderErr?.message ?? "create order failed");
   }
 
+  // พรีออเดอร์: ดูสถานะจากฐานข้อมูลจริง ไม่เชื่อค่าที่มากับตะกร้า — ใส่ป้ายท้ายชื่อให้ทุกช่องทางแจ้งลูกค้าเห็นตรงกัน
+  const { data: poRows } = await supabase
+    .from("products")
+    .select("id, is_preorder, preorder_release_date")
+    .in("id", items.map((i: any) => i.id).filter(Boolean));
+  const poMap = new Map((poRows ?? []).map((r: any) => [r.id, r]));
+
   await supabase.from("order_items").insert(
-    items.map((item: any) => ({
+    items.map((item: any) => {
+      const po: any = poMap.get(item.id);
+      const isPre = !!po?.is_preorder;
+      return {
       order_id: order.id,
       product_id: item.id,
-      name: item.name,
+      is_preorder: isPre,
+      name: isPre ? preorderLabel(String(item.name), po.preorder_release_date) : item.name,
       price: item.price,
       // order_items มีจำนวน 2 คอลัมน์ (quantity NOT NULL default 1 / qty ที่หน้าเว็บอ่าน) เขียนทั้งคู่ให้ตรงกัน
       quantity: item.qty,
       qty: item.qty,
-    }))
+    };
+    })
   );
 
   // ตัดสต็อกทีละชิ้น — decrement_stock คืน false ถ้าสต็อกไม่พอ (แข่งกันซื้อพร้อมกันตอนสต็อกใกล้หมด)
