@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 import { routeByType, sessionParams } from "@/lib/stripe-fulfilment";
+import { releaseBoothBooking } from "@/lib/booth-fulfilment";
 
 function getStripe() {
   return new Stripe(process.env.STRIPE_SECRET_KEY!);
@@ -76,6 +77,13 @@ export async function POST(request: NextRequest) {
       case "checkout.session.async_payment_succeeded": {
         const s = event.data.object as Stripe.Checkout.Session;
         await routeByType(supabase, sessionParams(s));
+        break;
+      }
+
+      // ── หน้าชำระเงินหมดอายุ: ถ้าเป็นการจองโต๊ะ คืนโต๊ะทันที ──
+      case "checkout.session.expired": {
+        const s = event.data.object as Stripe.Checkout.Session;
+        if (s.metadata?.type === "booth") await releaseBoothBooking(supabase, s.metadata?.booking_id || null);
         break;
       }
 

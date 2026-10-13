@@ -10,7 +10,8 @@ export type Permission =
   | "artists:view" | "artists:create" | "artists:edit" | "artists:delete"
   | "play:view" | "play:scan" | "play:manage"
   | "staff:view" | "staff:create" | "staff:edit" | "staff:delete"
-  | "chatbot:view" | "chatbot:edit";
+  | "chatbot:view" | "chatbot:edit"
+  | "booth:view" | "booth:edit";
 
 const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
   owner: [
@@ -24,6 +25,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
     "play:view", "play:scan", "play:manage",
     "staff:view", "staff:create", "staff:edit", "staff:delete",
     "chatbot:view", "chatbot:edit",
+    "booth:view", "booth:edit",
   ],
   head_staff: [
     "dashboard:view",
@@ -51,6 +53,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
     "staff:view",
     // staff ดูแชทได้ แต่แก้ข้อมูลร้าน/อนุมัติคำตอบไม่ได้
     "chatbot:view",
+    "booth:view",
   ],
 };
 

@@ -453,6 +453,14 @@ export default function EventsPage() {
 
       {/* ── TAB: จองโต๊ะ (ที่ร้าน) ── */}
       {activeTab === "จองโต๊ะ" && (
+        <div className="px-4 pt-4">
+          <Link href="/booth" className="block bg-zinc-900 text-white rounded-2xl px-4 py-4">
+            <p className="text-sm font-semibold">จองโต๊ะ Vendor ในงานอีเวนต์</p>
+            <p className="text-[11px] text-zinc-300 mt-1">เลือกโต๊ะจากผังงานจริงแล้วชำระเงินได้เลย · จองครบทุกวันใช้โค้ดส่วนลดได้ →</p>
+          </Link>
+        </div>
+      )}
+      {activeTab === "จองโต๊ะ" && (
         <div className="px-4 py-4">
           <div className="card p-5">
             <h3 className="text-sm font-semibold text-zinc-900 mb-1">จองโต๊ะเล่นการ์ดที่ร้าน</h3>

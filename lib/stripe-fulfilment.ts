@@ -3,6 +3,7 @@
 import { renderOrderConfirmEmail, type OrderEmailData } from "@/lib/order-email";
 import { notifyOrder } from "@/lib/order-notify";
 import { preorderLabel, depositOf } from "@/lib/preorder";
+import { fulfilBoothBooking } from "@/lib/booth-fulfilment";
 import Stripe from "stripe";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
@@ -421,6 +422,7 @@ export async function routeByType(
     shipping: ShopShipping | null;
     cardFee: number;
     shippingFee: number;
+    bookingId?: string | null;
   }
 ) {
   const t = (p.type || "").toLowerCase();
@@ -438,6 +440,8 @@ export async function routeByType(
       eventId: p.eventId,
       paymentId: p.paymentId,
     });
+  } else if (t === "booth") {
+    await fulfilBoothBooking(supabase, { bookingId: p.bookingId ?? null, paymentId: p.paymentId, amountTotal: p.amountTotal });
   } else if (t === "shop") {
     await createShopOrder(supabase, {
       userId: p.userId,
@@ -494,5 +498,6 @@ export function sessionParams(s: Stripe.Checkout.Session) {
     shipping,
     cardFee: Number(s.metadata?.card_fee || 0),
     shippingFee: Number(s.metadata?.shipping_fee || 0),
+    bookingId: s.metadata?.booking_id || null,
   };
 }
