@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { safeNext, thaiAuthError } from "@/lib/auth-next";
 
@@ -15,6 +16,7 @@ function autoUsername(email: string) {
 }
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [phone, setPhone] = useState("");
@@ -56,6 +58,12 @@ export default function RegisterPage() {
       // ระบบสมาชิกไม่แจ้ง error ถ้าอีเมลซ้ำ (กันเดาสมาชิก) แต่จะไม่มี identities กลับมา
       if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
         setError("อีเมลนี้สมัครสมาชิกไว้แล้ว ลองเข้าสู่ระบบ หรือกด \"ลืมรหัสผ่าน\"");
+        return;
+      }
+      // ปิดการยืนยันอีเมลไว้ → สมัครเสร็จได้ session ทันที พาไปใช้งานต่อได้เลย
+      // (ถ้าเปิดยืนยันอีเมลอีกครั้ง จะไม่มี session และแสดงหน้าแจ้งให้ไปกดลิงก์ในอีเมล)
+      if (data.session) {
+        router.replace(next ?? "/profile");
         return;
       }
       setDone(true);
