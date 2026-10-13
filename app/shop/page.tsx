@@ -1,4 +1,5 @@
 "use client";
+import { goLogin } from "@/lib/auth-next";
 import { formatReleaseDate, formatCloseAt, isPreorderClosed, depositOf, payableOf } from "@/lib/preorder";
 import { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
@@ -172,7 +173,7 @@ export default function ShopPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       alert("กรุณาเข้าสู่ระบบก่อนขอสิทธิ์ซื้อ");
-      window.location.href = "/login";
+      goLogin();
       return;
     }
     setRequesting(p.id);
@@ -216,7 +217,7 @@ export default function ShopPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         alert("กรุณาเข้าสู่ระบบก่อนชำระเงิน");
-        window.location.href = "/login";
+        goLogin();
         return;
       }
 

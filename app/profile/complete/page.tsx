@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import { safeNext } from "@/lib/auth-next";
 
 export default function CompleteProfilePage() {
   const router = useRouter();
@@ -20,6 +21,8 @@ export default function CompleteProfilePage() {
   const [birthMonth, setBirthMonth] = useState("");
   const [birthYear, setBirthYear] = useState("");
   const [phone, setPhone] = useState("");
+  const [next, setNext] = useState<string | null>(null);
+  useEffect(() => { setNext(safeNext(new URLSearchParams(window.location.search).get("next"))); }, []);
 
   useEffect(() => {
     async function check() {
@@ -79,7 +82,7 @@ export default function CompleteProfilePage() {
         .eq("id", user.id);
 
       if (updateErr) throw updateErr;
-      router.replace("/profile");
+      router.replace(next ?? "/profile");
     } catch (err: any) {
       setError(err?.message ?? "เกิดข้อผิดพลาด กรุณาลองใหม่");
     } finally {
@@ -181,6 +184,10 @@ export default function CompleteProfilePage() {
           <button type="submit" disabled={saving}
             className={`btn-primary w-full py-3.5 text-sm mt-2 ${saving ? "opacity-50 cursor-not-allowed" : ""}`}>
             {saving ? "กำลังบันทึก..." : "เริ่มใช้งาน →"}
+          </button>
+          <button type="button" onClick={() => router.replace(next ?? "/")}
+            className="block mx-auto text-[12px] text-zinc-500 underline underline-offset-2 pt-1">
+            ข้ามไปก่อน (กรอกภายหลังได้ที่หน้าโปรไฟล์)
           </button>
         </form>
       </div>

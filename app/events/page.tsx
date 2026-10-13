@@ -1,4 +1,5 @@
 "use client";
+import { goLogin } from "@/lib/auth-next";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -138,7 +139,7 @@ export default function EventsPage() {
 
   async function handleRegister(ev: Event) {
     if (!loggedIn) {
-      router.push("/login");
+      goLogin();
       return;
     }
     setRegisteringId(ev.id);
@@ -182,7 +183,7 @@ export default function EventsPage() {
 
   async function bookTradingSlot(slot: TradingSlot) {
     if (!loggedIn) {
-      router.push("/login");
+      goLogin();
       return;
     }
     if (!window.confirm(`ยืนยันจองโต๊ะ ${TABLE_TYPE_LABEL[selectedType]} วันที่ ${formatThaiDate(selectedDate)} เวลา ${slot.start}-${slot.end} น.?`)) return;

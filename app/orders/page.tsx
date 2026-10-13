@@ -58,7 +58,7 @@ export default function MyOrdersPage() {
         ) : needLogin ? (
           <div className="text-center py-16">
             <p className="text-sm text-zinc-400 mb-3">กรุณาเข้าสู่ระบบเพื่อดูคำสั่งซื้อ</p>
-            <a href="/login" className="text-xs bg-zinc-900 text-white rounded-lg px-4 py-2 inline-block">
+            <a href="/login?next=%2Forders" className="text-xs bg-zinc-900 text-white rounded-lg px-4 py-2 inline-block">
               เข้าสู่ระบบ
             </a>
           </div>

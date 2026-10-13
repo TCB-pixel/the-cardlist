@@ -1,4 +1,5 @@
 "use client";
+import { goLogin } from "@/lib/auth-next";
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
@@ -115,7 +116,7 @@ export default function EventDetailPage() {
 
   async function handleRegister() {
     if (!loggedIn) {
-      router.push("/login");
+      goLogin();
       return;
     }
     setRegistering(true);

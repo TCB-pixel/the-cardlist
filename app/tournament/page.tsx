@@ -1,4 +1,5 @@
 "use client";
+import { goLogin } from "@/lib/auth-next";
 import { useState, useEffect, useCallback } from "react";
 import BottomNav from "@/components/BottomNav";
 import HeroBanner from "@/components/HeroBanner";
@@ -161,7 +162,7 @@ export default function TournamentPage() {
 
   // ── Register for tournament ──
   async function handleRegister(event: EventWithBooking) {
-    if (!userId) { window.location.href = "/login"; return; }
+    if (!userId) { goLogin(); return; }
     setRegistering(true);
     try {
       const { data, error } = await supabase
@@ -195,7 +196,7 @@ export default function TournamentPage() {
 
   // ── Submit vendor booking ──
   async function handleVendorSubmit() {
-    if (!userId) { window.location.href = "/login"; return; }
+    if (!userId) { goLogin(); return; }
     if (!vendorForm.shop_name || !vendorForm.contact_name || !vendorForm.phone || !vendorForm.event_id) {
       setVendorError("กรุณากรอกข้อมูลให้ครบ"); return;
     }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { safeNext } from "@/lib/auth-next";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -50,6 +51,14 @@ export async function GET(request: NextRequest) {
     const fakePassword = `line_${lineUserId}_${process.env.LINE_CLIENT_SECRET!.substring(0, 8)}`;
 
     const cookieStore = await cookies();
+    const dest = safeNext(cookieStore.get("login_next")?.value);
+    // ปลายทางหลังเข้าสู่ระบบ + ล้างคุกกี้ที่จำไว้
+    const goto = (path: string) => {
+      const r = NextResponse.redirect(new URL(path, request.url));
+      r.cookies.set("login_next", "", { path: "/", maxAge: 0 });
+      return r;
+    };
+    const completeUrl = dest ? `/profile/complete?next=${encodeURIComponent(dest)}` : "/profile/complete";
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -89,7 +98,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(new URL("/login?error=line_profile_update_failed", request.url));
       }
 
-      return NextResponse.redirect(new URL("/profile?linked=line", request.url));
+      return goto(dest ?? "/profile?linked=line");
     }
 
     // ลอง login ก่อน กรณีเคยสมัครด้วย LINE ไว้แล้ว
@@ -118,9 +127,7 @@ export async function GET(request: NextRequest) {
 
       const isComplete = Boolean(existingProfile?.first_name && existingProfile?.last_name);
 
-      return NextResponse.redirect(
-        new URL(isComplete ? "/profile" : "/profile/complete", request.url)
-      );
+      return goto(isComplete ? dest ?? "/profile" : completeUrl);
     }
 
     // สร้าง account ใหม่ กรณียังไม่เคย login ด้วย LINE นี้
@@ -168,7 +175,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL("/login?error=line_profile_upsert_failed", request.url));
     }
 
-    return NextResponse.redirect(new URL("/profile/complete", request.url));
+    return goto(completeUrl);
   } catch (err) {
     console.error("LINE callback error:", err);
     return NextResponse.redirect(new URL("/login?error=unknown", request.url));

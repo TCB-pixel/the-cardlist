@@ -1,5 +1,6 @@
 "use client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { goLogin } from "@/lib/auth-next";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 import BottomNav from "@/components/BottomNav";
@@ -53,6 +54,7 @@ export default function BoothPage() {
   const [vendor, setVendor] = useState<VendorForm>(EMPTY_VENDOR);
   const [vendorSaved, setVendorSaved] = useState(false); // มีข้อมูลร้านเดิมที่เคยบันทึก → โชว์แบบย่อ
   const [editingVendor, setEditingVendor] = useState(true);
+  const restored = useRef(false);
   const [logoBusy, setLogoBusy] = useState(false);
   const [logoMsg, setLogoMsg] = useState<string | null>(null);
   const [rulesFor, setRulesFor] = useState<"promptpay" | "card" | null>(null);
@@ -113,7 +115,22 @@ export default function BoothPage() {
       const j = await res.json();
       if (!res.ok) throw new Error(j.error ?? "โหลดไม่สำเร็จ");
       setData(j);
-      if (first) setDays(j.event.days);
+      if (first) {
+        let initDays: string[] = j.event.days;
+        try {
+          const saved = JSON.parse(sessionStorage.getItem("booth_pick_" + id) ?? "null");
+          if (saved && j.partialOpen && Array.isArray(saved.days)) {
+            const ok = saved.days.filter((d: string) => j.event.days.includes(d));
+            if (ok.length) initDays = ok;
+          }
+          if (saved && Array.isArray(saved.sel)) {
+            const valid = new Set((j.event.layout?.tables ?? []).map((t: any) => t.id));
+            setSel(saved.sel.filter((t: string) => valid.has(t)));
+          }
+        } catch { /* ignore */ }
+        setDays(initDays);
+        restored.current = true;
+      }
     } catch (e: any) {
       if (first) setLoadErr(e?.message ?? "โหลดไม่สำเร็จ");
     }
@@ -133,6 +150,12 @@ export default function BoothPage() {
     if (res.ok) setMine((await res.json()).bookings ?? []);
   }, [supabase, authed]);
   useEffect(() => { loadMine(); }, [loadMine]);
+
+  // บันทึกที่เลือกไว้ (เฉพาะแท็บนี้) เผื่อต้องไปล็อกอินแล้วกลับมา
+  useEffect(() => {
+    if (!eventId || !restored.current) return;
+    try { sessionStorage.setItem("booth_pick_" + eventId, JSON.stringify({ days, sel })); } catch { /* ignore */ }
+  }, [eventId, days, sel]);
 
   const ev = data?.event ?? null;
   const partialOpen = data?.partialOpen ?? false;
@@ -221,7 +244,7 @@ export default function BoothPage() {
     setMsg(null);
     if (sel.length === 0) return setMsg("เลือกโต๊ะอย่างน้อย 1 โต๊ะก่อนชำระเงิน");
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { window.location.href = "/login"; return; }
+    if (!session) { goLogin(); return; }
     const err = vendorError(vendor);
     if (err) { setEditingVendor(true); return setMsg(err); }
     if (ev?.rules && ev.rules.trim()) {
