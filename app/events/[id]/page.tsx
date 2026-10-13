@@ -160,7 +160,7 @@ export default function EventDetailPage() {
       <div className="min-h-screen bg-zinc-50 pb-20">
         <TopBar title="อีเวนต์" showBack />
         <div className="text-center py-24 px-6">
-          <p className="text-sm text-zinc-400 mb-4">ไม่พบอีเวนต์นี้</p>
+          <p className="text-sm text-zinc-500 mb-4">ไม่พบอีเวนต์นี้</p>
           <Link href="/events" className="btn-primary inline-block px-6 py-2.5">กลับไปหน้าอีเวนต์</Link>
         </div>
         <BottomNav />
@@ -189,7 +189,7 @@ export default function EventDetailPage() {
         <div className="bg-white rounded-2xl border border-zinc-100 p-4">
           <div className="flex items-center gap-2 mb-1.5">
             <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: TCG_COLOR[event.tcg] ?? "#888" }} />
-            <span className="text-[9px] tracking-wider text-zinc-400 font-semibold">
+            <span className="text-[10px] tracking-wider text-zinc-500 font-semibold">
               {event.tcg}{event.format ? ` · ${event.format}` : ""}
             </span>
           </div>
@@ -224,7 +224,7 @@ export default function EventDetailPage() {
               <span className="text-xl" aria-hidden="true">🎁</span>
               <div>
                 <h2 className="text-sm font-bold text-amber-900">ลงทะเบียนแล้วลุ้นรับ</h2>
-                <p className="text-[10px] text-amber-700/70">ลงทะเบียนฟรี ไม่มีค่าใช้จ่าย</p>
+                <p className="text-[11px] text-amber-700/70">ลงทะเบียนฟรี ไม่มีค่าใช้จ่าย</p>
               </div>
             </div>
 
@@ -257,7 +257,7 @@ export default function EventDetailPage() {
         {!isTournament && (
           <div className="bg-white rounded-2xl border border-zinc-100 p-4">
             <h2 className="text-sm font-semibold text-zinc-900 mb-1">ลงทะเบียนเข้าร่วมงาน</h2>
-            <p className="text-[11px] text-zinc-400 mb-4">รับ QR Code สำหรับสแกนเข้างานและใช้สิทธิ์หน้างาน</p>
+            <p className="text-[11px] text-zinc-500 mb-4">รับ QR Code สำหรับสแกนเข้างานและใช้สิทธิ์หน้างาน</p>
 
             {done ? (
               <div className="bg-zinc-50 rounded-2xl p-4 text-center border border-zinc-100">
@@ -265,7 +265,7 @@ export default function EventDetailPage() {
                 <p className="text-sm font-semibold text-zinc-900">
                   {alreadyRegistered && !registered ? "คุณลงทะเบียนงานนี้ไว้แล้ว" : "ลงทะเบียนสำเร็จ!"}
                 </p>
-                <p className="text-[11px] text-zinc-400 mt-1 font-mono">{qrCode}</p>
+                <p className="text-[11px] text-zinc-500 mt-1 font-mono">{qrCode}</p>
                 <Link href="/profile" className="mt-4 inline-block text-xs font-semibold text-zinc-900 border border-zinc-200 rounded-xl px-5 py-2.5 active:bg-zinc-50">
                   ดู QR Code ที่โปรไฟล์ →
                 </Link>
@@ -279,7 +279,7 @@ export default function EventDetailPage() {
                 )}
                 {!loggedIn && (
                   <p className="text-[11px] text-amber-600 mb-3">
-                    กรุณา <Link href="/login" className="font-semibold underline">เข้าสู่ระบบ</Link> ก่อนลงทะเบียน
+                    กรุณา <button type="button" onClick={goLogin} className="font-semibold underline">เข้าสู่ระบบ</button> ก่อนลงทะเบียน
                   </p>
                 )}
                 {loggedIn && needsFollow && (

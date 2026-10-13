@@ -147,13 +147,13 @@ export default function DecksPage() {
         <div className="flex items-center justify-between px-4 h-12">
           <div className="flex items-center gap-3">
             {view === "list" ? (
-              <Link href="/profile" className="text-zinc-400 active:text-zinc-700">
+              <Link href="/profile" className="text-zinc-500 active:text-zinc-700">
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                   <path d="M12 5l-5 5 5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </Link>
             ) : (
-              <button onClick={() => setView("list")} className="text-zinc-400 active:text-zinc-700">
+              <button onClick={() => setView("list")} className="text-zinc-500 active:text-zinc-700">
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                   <path d="M12 5l-5 5 5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
@@ -178,8 +178,8 @@ export default function DecksPage() {
         <div className="px-4 py-4 space-y-3">
           {decks.length === 0 && (
             <div className="card px-5 py-10 text-center">
-              <p className="text-sm text-zinc-400 mb-1">ยังไม่มีเด็ค</p>
-              <p className="text-[11px] text-zinc-400 mb-4">สร้างเด็คแรกของคุณได้เลย</p>
+              <p className="text-sm text-zinc-500 mb-1">ยังไม่มีเด็ค</p>
+              <p className="text-[11px] text-zinc-500 mb-4">สร้างเด็คแรกของคุณได้เลย</p>
               <button onClick={openNew} className="btn-primary px-6 py-2.5">สร้างเด็ค</button>
             </div>
           )}
@@ -190,7 +190,7 @@ export default function DecksPage() {
                 <div className="flex items-start justify-between mb-2">
                   <div>
                     <p className="text-sm font-semibold text-zinc-900">{d.name}</p>
-                    <p className="text-[10px] text-zinc-400 mt-0.5">{d.tcg} · {d.format} · {total} ใบ</p>
+                    <p className="text-[11px] text-zinc-500 mt-0.5">{d.tcg} · {d.format} · {total} ใบ</p>
                   </div>
                   <div className="flex items-center gap-3">
                     <button onClick={() => openEdit(d)} className="text-[11px] text-zinc-500 underline">แก้ไข</button>
@@ -200,17 +200,17 @@ export default function DecksPage() {
                     </button>
                   </div>
                 </div>
-                {d.description && <p className="text-[11px] text-zinc-400">{d.description}</p>}
+                {d.description && <p className="text-[11px] text-zinc-500">{d.description}</p>}
                 {d.cards?.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-zinc-50 space-y-1">
                     {d.cards.slice(0, 4).map((c, i) => (
                       <div key={i} className="flex items-center justify-between">
                         <span className="text-[11px] text-zinc-600 truncate max-w-[70%]">{c.card_name}</span>
-                        <span className="text-[11px] text-zinc-400">×{c.quantity}</span>
+                        <span className="text-[11px] text-zinc-500">×{c.quantity}</span>
                       </div>
                     ))}
                     {d.cards.length > 4 && (
-                      <p className="text-[10px] text-zinc-400">+{d.cards.length - 4} รายการอื่นๆ</p>
+                      <p className="text-[11px] text-zinc-500">+{d.cards.length - 4} รายการอื่นๆ</p>
                     )}
                   </div>
                 )}
@@ -229,7 +229,7 @@ export default function DecksPage() {
               onChange={(e) => setDeck({ ...deck, name: e.target.value })} />
             {/* TCG */}
             <div>
-              <p className="text-[10px] text-zinc-400 mb-1.5">TCG</p>
+              <p className="text-[11px] text-zinc-500 mb-1.5">TCG</p>
               <div className="flex gap-2 flex-wrap">
                 {TCG_LIST.map((t) => (
                   <button key={t} onClick={() => setDeck({ ...deck, tcg: t, format: FORMAT_MAP[t][0] })}
@@ -241,7 +241,7 @@ export default function DecksPage() {
             </div>
             {/* Format */}
             <div>
-              <p className="text-[10px] text-zinc-400 mb-1.5">Format</p>
+              <p className="text-[11px] text-zinc-500 mb-1.5">Format</p>
               <div className="flex gap-2 flex-wrap">
                 {FORMAT_MAP[deck.tcg]?.map((f) => (
                   <button key={f} onClick={() => setDeck({ ...deck, format: f })}
@@ -258,7 +258,7 @@ export default function DecksPage() {
           {/* Add Card */}
           <div className="card px-4 py-4">
             <p className="text-xs font-semibold text-zinc-900 mb-3">
-              เพิ่มการ์ด <span className="text-zinc-400 font-normal">({totalCards} ใบ)</span>
+              เพิ่มการ์ด <span className="text-zinc-500 font-normal">({totalCards} ใบ)</span>
             </p>
             <div className="flex gap-2 mb-2">
               <input className="input flex-1" placeholder="ชื่อการ์ด" value={newCard.card_name}
@@ -284,12 +284,12 @@ export default function DecksPage() {
                 <div key={i} className="flex items-center gap-3 py-1.5 border-b border-zinc-50 last:border-0">
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-zinc-900 truncate">{c.card_name}</p>
-                    {c.card_number && <p className="text-[10px] text-zinc-400">{c.card_number}</p>}
+                    {c.card_number && <p className="text-[11px] text-zinc-500">{c.card_number}</p>}
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <button onClick={() => updateQty(i, c.quantity - 1)} className="text-zinc-400 w-6 text-center">−</button>
+                    <button onClick={() => updateQty(i, c.quantity - 1)} className="text-zinc-500 w-6 text-center">−</button>
                     <span className="text-xs font-semibold w-5 text-center">{c.quantity}</span>
-                    <button onClick={() => updateQty(i, c.quantity + 1)} className="text-zinc-400 w-6 text-center">+</button>
+                    <button onClick={() => updateQty(i, c.quantity + 1)} className="text-zinc-500 w-6 text-center">+</button>
                     <button onClick={() => removeCard(i)} className="text-red-400 ml-1">
                       <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                         <path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>

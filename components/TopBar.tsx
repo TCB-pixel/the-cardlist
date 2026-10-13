@@ -14,7 +14,11 @@ export default function TopBar({ title, showBack, rightSlot }: TopBarProps) {
       <div className="flex items-center justify-between px-4 h-12">
         <div className="flex items-center gap-2">
           {showBack && (
-            <button onClick={() => window.history.back()} className="mr-1 text-zinc-500">
+            <button
+              aria-label="ย้อนกลับ"
+              // เข้ามาจากลิงก์ภายนอก (เช่น LINE) จะไม่มีหน้าก่อนหน้าในเว็บ → กลับหน้าแรกแทนการออกจากเว็บ
+              onClick={() => (window.history.length > 1 && document.referrer.startsWith(window.location.origin) ? window.history.back() : (window.location.href = "/"))}
+              className="-ml-2 mr-1 w-10 h-10 flex items-center justify-center text-zinc-600">
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                 <path d="M12 5l-5 5 5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>

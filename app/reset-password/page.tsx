@@ -65,12 +65,12 @@ export default function ResetPasswordPage() {
       <Image src="/images/logo-square.jpg" alt="The Cardlist" width={80} height={80} className="mb-5 object-contain" />
       <h1 className="text-xl font-bold text-zinc-900">ตั้งรหัสผ่านใหม่</h1>
 
-      {state === "checking" && <p className="text-sm text-zinc-400 mt-6">กำลังตรวจสอบลิงก์...</p>}
+      {state === "checking" && <p className="text-sm text-zinc-500 mt-6">กำลังตรวจสอบลิงก์...</p>}
 
       {state === "invalid" && (
         <div className="text-center mt-6 max-w-xs">
           <p className="text-sm text-zinc-600">ลิงก์หมดอายุหรือถูกใช้ไปแล้ว</p>
-          <p className="text-xs text-zinc-400 mt-1">กรุณากด "ลืมรหัสผ่าน" เพื่อขอลิงก์ใหม่</p>
+          <p className="text-xs text-zinc-500 mt-1">กรุณากด "ลืมรหัสผ่าน" เพื่อขอลิงก์ใหม่</p>
           <Link href="/login" className="btn-primary inline-block py-3 px-8 mt-5 text-sm">กลับไปหน้าเข้าสู่ระบบ</Link>
         </div>
       )}
@@ -83,7 +83,7 @@ export default function ResetPasswordPage() {
               <input id="npw" type={showPw ? "text" : "password"} className="input pr-14" placeholder="อย่างน้อย 8 ตัวอักษร"
                 value={pw} onChange={(e) => setPw(e.target.value)} required autoComplete="new-password" />
               <button type="button" onClick={() => setShowPw(!showPw)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400 hover:text-zinc-700">
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-500 hover:text-zinc-700">
                 {showPw ? "ซ่อน" : "แสดง"}
               </button>
             </div>

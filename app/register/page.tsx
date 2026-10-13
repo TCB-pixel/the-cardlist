@@ -90,9 +90,9 @@ export default function RegisterPage() {
           </svg>
         </div>
         <h2 className="text-lg font-bold text-zinc-900 mb-2">สมัครสมาชิกสำเร็จ!</h2>
-        <p className="text-sm text-zinc-400 mb-1">เราส่งลิงก์ยืนยันไปที่</p>
+        <p className="text-sm text-zinc-500 mb-1">เราส่งลิงก์ยืนยันไปที่</p>
         <p className="text-sm font-semibold text-zinc-900 mb-6">{email}</p>
-        <p className="text-xs text-zinc-400 mb-4 max-w-xs">กดลิงก์ในอีเมลเพื่อยืนยัน (ถ้าไม่เจอ ลองดูในจดหมายขยะ) จากนั้นเข้าสู่ระบบได้เลย</p>
+        <p className="text-xs text-zinc-500 mb-4 max-w-xs">กดลิงก์ในอีเมลเพื่อยืนยัน (ถ้าไม่เจอ ลองดูในจดหมายขยะ) จากนั้นเข้าสู่ระบบได้เลย</p>
         {notice && <p className="text-xs text-green-600 mb-3">{notice}</p>}
         {error && <p className="text-xs text-red-600 mb-3">{error}</p>}
         <Link href={loginHref} className="btn-primary py-3 px-8">ไปหน้าเข้าสู่ระบบ</Link>
@@ -104,7 +104,7 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <div className="px-4 pt-4">
-        <Link href="/" className="text-zinc-400 inline-flex items-center" aria-label="กลับหน้าแรก">
+        <Link href="/" className="text-zinc-500 inline-flex items-center" aria-label="กลับหน้าแรก">
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
             <path d="M12 5l-5 5 5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
@@ -114,7 +114,7 @@ export default function RegisterPage() {
       <div className="flex flex-col items-center text-center px-6 pt-8 pb-8">
         <Image src="/images/logo-square.jpg" alt="The Cardlist" width={96} height={96} className="mb-5 object-contain" />
         <h1 className="text-2xl font-bold text-zinc-900 tracking-tight leading-snug">สมัครสมาชิก</h1>
-        <p className="text-sm text-zinc-400 mt-2 leading-relaxed">ยินดีต้อนรับทุกคนสู่<br />The Cardlist Community</p>
+        <p className="text-sm text-zinc-500 mt-2 leading-relaxed">ยินดีต้อนรับทุกคนสู่<br />The Cardlist Community</p>
       </div>
 
       <div className="px-6 pb-10">
@@ -124,11 +124,11 @@ export default function RegisterPage() {
           <svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d={LINE_PATH} /></svg>
           สมัครสมาชิกด้วย LINE
         </button>
-        <p className="text-[11px] text-zinc-400 text-center mb-6">เร็วที่สุด ไม่ต้องจำรหัสผ่าน ไม่ต้องยืนยันอีเมล</p>
+        <p className="text-[11px] text-zinc-500 text-center mb-6">เร็วที่สุด ไม่ต้องจำรหัสผ่าน ไม่ต้องยืนยันอีเมล</p>
 
         <div className="flex items-center gap-3 mb-6">
           <div className="flex-1 h-px bg-zinc-100"></div>
-          <span className="text-[10px] text-zinc-400">หรือสมัครด้วยอีเมล</span>
+          <span className="text-[11px] text-zinc-500">หรือสมัครด้วยอีเมล</span>
           <div className="flex-1 h-px bg-zinc-100"></div>
         </div>
 
@@ -155,7 +155,7 @@ export default function RegisterPage() {
             </label>
             <input id="phone" type="tel" inputMode="numeric" className="input" placeholder="08x-xxx-xxxx"
               value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={20} required autoComplete="tel" />
-            <p className="text-[10px] text-zinc-400 mt-1">ใช้ยืนยันตัวตนตอนรับสิทธิ์และสะสมรอบเล่นหน้าร้าน</p>
+            <p className="text-[11px] text-zinc-500 mt-1">ใช้ยืนยันตัวตนตอนรับสิทธิ์และสะสมรอบเล่นหน้าร้าน</p>
           </div>
 
           <div>
@@ -167,7 +167,7 @@ export default function RegisterPage() {
                 placeholder="อย่างน้อย 8 ตัวอักษร"
                 value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="new-password" />
               <button type="button" onClick={() => setShowPw(!showPw)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400 hover:text-zinc-700">
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-500 hover:text-zinc-700">
                 {showPw ? "ซ่อน" : "แสดง"}
               </button>
             </div>
@@ -184,7 +184,7 @@ export default function RegisterPage() {
             {loading ? "กำลังสมัคร..." : "สมัครสมาชิก"}
           </button>
 
-          <p className="text-center text-[11px] text-zinc-400">
+          <p className="text-center text-[11px] text-zinc-500">
             มีบัญชีแล้ว?{" "}
             <Link href={loginHref} className="font-semibold text-zinc-900 underline underline-offset-2">เข้าสู่ระบบ</Link>
           </p>

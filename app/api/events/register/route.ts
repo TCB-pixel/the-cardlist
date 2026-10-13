@@ -1,3 +1,4 @@
+import { publicError } from "@/lib/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
@@ -83,7 +84,7 @@ export async function POST(request: NextRequest) {
         .maybeSingle();
       if (winner) return NextResponse.json({ qrCode: winner.qr_code, alreadyRegistered: true });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: publicError(error) }, { status: 500 });
   }
 
   // ส่ง LINE แจ้งเตือน

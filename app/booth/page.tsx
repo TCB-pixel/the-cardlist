@@ -1,6 +1,7 @@
 "use client";
 import { goLogin } from "@/lib/auth-next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useModal } from "@/lib/use-modal";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 import BottomNav from "@/components/BottomNav";
@@ -53,6 +54,9 @@ export default function BoothPage() {
   const [days, setDays] = useState<string[]>([]);
   const [sel, setSel] = useState<string[]>([]);
   const [code, setCode] = useState("");
+  const [eventsError, setEventsError] = useState(false);
+  const [eventsKey, setEventsKey] = useState(0);
+  const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
   const [applied, setApplied] = useState<{ code: string; label: string; amount: number } | null>(null);
   const [codeMsg, setCodeMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [vendor, setVendor] = useState<VendorForm>(EMPTY_VENDOR);
@@ -79,19 +83,33 @@ export default function BoothPage() {
   // รายชื่องาน
   useEffect(() => {
     (async () => {
+      setEventsError(false);
       try {
         const res = await fetch("/api/booth/event");
         const j = await res.json();
+        if (!res.ok) throw new Error("load failed");
         const list = j.events ?? [];
         setEvents(list);
         const wanted = new URLSearchParams(window.location.search).get("event");
         if (wanted && list.some((e: any) => e.id === wanted)) setEventId(wanted);
         else if (list.length === 1) setEventId(list[0].id);
       } catch {
+        setEventsError(true);
         setEvents([]);
       }
     })();
-  }, []);
+  }, [eventsKey]);
+
+  // บอกตั้งแต่ต้นว่าต้องเข้าสู่ระบบก่อนจอง + จำข้อมูลร้าน/โค้ดที่พิมพ์ค้างไว้ (กลับจากหน้าเข้าสู่ระบบแล้วไม่ต้องพิมพ์ใหม่)
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => setLoggedIn(!!session));
+    try {
+      const draft = JSON.parse(sessionStorage.getItem("booth_vendor_draft") ?? "null");
+      if (draft) setVendor((v) => ({ ...v, ...draft }));
+      const c = sessionStorage.getItem("booth_code");
+      if (c) setCode(c);
+    } catch { /* ignore */ }
+  }, [supabase]);
 
   // ข้อมูลร้านที่เคยลงทะเบียนไว้ (ใช้ซ้ำทุกงาน)
   useEffect(() => {
@@ -109,6 +127,7 @@ export default function BoothPage() {
         });
         setVendorSaved(true);
         setEditingVendor(false);
+        try { sessionStorage.removeItem("booth_vendor_draft"); } catch { /* ignore */ }
       }
     })();
   }, [supabase, authed]);
@@ -214,6 +233,22 @@ export default function BoothPage() {
     });
   }
 
+  function pickEvent(id: string) {
+    setEventId(id);
+    // ใส่รหัสงานไว้ใน URL เพื่อให้กลับมาหน้าเดิมได้หลังเข้าสู่ระบบ
+    try { window.history.replaceState(null, "", "/booth?event=" + encodeURIComponent(id)); } catch { /* ignore */ }
+  }
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem("booth_vendor_draft", JSON.stringify(vendor));
+      sessionStorage.setItem("booth_code", code);
+    } catch { /* ignore */ }
+  }, [vendor, code]);
+
+  const closeRules = useCallback(() => { if (!busy) setRulesFor(null); }, [busy]);
+  useModal(!!rulesFor, closeRules);
+
   async function applyCode() {
     setCodeMsg(null);
     if (!code.trim()) return setCodeMsg({ ok: false, text: "กรอกโค้ดก่อนกดใช้โค้ด" });
@@ -228,6 +263,8 @@ export default function BoothPage() {
       if (!res.ok) { setApplied(null); return setCodeMsg({ ok: false, text: j.error ?? "ใช้โค้ดไม่สำเร็จ" }); }
       setApplied({ code: j.code, label: j.label, amount: j.amount });
       setCodeMsg({ ok: true, text: `ใช้โค้ด ${j.code} แล้ว · ${j.label}` });
+    } catch {
+      setCodeMsg({ ok: false, text: "เชื่อมต่อไม่สำเร็จ ลองใหม่อีกครั้ง" });
     } finally { setBusy(null); }
   }
 
@@ -292,25 +329,42 @@ export default function BoothPage() {
 
   async function cancelHold(id: string) {
     if (!window.confirm("ยกเลิกรายการนี้และคืนโต๊ะใช่ไหม?")) return;
-    const res = await authed("/api/booth/cancel", { method: "POST", body: JSON.stringify({ bookingId: id }) });
-    const j = await res.json();
-    if (!res.ok) alert(j.error ?? "ยกเลิกไม่สำเร็จ");
+    try {
+      const res = await authed("/api/booth/cancel", { method: "POST", body: JSON.stringify({ bookingId: id }) });
+      const j = await res.json();
+      if (!res.ok) setMsg(j.error ?? "ยกเลิกไม่สำเร็จ");
+    } catch {
+      setMsg("เชื่อมต่อไม่สำเร็จ ลองใหม่อีกครั้ง");
+    }
     loadMine();
     if (eventId) loadEvent(eventId, false);
   }
 
-  const inputCls = "w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2.5 text-sm text-zinc-900 outline-none focus:border-zinc-400";
+  const inputCls = "w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2.5 text-base sm:text-sm text-zinc-900 outline-none focus:border-zinc-500";
 
   return (
     <div className="min-h-screen bg-zinc-50 pb-24">
       <TopBar title="จองโต๊ะ Vendor" />
 
       <div className="px-4 py-4 space-y-4 lg:max-w-3xl lg:mx-auto">
-        {events === null && <p className="text-center text-sm text-zinc-400 py-16">กำลังโหลด...</p>}
-        {events && events.length === 0 && (
+        {events === null && <p className="text-center text-sm text-zinc-500 py-16">กำลังโหลด...</p>}
+        {eventsError && (
+          <div className="bg-white border border-zinc-100 rounded-2xl p-8 text-center" role="alert">
+            <p className="text-sm font-semibold text-zinc-700">โหลดข้อมูลงานไม่สำเร็จ</p>
+            <p className="text-xs text-zinc-500 mt-1">ตรวจอินเทอร์เน็ตแล้วลองใหม่อีกครั้ง</p>
+            <button onClick={() => setEventsKey((k) => k + 1)} className="mt-4 text-xs font-semibold border border-zinc-200 rounded-xl px-5 py-2.5 text-zinc-700">ลองใหม่</button>
+          </div>
+        )}
+        {loggedIn === false && events && events.length > 0 && (
+          <div className="bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3 flex items-center justify-between gap-3">
+            <p className="text-xs text-amber-800">ต้องเข้าสู่ระบบก่อนจองและชำระเงิน — เข้าสู่ระบบแล้วจะกลับมาหน้านี้พร้อมโต๊ะที่เลือกไว้</p>
+            <button onClick={goLogin} className="flex-shrink-0 text-xs font-semibold bg-zinc-900 text-white rounded-xl px-4 py-2.5">เข้าสู่ระบบ</button>
+          </div>
+        )}
+        {!eventsError && events && events.length === 0 && (
           <div className="bg-white border border-zinc-100 rounded-2xl p-8 text-center">
             <p className="text-sm font-semibold text-zinc-700">ยังไม่เปิดรับจองโต๊ะ</p>
-            <p className="text-xs text-zinc-400 mt-1">ติดตามข่าวสารเพื่อรอวันเปิดจองงานถัดไป</p>
+            <p className="text-xs text-zinc-500 mt-1">ติดตามข่าวสารเพื่อรอวันเปิดจองงานถัดไป</p>
             <Link href="/news" className="inline-block mt-4 text-xs font-semibold border border-zinc-200 rounded-xl px-5 py-2 text-zinc-700">ดูข่าวสาร</Link>
           </div>
         )}
@@ -318,9 +372,9 @@ export default function BoothPage() {
         {events && events.length > 1 && !eventId && (
           <div className="space-y-2">
             {events.map((e) => (
-              <button key={e.id} onClick={() => setEventId(e.id)} className="w-full text-left bg-white border border-zinc-100 rounded-2xl p-4">
+              <button key={e.id} onClick={() => pickEvent(e.id)} className="w-full text-left bg-white border border-zinc-100 rounded-2xl p-4">
                 <p className="text-sm font-semibold text-zinc-900">{e.title}</p>
-                <p className="text-xs text-zinc-400 mt-0.5">{e.location} · {e.days.map(dayLabel).join(", ")}</p>
+                <p className="text-xs text-zinc-500 mt-0.5">{e.location} · {e.days.map(dayLabel).join(", ")}</p>
               </button>
             ))}
           </div>
@@ -344,9 +398,9 @@ export default function BoothPage() {
                   const p = ev.pricing[t];
                   return (
                     <div key={t} className="border border-zinc-100 rounded-xl px-3 py-2">
-                      <p className="text-xs font-semibold text-zinc-900">{p.label} <span className="text-zinc-400 font-normal">· {p.size}</span></p>
+                      <p className="text-xs font-semibold text-zinc-900">{p.label} <span className="text-zinc-500 font-normal">· {p.size}</span></p>
                       <p className="text-[11px] text-zinc-500 mt-0.5">แพ็กเกจ {ev.days.length} วัน <b className="text-zinc-900">{baht(p.full)}</b></p>
-                      <p className="text-[11px] text-zinc-400">บางวัน {baht(p.per_day)} / วัน</p>
+                      <p className="text-[11px] text-zinc-500">บางวัน {baht(p.per_day)} / วัน</p>
                     </div>
                   );
                 })}
@@ -359,7 +413,8 @@ export default function BoothPage() {
                 {ev.days.map((d) => {
                   const on = days.includes(d);
                   return (
-                    <button key={d} onClick={() => toggleDay(d)} aria-pressed={on}
+                    <button key={d} onClick={() => toggleDay(d)} aria-pressed={on} disabled={!partialOpen}
+                      title={!partialOpen ? "ตอนนี้เปิดจองเฉพาะครบทุกวัน" : undefined}
                       className={`text-sm px-4 py-2 rounded-xl border transition-colors ${on ? "bg-zinc-900 text-white border-zinc-900" : "bg-white text-zinc-600 border-zinc-200"} ${!partialOpen ? "opacity-70 cursor-default" : ""}`}>
                       {dayLabel(d)}
                     </button>
@@ -401,7 +456,7 @@ export default function BoothPage() {
                 </div>
               </div>
               {tableInfo && <p className="text-[11px] text-zinc-600 bg-zinc-50 rounded-lg px-3 py-1.5 mt-2">{tableInfo}</p>}
-              <p className="text-[10px] text-zinc-400 mt-1.5">โต๊ะที่ชำระแล้วแสดงโลโก้ร้าน แตะที่โต๊ะเพื่อดูชื่อร้าน</p>
+              <p className="text-[11px] text-zinc-500 mt-1.5">โต๊ะที่ชำระแล้วแสดงโลโก้ร้าน แตะที่โต๊ะเพื่อดูชื่อร้าน</p>
             </div>
 
             <div className="bg-white border border-zinc-100 rounded-2xl p-4">
@@ -413,12 +468,12 @@ export default function BoothPage() {
               </div>
 
               {lines.length === 0 ? (
-                <p className="text-xs text-zinc-400 py-2">แตะโต๊ะบนผังเพื่อเลือก</p>
+                <p className="text-xs text-zinc-500 py-2">แตะโต๊ะบนผังเพื่อเลือก</p>
               ) : (
                 <div className="space-y-1">
                   {lines.map((l) => (
                     <div key={l.id} className="flex justify-between text-sm">
-                      <span className="text-zinc-800">{l.p?.label} {l.id} <span className="text-zinc-400 text-xs">· {l.p?.size}{!isFull && l.p ? ` · ${baht(l.p.per_day)} × ${days.length} วัน` : ""}</span></span>
+                      <span className="text-zinc-800">{l.p?.label} {l.id} <span className="text-zinc-500 text-xs">· {l.p?.size}{!isFull && l.p ? ` · ${baht(l.p.per_day)} × ${days.length} วัน` : ""}</span></span>
                       <span className="text-zinc-900">{baht(l.price)}</span>
                     </div>
                   ))}
@@ -474,7 +529,7 @@ export default function BoothPage() {
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={vendor.logo_url} alt="โลโก้ร้าน" className="w-full h-full object-contain" />
                         ) : (
-                          <span className="text-[10px] text-zinc-400 text-center leading-tight px-1">โลโก้<br />ร้าน</span>
+                          <span className="text-[11px] text-zinc-500 text-center leading-tight px-1">โลโก้<br />ร้าน</span>
                         )}
                       </div>
                       <div className="min-w-0">
@@ -484,9 +539,9 @@ export default function BoothPage() {
                             onChange={(e) => { uploadLogo(e.target.files?.[0]); e.target.value = ""; }} />
                         </label>
                         {vendor.logo_url && !logoBusy && (
-                          <button type="button" onClick={() => setVendor({ ...vendor, logo_url: "" })} className="ml-2 text-[11px] text-zinc-400 underline">ลบ</button>
+                          <button type="button" onClick={() => setVendor({ ...vendor, logo_url: "" })} className="ml-2 text-[11px] text-zinc-500 underline">ลบ</button>
                         )}
-                        <p className="text-[10px] text-zinc-400 mt-1">PNG / JPG / WebP ไม่เกิน 2 MB · ใช้ประชาสัมพันธ์ร้านในงาน</p>
+                        <p className="text-[11px] text-zinc-500 mt-1">PNG / JPG / WebP ไม่เกิน 2 MB · ใช้ประชาสัมพันธ์ร้านในงาน</p>
                         {logoMsg && <p className="text-[11px] text-red-600 mt-0.5">{logoMsg}</p>}
                       </div>
                     </div>
@@ -516,7 +571,7 @@ export default function BoothPage() {
                     <textarea className={inputCls} rows={2} maxLength={300}
                       placeholder={vendor.product_types.includes("อื่นๆ") ? "รายละเอียดสินค้า (จำเป็น เพราะเลือก \"อื่นๆ\")" : "รายละเอียดสินค้าเพิ่มเติม (ถ้ามี) เช่น เกมที่ขาย ยี่ห้อ"}
                       value={vendor.product_detail} onChange={(e) => setVendor({ ...vendor, product_detail: e.target.value })} />
-                    <p className="text-[10px] text-zinc-400">ข้อมูลนี้ทีมงานใช้ติดต่อและตรวจสอบสินค้าที่จำหน่ายในงาน · บันทึกอัตโนมัติเมื่อกดชำระเงิน</p>
+                    <p className="text-[11px] text-zinc-500">ข้อมูลนี้ทีมงานใช้ติดต่อและตรวจสอบสินค้าที่จำหน่ายในงาน · บันทึกอัตโนมัติเมื่อกดชำระเงิน</p>
                   </div>
                 )}
               </div>
@@ -530,7 +585,7 @@ export default function BoothPage() {
                   className="w-full py-3.5 text-center text-sm font-semibold rounded-xl border border-zinc-200 text-zinc-700 disabled:opacity-50">
                   {busy === "card" ? "กำลังไปหน้าชำระเงิน..." : `ชำระด้วยบัตรเครดิต/เดบิต — ${baht(subtotal - discount + Math.round((subtotal - discount) * 0.03))}`}
                 </button>
-                <p className="text-[10px] text-zinc-400 text-center">
+                <p className="text-[11px] text-zinc-500 text-center">
                   เมื่อกดชำระ ระบบกันโต๊ะให้ {ev.hold_minutes} นาที ถ้าไม่ชำระภายในเวลา โต๊ะจะถูกปล่อยคืน · บัตรมีค่าธรรมเนียม 3% คิดจากยอดหลังหักส่วนลด
                 </p>
               </div>
@@ -547,7 +602,7 @@ export default function BoothPage() {
                 <div key={b.id} className="border border-zinc-100 rounded-xl px-3 py-2.5">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-xs font-semibold text-zinc-900">{b.booth_events?.title}</p>
-                    <span className={`text-[10px] px-2 py-0.5 rounded ${STATUS[b.status]?.cls ?? "bg-zinc-100"}`}>{STATUS[b.status]?.text ?? b.status}</span>
+                    <span className={`text-[11px] px-2 py-0.5 rounded ${STATUS[b.status]?.cls ?? "bg-zinc-100"}`}>{STATUS[b.status]?.text ?? b.status}</span>
                   </div>
                   <p className="text-[11px] text-zinc-500 mt-1">โต๊ะ {b.tables.join(", ")} · {b.days.map(dayLabel).join(", ")}</p>
                   <p className="text-[11px] text-zinc-500">ยอด {baht(b.total)}{b.discount_code ? ` · โค้ด ${b.discount_code}` : ""}</p>
@@ -556,7 +611,7 @@ export default function BoothPage() {
                   )}
                 </div>
               ))}
-              {mine.every((b) => b.status === "cancelled" || b.status === "expired") && <p className="text-xs text-zinc-400">ยังไม่มีรายการจองที่มีผล</p>}
+              {mine.every((b) => b.status === "cancelled" || b.status === "expired") && <p className="text-xs text-zinc-500">ยังไม่มีรายการจองที่มีผล</p>}
             </div>
           </div>
         )}
@@ -572,6 +627,8 @@ export default function BoothPage() {
             </div>
             <div
               className="px-5 py-4 overflow-y-auto flex-1 text-sm text-zinc-700 leading-relaxed whitespace-pre-line"
+              tabIndex={0}
+              aria-label="ข้อความกฎระเบียบ เลื่อนอ่านให้จบด้วยลูกศรหรือปุ่ม Page Down"
               onScroll={(e) => {
                 const el = e.currentTarget;
                 if (el.scrollTop + el.clientHeight >= el.scrollHeight - 8) setRulesRead(true);
@@ -582,7 +639,7 @@ export default function BoothPage() {
             </div>
             <div className="px-5 py-4 border-t border-zinc-100 flex-shrink-0 space-y-3">
               {!rulesRead && <p className="text-[11px] text-amber-700">เลื่อนอ่านให้จบก่อน จึงจะกดยอมรับได้</p>}
-              <label className={`flex items-start gap-2 text-xs ${rulesRead ? "text-zinc-800" : "text-zinc-400"}`}>
+              <label className={`flex items-start gap-2 text-xs ${rulesRead ? "text-zinc-800" : "text-zinc-500"}`}>
                 <input type="checkbox" className="mt-0.5" disabled={!rulesRead} checked={rulesOk} onChange={(e) => setRulesOk(e.target.checked)} />
                 <span>ข้าพเจ้าได้อ่านและยอมรับกฎระเบียบภายในงานทั้งหมด และยืนยันว่าข้อมูลร้านที่กรอกเป็นความจริง</span>
               </label>

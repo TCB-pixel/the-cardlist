@@ -141,7 +141,7 @@ export default function EditProfilePage() {
       <header className="sticky top-0 z-40 bg-white border-b border-zinc-100">
         <div className="flex items-center justify-between px-4 h-12">
           <div className="flex items-center gap-3">
-            <Link href="/profile" className="text-zinc-400 active:text-zinc-700">
+            <Link href="/profile" className="text-zinc-500 active:text-zinc-700">
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                 <path d="M12 5l-5 5 5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
@@ -185,7 +185,7 @@ export default function EditProfilePage() {
             เปลี่ยนรูปโปรไฟล์
           </button>
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-          <p className="text-[10px] text-zinc-400">PNG, JPG ขนาดไม่เกิน 2MB</p>
+          <p className="text-[11px] text-zinc-500">PNG, JPG ขนาดไม่เกิน 2MB</p>
         </div>
 
         {/* Form */}
@@ -208,7 +208,7 @@ export default function EditProfilePage() {
               Username
             </label>
             <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-zinc-400">@</span>
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-zinc-500">@</span>
               <input
                 type="text"
                 className="input pl-8"
@@ -218,7 +218,7 @@ export default function EditProfilePage() {
                 maxLength={30}
               />
             </div>
-            <p className="text-[10px] text-zinc-400 mt-1">ตัวอักษรภาษาอังกฤษ ตัวเลข และ _ เท่านั้น</p>
+            <p className="text-[11px] text-zinc-500 mt-1">ตัวอักษรภาษาอังกฤษ ตัวเลข และ _ เท่านั้น</p>
           </div>
 
           {/* ── ชื่อ-นามสกุลจริง ── */}
@@ -232,7 +232,7 @@ export default function EditProfilePage() {
               <input type="text" className="input" placeholder="นามสกุล"
                 value={lastName} onChange={(e) => setLastName(e.target.value)} maxLength={60} />
             </div>
-            <p className="text-[10px] text-zinc-400 mt-1">ใช้สำหรับยืนยันตัวตนตอนรับสิทธิ์และรับสินค้า</p>
+            <p className="text-[11px] text-zinc-500 mt-1">ใช้สำหรับยืนยันตัวตนตอนรับสิทธิ์และรับสินค้า</p>
           </div>
 
           {/* ── เบอร์โทร ── */}
@@ -242,7 +242,7 @@ export default function EditProfilePage() {
             </label>
             <input type="tel" inputMode="numeric" className="input" placeholder="08x-xxx-xxxx"
               value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={20} />
-            <p className="text-[10px] text-zinc-400 mt-1">
+            <p className="text-[11px] text-zinc-500 mt-1">
               พนักงานใช้ค้นหาคุณตอนบันทึกรอบเล่น เผื่อกรณีเปิด QR ไม่ได้
             </p>
           </div>
@@ -254,7 +254,7 @@ export default function EditProfilePage() {
             </label>
             <input type="email" inputMode="email" className="input" placeholder="name@gmail.com"
               value={receiptEmail} onChange={(e) => setReceiptEmail(e.target.value)} maxLength={120} />
-            <p className="text-[10px] text-zinc-400 mt-1">
+            <p className="text-[11px] text-zinc-500 mt-1">
               {/^line_[a-z0-9]+@thecardlist\.com$/i.test(authEmail)
                 ? "บัญชีที่ล็อกอินด้วย LINE ไม่มีอีเมลจริง — กรอกอีเมลของคุณเพื่อรับใบเสร็จทางอีเมลด้วย (ไม่บังคับ)"
                 : "ถ้าไม่กรอก เราจะส่งไปที่อีเมลที่ใช้สมัคร"}
@@ -267,7 +267,7 @@ export default function EditProfilePage() {
           className="card px-5 py-4 flex items-center justify-between mt-4 active:bg-zinc-50 transition-colors">
           <div>
             <p className="text-sm text-zinc-900">ที่อยู่จัดส่ง</p>
-            <p className="text-[10px] text-zinc-400 mt-0.5">
+            <p className="text-[11px] text-zinc-500 mt-0.5">
               {addressCount > 0 ? `บันทึกไว้ ${addressCount} ที่อยู่` : "ยังไม่ได้เพิ่มที่อยู่"}
             </p>
           </div>

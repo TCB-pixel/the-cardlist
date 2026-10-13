@@ -28,6 +28,7 @@ export function goLogin() {
 
 export const LINE_ERRORS: Record<string, string> = {
   line_cancelled: "ยกเลิกการเข้าสู่ระบบด้วย LINE ลองใหม่อีกครั้งได้เลย",
+  line_state: "การเข้าสู่ระบบด้วย LINE หมดเวลาหรือไม่ถูกต้อง กรุณากดเข้าสู่ระบบด้วย LINE ใหม่อีกครั้ง",
   line_token_failed: "เชื่อมต่อ LINE ไม่สำเร็จ กรุณาลองใหม่ หรือใช้อีเมลแทน",
   line_profile_failed: "ดึงข้อมูลจาก LINE ไม่สำเร็จ กรุณาลองใหม่",
   line_profile_update_failed: "บันทึกข้อมูลบัญชี LINE ไม่สำเร็จ กรุณาลองใหม่",

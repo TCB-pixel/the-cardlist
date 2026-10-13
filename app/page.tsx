@@ -140,7 +140,7 @@ export default function HomePage() {
             {isLoggedIn ? (
               <Link href="/profile"
                 className="flex items-center gap-2 text-[11px] border border-zinc-200 rounded-xl px-3 py-1.5 text-zinc-700">
-                <div className="w-4 h-4 bg-zinc-900 rounded-full flex items-center justify-center text-white text-[8px] font-bold">
+                <div className="w-4 h-4 bg-zinc-900 rounded-full flex items-center justify-center text-white text-[10px] font-bold">
                   {displayName[0]?.toUpperCase() ?? "U"}
                 </div>
                 <span className="max-w-[80px] truncate">{displayName}</span>
@@ -155,6 +155,10 @@ export default function HomePage() {
         </div>
       </header>
 
+      <p className="px-4 pt-3 text-xs text-zinc-600 leading-relaxed">
+        แพลตฟอร์มสำหรับคนเล่นการ์ดเกมในไทย — ซื้อการ์ดและอุปกรณ์ ติดตามอีเวนต์ และจองโต๊ะร้านค้าในงาน
+      </p>
+
       {/* Hero Banner */}
       <HeroBanner banners={banners} intervalMs={4000} />
 
@@ -164,7 +168,7 @@ export default function HomePage() {
           {QUICK_LINKS.map((q) => (
             <Link key={q.href} href={q.href} className="card flex flex-col items-center gap-1 py-3 px-1 active:bg-zinc-50">
               <span className="text-lg">{q.icon}</span>
-              <span className="text-[10px] text-zinc-600 font-medium text-center">{q.label}</span>
+              <span className="text-[11px] text-zinc-600 font-medium text-center">{q.label}</span>
             </Link>
           ))}
         </div>
@@ -190,7 +194,7 @@ export default function HomePage() {
         <section className="mb-4">
           <div className="flex items-center justify-between mb-3 px-4">
             <h2 className="text-xs font-semibold text-zinc-900 tracking-wide">สินค้ามาใหม่</h2>
-            <Link href="/shop" className="text-[10px] text-zinc-400">ดูทั้งหมด →</Link>
+            <Link href="/shop" className="text-[11px] text-zinc-500">ดูทั้งหมด →</Link>
           </div>
           <div className="flex gap-2 overflow-x-auto px-4 pb-1 snap-x">
             {!productsLoaded
@@ -221,7 +225,7 @@ export default function HomePage() {
       <section className="px-4 mb-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-xs font-semibold text-zinc-900 tracking-wide">อีเวนต์ที่กำลังมา</h2>
-          <Link href="/events" className="text-[10px] text-zinc-400">ดูทั้งหมด →</Link>
+          <Link href="/events" className="text-[11px] text-zinc-500">ดูทั้งหมด →</Link>
         </div>
         <div className="space-y-2">
           {!eventsLoaded ? (
@@ -232,7 +236,7 @@ export default function HomePage() {
           ) : events.length === 0 ? (
             <div className="card px-4 py-5 text-center">
               <p className="text-xs text-zinc-500">กำลังเตรียมงานครั้งถัดไป</p>
-              <p className="text-[10px] text-zinc-400 mt-1">ติดตามข่าวสารเพื่อไม่พลาดวันและสถานที่จัดงาน</p>
+              <p className="text-[11px] text-zinc-500 mt-1">ติดตามข่าวสารเพื่อไม่พลาดวันและสถานที่จัดงาน</p>
               <Link href="/news" className="inline-block mt-3 text-[11px] font-semibold border border-zinc-200 rounded-xl px-4 py-1.5 text-zinc-700">ดูข่าวสารงานที่ผ่านมา</Link>
             </div>
           ) : events.map((ev) => {
@@ -245,18 +249,18 @@ export default function HomePage() {
               <Link key={ev.id} href={`/events/${ev.id}`} className="card px-4 py-3 flex gap-3 items-start active:bg-zinc-50 block">
                 <div className="bg-zinc-900 text-white rounded-xl px-2.5 py-2 text-center min-w-[40px] flex-shrink-0">
                   <div className="text-base font-bold leading-none">{day}</div>
-                  <div className="text-[8px] text-zinc-400 tracking-wider mt-0.5">{month}</div>
+                  <div className="text-[10px] text-zinc-500 tracking-wider mt-0.5">{month}</div>
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-semibold text-zinc-900 truncate">{ev.title}</p>
-                  <p className="text-[10px] text-zinc-400 mt-0.5">{ev.location}</p>
+                  <p className="text-[11px] text-zinc-500 mt-0.5">{ev.location}</p>
                   {isMeetup ? (
                     <div className="flex gap-1 mt-2">
-                      <span className="text-[9px] bg-green-50 text-green-600 px-1.5 py-0.5 rounded font-semibold">เข้าฟรี</span>
+                      <span className="text-[10px] bg-green-50 text-green-600 px-1.5 py-0.5 rounded font-semibold">เข้าฟรี</span>
                     </div>
                   ) : ev.max_slots > 0 ? (
                     <div className="mt-2">
-                      <span className="text-[9px] text-zinc-400">ที่นั่งคงเหลือ {ev.max_slots - ev.booked_slots} / {ev.max_slots}</span>
+                      <span className="text-[10px] text-zinc-500">ที่นั่งคงเหลือ {ev.max_slots - ev.booked_slots} / {ev.max_slots}</span>
                       <div className="h-1 bg-zinc-100 rounded-full overflow-hidden mt-1">
                         <div className="h-full bg-zinc-900 rounded-full" style={{ width: `${pct}%` }} />
                       </div>
@@ -273,7 +277,7 @@ export default function HomePage() {
       <section className="px-4 mb-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-xs font-semibold text-zinc-900 tracking-wide">ข่าวสารล่าสุด</h2>
-          <Link href="/news" className="text-[10px] text-zinc-400">ดูทั้งหมด →</Link>
+          <Link href="/news" className="text-[11px] text-zinc-500">ดูทั้งหมด →</Link>
         </div>
         <div className="space-y-2">
           {!newsLoaded ? (
@@ -285,7 +289,7 @@ export default function HomePage() {
             ))
           ) : news.length === 0 ? (
             <div className="card px-4 py-6 text-center">
-              <p className="text-xs text-zinc-400">ยังไม่มีข่าวสาร</p>
+              <p className="text-xs text-zinc-500">ยังไม่มีข่าวสาร</p>
             </div>
           ) : news.map((n) => (
             <Link key={n.slug} href={`/news/${n.slug}`} className="card px-4 py-3 flex gap-3 items-center active:bg-zinc-50 block">
@@ -297,9 +301,9 @@ export default function HomePage() {
                 </svg>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[9px] font-semibold tracking-widest text-zinc-400 mb-0.5">{n.tag?.toUpperCase()}</p>
+                <p className="text-[10px] font-semibold tracking-widest text-zinc-500 mb-0.5">{n.tag?.toUpperCase()}</p>
                 <p className="text-xs font-medium text-zinc-900 leading-snug line-clamp-2">{n.title}</p>
-                <p className="text-[10px] text-zinc-400 mt-1">
+                <p className="text-[11px] text-zinc-500 mt-1">
                   {n.published_at ? new Date(n.published_at).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" }) : ""}
                 </p>
               </div>

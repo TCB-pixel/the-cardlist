@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SHIPPING_FEE } from "@/lib/order-email";
 import { preorderLabel, payableOf, depositOf, isPreorderClosed } from "@/lib/preorder";
+import { getUserFromRequest } from "@/lib/booth";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 
@@ -34,16 +35,22 @@ export async function GET(request: NextRequest) {
       payment_status: session.payment_status,
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error("checkout session lookup failed:", err?.message);
+    return NextResponse.json({ error: "ตรวจสอบสถานะการชำระเงินไม่สำเร็จ" }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    // ระบุตัวผู้ซื้อจาก token ที่เซิร์ฟเวอร์ตรวจเอง — ไม่เชื่อ userId ที่ส่งมาจากเบราว์เซอร์
+    const user = await getUserFromRequest(request);
+    if (!user) {
+      return NextResponse.json({ error: "กรุณาเข้าสู่ระบบก่อนชำระเงิน" }, { status: 401 });
+    }
     const body = await request.json();
     const items: any[] = Array.isArray(body.items) ? body.items : [];
-    const userId: string | null = body.userId ?? null;
-    const email: string | null = body.email ?? null;
+    const userId: string | null = user.id;
+    const email: string | null = user.email ?? null;
     // paymentMethod: "card" (มีค่าธรรมเนียม 3% แสดงแยกให้เห็นชัดเจน) หรือ "promptpay" (ไม่มีค่าธรรมเนียม)
     const paymentMethod: "card" | "promptpay" = body.paymentMethod === "promptpay" ? "promptpay" : "card";
 
@@ -222,6 +229,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ url: session.url });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error("checkout create failed:", err?.message);
+    return NextResponse.json({ error: "เปิดหน้าชำระเงินไม่สำเร็จ กรุณาลองใหม่อีกครั้ง" }, { status: 500 });
   }
 }

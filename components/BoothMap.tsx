@@ -25,7 +25,7 @@ export default function BoothMap({
   const [x, y, w, h] = layout.viewBox;
 
   return (
-    <svg viewBox={`${x} ${y} ${w} ${h}`} width="100%" role="img" aria-label="ผังโต๊ะงาน" style={{ display: "block" }}>
+    <svg viewBox={`${x} ${y} ${w} ${h}`} width="100%" role="group" aria-label="ผังโต๊ะงาน แตะหรือกด Enter ที่โต๊ะเพื่อเลือก" style={{ display: "block" }}>
       <style>{`
         .bm-t{cursor:pointer;outline:none}
         .bm-t rect{fill:#fff;stroke:#a1a1aa;stroke-width:1}

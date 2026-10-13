@@ -328,7 +328,8 @@ export default function ProfilePage() {
       setPriorityTickets((priorityWithEvents as unknown as PriorityTicket[]) ?? []);
 
     } catch (err: any) {
-      setFetchError(err?.message ?? "โหลดข้อมูลไม่สำเร็จ");
+      console.error("profile load failed:", err);
+      setFetchError("โหลดข้อมูลโปรไฟล์ไม่สำเร็จ ตรวจอินเทอร์เน็ตแล้วลองใหม่");
     } finally {
       setLoading(false);
     }
@@ -346,13 +347,25 @@ export default function ProfilePage() {
   // ── Loading ──
   if (loading) return <ProfileSkeleton />;
 
+  // ── โหลดพลาดทั้งที่ล็อกอินอยู่ — บอกให้ลองใหม่ ไม่ใช่ให้ไปล็อกอิน ──
+  if (!profile && fetchError) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6 text-center pb-20" role="alert">
+        <h2 className="text-lg font-bold text-zinc-900 mb-2">โหลดข้อมูลไม่สำเร็จ</h2>
+        <p className="text-sm text-zinc-500 mb-8">{fetchError}</p>
+        <button onClick={loadData} className="bg-zinc-900 text-white text-sm font-semibold px-8 py-3 rounded-xl">ลองใหม่</button>
+        <BottomNav />
+      </div>
+    );
+  }
+
   // ── Not logged in (fallback — middleware should catch this first) ──
   if (!profile) {
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6 text-center pb-20">
         <Image src="/images/logo-square.jpg" alt="The Cardlist" width={52} height={52} className="mb-6" />
         <h2 className="text-lg font-bold text-zinc-900 mb-2">เข้าสู่ระบบก่อน</h2>
-        <p className="text-sm text-zinc-400 mb-8">เพื่อดูโปรไฟล์ ประวัติสั่งซื้อ และการจองอีเวนต์</p>
+        <p className="text-sm text-zinc-500 mb-8">เพื่อดูโปรไฟล์ ประวัติสั่งซื้อ และการจองอีเวนต์</p>
         <Link href="/login" className="bg-zinc-900 text-white text-sm font-semibold px-8 py-3 rounded-xl mb-3 block">
           เข้าสู่ระบบ
         </Link>
@@ -383,7 +396,7 @@ export default function ProfilePage() {
           <button
             onClick={handleLogout}
             disabled={loggingOut}
-            className="text-[11px] text-zinc-400 active:text-zinc-700 disabled:opacity-40"
+            className="text-[11px] text-zinc-500 active:text-zinc-700 disabled:opacity-40"
           >
             {loggingOut ? "กำลังออก..." : "ออกจากระบบ"}
           </button>
@@ -406,7 +419,7 @@ export default function ProfilePage() {
           className="bg-amber-50 border-b border-amber-100 px-4 py-3 flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs font-semibold text-amber-900">ยังไม่ได้กรอกเบอร์โทร</p>
-            <p className="text-[10px] text-amber-700 mt-0.5">
+            <p className="text-[11px] text-amber-700 mt-0.5">
               กรอกไว้เผื่อเปิด QR ไม่ได้ พนักงานจะค้นหาคุณด้วยเบอร์แทนได้
             </p>
           </div>
@@ -423,7 +436,7 @@ export default function ProfilePage() {
             <Image src="/icons/icon-192.png" alt="" width={32} height={32} className="rounded-lg flex-shrink-0" />
             <div>
               <p className="text-xs font-semibold text-white">ติดตั้งแอป The Cardlist</p>
-              <p className="text-[10px] text-zinc-400 mt-0.5">เพิ่มไปยังหน้าจอหลักได้เลย</p>
+              <p className="text-[11px] text-zinc-500 mt-0.5">เพิ่มไปยังหน้าจอหลักได้เลย</p>
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -463,10 +476,10 @@ export default function ProfilePage() {
           )}
           <div>
             <p className="text-sm font-bold text-zinc-900">{profile.display_name ?? profile.username}</p>
-            <p className="text-[11px] text-zinc-400 mt-0.5">@{profile.username}</p>
+            <p className="text-[11px] text-zinc-500 mt-0.5">@{profile.username}</p>
             <div className="flex items-center gap-1.5 mt-1.5">
               <span className="w-2 h-2 rounded-full" style={{ background: tierColor }} />
-              <span className="text-[10px] font-semibold tracking-widest" style={{ color: tierColor }}>
+              <span className="text-[11px] font-semibold tracking-widest" style={{ color: tierColor }}>
                 {tierLabel.toUpperCase()} MEMBER
               </span>
             </div>
@@ -483,7 +496,7 @@ export default function ProfilePage() {
           ].map((s) => (
             <div key={s.label} className="bg-zinc-50 rounded-xl py-2.5 text-center">
               <p className="text-sm font-bold text-zinc-900">{s.value}</p>
-              <p className="text-[9px] text-zinc-400 mt-0.5 tracking-wide">{s.label}</p>
+              <p className="text-[10px] text-zinc-500 mt-0.5 tracking-wide">{s.label}</p>
             </div>
           ))}
         </div>
@@ -493,7 +506,7 @@ export default function ProfilePage() {
           <div className="mb-3">
             <div className="flex justify-between mb-1.5">
               <span className="text-[11px] text-zinc-500 font-medium">Points: {tierLabel} → {TIER_LABEL[nextTierKey]}</span>
-              <span className="text-[11px] text-zinc-400">{profile.points.toLocaleString()} / 2,000</span>
+              <span className="text-[11px] text-zinc-500">{profile.points.toLocaleString()} / 2,000</span>
             </div>
             <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden">
               <div className="h-full rounded-full transition-all duration-500" style={{ width: `${ptsPct}%`, background: tierColor }} />
@@ -506,12 +519,12 @@ export default function ProfilePage() {
           <div>
             <div className="flex justify-between mb-1.5">
               <span className="text-[11px] text-zinc-500 font-medium">ยอดซื้อสะสม → {TIER_LABEL[nextTierKey]}</span>
-              <span className="text-[11px] text-zinc-400">฿{totalSpend.toLocaleString()} / ฿{nextThreshold.toLocaleString()}</span>
+              <span className="text-[11px] text-zinc-500">฿{totalSpend.toLocaleString()} / ฿{nextThreshold.toLocaleString()}</span>
             </div>
             <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden">
               <div className="h-full rounded-full transition-all duration-500" style={{ width: `${spendPct}%`, background: tierColor }} />
             </div>
-            <p className="text-[10px] text-zinc-400 mt-1">
+            <p className="text-[11px] text-zinc-500 mt-1">
               อีก ฿{spendRemaining.toLocaleString()} จะขึ้น {TIER_LABEL[nextTierKey]}
             </p>
           </div>
@@ -536,17 +549,17 @@ export default function ProfilePage() {
               key={t}
               onClick={() => setActiveTab(t)}
               className={`flex-shrink-0 text-[11px] px-5 py-3 tracking-wide border-b-2 transition-colors ${
-                activeTab === t ? "border-zinc-900 text-zinc-900 font-semibold" : "border-transparent text-zinc-400"
+                activeTab === t ? "border-zinc-900 text-zinc-900 font-semibold" : "border-transparent text-zinc-500"
               }`}
             >
               {labels[t]}
               {t === "orders" && orders.length > 0 && (
-                <span className="ml-1 text-[9px] bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded-full">
+                <span className="ml-1 text-[10px] bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded-full">
                   {orders.length}
                 </span>
               )}
               {t === "bookings" && bookings.length > 0 && (
-                <span className="ml-1 text-[9px] bg-zinc-900 text-white px-1.5 py-0.5 rounded-full">
+                <span className="ml-1 text-[10px] bg-zinc-900 text-white px-1.5 py-0.5 rounded-full">
                   {bookings.length}
                 </span>
               )}
@@ -567,7 +580,7 @@ export default function ProfilePage() {
             {!installed && (
               <div className="card px-4 py-4 mb-4">
                 <p className="text-xs font-semibold text-zinc-900 mb-1">ดาวน์โหลดแอป The Cardlist</p>
-                <p className="text-[11px] text-zinc-400 mb-3">ติดตั้งเป็นแอปบนมือถือและคอมพิวเตอร์ได้เลย</p>
+                <p className="text-[11px] text-zinc-500 mb-3">ติดตั้งเป็นแอปบนมือถือและคอมพิวเตอร์ได้เลย</p>
                 <div className="grid grid-cols-2 gap-2">
                   <button onClick={handleInstall} className="flex items-center gap-2 border border-zinc-200 rounded-xl px-3 py-2.5 text-left hover:bg-zinc-50 transition-colors">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
@@ -575,8 +588,8 @@ export default function ProfilePage() {
                       <circle cx="12" cy="18" r="1" fill="#0a0a0a"/>
                     </svg>
                     <div>
-                      <p className="text-[10px] font-semibold text-zinc-900">มือถือ</p>
-                      <p className="text-[9px] text-zinc-400">Android / iOS</p>
+                      <p className="text-[11px] font-semibold text-zinc-900">มือถือ</p>
+                      <p className="text-[10px] text-zinc-500">Android / iOS</p>
                     </div>
                   </button>
                   <button onClick={handleInstall} className="flex items-center gap-2 border border-zinc-200 rounded-xl px-3 py-2.5 text-left hover:bg-zinc-50 transition-colors">
@@ -586,12 +599,12 @@ export default function ProfilePage() {
                       <line x1="12" y1="18" x2="12" y2="22" stroke="#0a0a0a" strokeWidth="1.3"/>
                     </svg>
                     <div>
-                      <p className="text-[10px] font-semibold text-zinc-900">Desktop</p>
-                      <p className="text-[9px] text-zinc-400">Windows / Mac</p>
+                      <p className="text-[11px] font-semibold text-zinc-900">Desktop</p>
+                      <p className="text-[10px] text-zinc-500">Windows / Mac</p>
                     </div>
                   </button>
                 </div>
-                <p className="text-[9px] text-zinc-400 mt-2.5 text-center">* iOS: กด Share → "Add to Home Screen" ใน Safari</p>
+                <p className="text-[10px] text-zinc-500 mt-2.5 text-center">* iOS: กด Share → "Add to Home Screen" ใน Safari</p>
               </div>
             )}
             {[
@@ -627,7 +640,7 @@ export default function ProfilePage() {
             )}
             {orders.length === 0 ? (
               <div className="card px-5 py-10 text-center">
-                <p className="text-sm text-zinc-400">ยังไม่มีประวัติการสั่งซื้อ</p>
+                <p className="text-sm text-zinc-500">ยังไม่มีประวัติการสั่งซื้อ</p>
                 <Link href="/shop" className="mt-4 inline-block btn-primary px-6 py-2.5">ไปที่ร้านค้า</Link>
               </div>
             ) : (
@@ -637,13 +650,13 @@ export default function ProfilePage() {
                     <p className="text-[11px] font-semibold text-zinc-500 tracking-wide font-mono">
                       #{o.id.slice(0, 8).toUpperCase()}
                     </p>
-                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${STATUS_STYLE[o.status]}`}>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${STATUS_STYLE[o.status]}`}>
                       {STATUS_LABEL[o.status]}
                     </span>
                   </div>
                   <p className="text-xs font-medium text-zinc-900">{formatOrderItems(o.order_items)}</p>
                   <div className="flex items-center justify-between mt-2">
-                    <p className="text-[10px] text-zinc-400">{formatDate(o.created_at)}</p>
+                    <p className="text-[11px] text-zinc-500">{formatDate(o.created_at)}</p>
                     <p className="text-xs font-bold text-zinc-900">฿{Number(o.total_amount).toLocaleString()}</p>
                   </div>
                 </div>
@@ -657,7 +670,7 @@ export default function ProfilePage() {
           <div className="space-y-2">
             {bookings.length === 0 ? (
               <div className="card px-5 py-10 text-center">
-                <p className="text-sm text-zinc-400">ยังไม่มีการจองอีเวนต์</p>
+                <p className="text-sm text-zinc-500">ยังไม่มีการจองอีเวนต์</p>
                 <Link href="/events" className="mt-4 inline-block btn-primary px-6 py-2.5">ดูอีเวนต์</Link>
               </div>
             ) : (
@@ -667,19 +680,19 @@ export default function ProfilePage() {
                     <p className="text-[11px] font-semibold text-zinc-500 tracking-wide font-mono">
                       #{b.id.slice(0, 8).toUpperCase()}
                     </p>
-                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${STATUS_STYLE[b.status]}`}>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${STATUS_STYLE[b.status]}`}>
                       {STATUS_LABEL[b.status]}
                     </span>
                   </div>
                   <p className="text-xs font-medium text-zinc-900">{b.events?.title ?? "—"}</p>
-                  <p className="text-[10px] text-zinc-400 mt-0.5">
+                  <p className="text-[11px] text-zinc-500 mt-0.5">
                     {b.events?.date ? formatDate(b.events.date) : "—"}
                     {b.events?.time ? ` · ${b.events.time.slice(0, 5)}` : ""}
                     {b.events?.location ? ` · ${b.events.location}` : ""}
                   </p>
                   <button
                     onClick={() => setActiveTab("qr")}
-                    className="mt-3 text-[10px] border border-zinc-200 rounded-lg px-3 py-1.5 text-zinc-600 w-full text-center active:bg-zinc-50"
+                    className="mt-3 text-[11px] border border-zinc-200 rounded-lg px-3 py-1.5 text-zinc-600 w-full text-center active:bg-zinc-50"
                   >
                     ดู QR Code
                   </button>
@@ -696,7 +709,7 @@ export default function ProfilePage() {
             {profile?.member_code && (
               <div className="card px-5 py-5">
                 <div className="text-center">
-                  <p className="text-[9px] font-semibold text-zinc-400 tracking-widest mb-1">MEMBER QR</p>
+                  <p className="text-[10px] font-semibold text-zinc-500 tracking-widest mb-1">MEMBER QR</p>
                   <p className="text-xs text-zinc-500 mb-4">ยื่นให้พนักงานสแกนทุกครั้งที่มาเล่น</p>
                   <QRCode value={profile.member_code} />
                   <p className="text-sm font-mono font-semibold text-zinc-900 mt-3 tracking-wider">{profile.member_code}</p>
@@ -705,12 +718,12 @@ export default function ProfilePage() {
                 {/* สะสมรอบเล่น */}
                 <div className="mt-5 pt-4 border-t border-zinc-100">
                   <div className="flex items-baseline justify-between mb-3">
-                    <p className="text-[9px] font-semibold text-zinc-400 tracking-widest">สะสมรอบเล่น</p>
+                    <p className="text-[10px] font-semibold text-zinc-500 tracking-widest">สะสมรอบเล่น</p>
                     <p className="text-xs text-zinc-900"><span className="text-xl font-bold">{playCount}</span> ครั้ง</p>
                   </div>
 
                   {stampRewards.length === 0 ? (
-                    <p className="text-[11px] text-zinc-400">ยังไม่มีสิทธิ์พิเศษในช่วงนี้</p>
+                    <p className="text-[11px] text-zinc-500">ยังไม่มีสิทธิ์พิเศษในช่วงนี้</p>
                   ) : stampRewards.map((r) => {
                     const grant = myGrants.find((g) => g.reward_id === r.id);
                     const pct = Math.min(100, (playCount / r.required_visits) * 100);
@@ -720,27 +733,27 @@ export default function ProfilePage() {
                         <div className="flex items-center justify-between gap-2 mb-1">
                           <p className="text-[11px] text-zinc-600 leading-tight">{r.name}</p>
                           {grant ? (
-                            <span className={`flex-shrink-0 text-[8px] font-bold px-1.5 py-0.5 rounded tracking-widest ${
+                            <span className={`flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded tracking-widest ${
                               grant.status === "used" ? "bg-zinc-100 text-zinc-500" : "bg-green-50 text-green-700"}`}>
                               {grant.status === "used" ? "ใช้แล้ว" : "ได้สิทธิ์แล้ว"}
                             </span>
                           ) : soldOut ? (
-                            <span className="flex-shrink-0 text-[8px] font-bold px-1.5 py-0.5 rounded tracking-widest bg-red-50 text-red-600">เต็มแล้ว</span>
+                            <span className="flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded tracking-widest bg-red-50 text-red-600">เต็มแล้ว</span>
                           ) : (
-                            <span className="flex-shrink-0 text-[10px] text-zinc-400">{playCount}/{r.required_visits}</span>
+                            <span className="flex-shrink-0 text-[11px] text-zinc-500">{playCount}/{r.required_visits}</span>
                           )}
                         </div>
                         <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden">
                           <div className={`h-full rounded-full ${grant ? "bg-green-600" : "bg-zinc-900"}`} style={{ width: `${pct}%` }} />
                         </div>
                         {r.quota != null && !grant && (
-                          <p className="text-[9px] text-zinc-400 mt-1">เหลือ {Math.max(0, r.quota - r.granted_count)} สิทธิ์จาก {r.quota}</p>
+                          <p className="text-[10px] text-zinc-500 mt-1">เหลือ {Math.max(0, r.quota - r.granted_count)} สิทธิ์จาก {r.quota}</p>
                         )}
                       </div>
                     );
                   })}
                   {myGrants.some((g) => g.status === "granted") && (
-                    <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mt-3">
+                    <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mt-3">
                       🎁 คุณมีสิทธิ์ที่ยังไม่ได้ใช้ — แจ้งพนักงานหน้างานเพื่อใช้สิทธิ์ได้เลย
                     </p>
                   )}
@@ -751,8 +764,8 @@ export default function ProfilePage() {
             {genRegs.length === 0 && priorityTickets.length === 0 ? (
               <div className="card px-5 py-10 text-center">
                 <p className="text-2xl mb-3">🎫</p>
-                <p className="text-sm text-zinc-400">ยังไม่มีบัตรเข้างาน</p>
-                <p className="text-[11px] text-zinc-400 mt-1">ลงทะเบียนเข้างานเพื่อรับ QR บัตรเข้างาน</p>
+                <p className="text-sm text-zinc-500">ยังไม่มีบัตรเข้างาน</p>
+                <p className="text-[11px] text-zinc-500 mt-1">ลงทะเบียนเข้างานเพื่อรับ QR บัตรเข้างาน</p>
               </div>
             ) : (
               <>
@@ -760,32 +773,32 @@ export default function ProfilePage() {
                 {genRegs.map((g) => (
                   <div key={g.id} className="card px-5 py-5">
                     <div className="flex items-center gap-2 mb-3">
-                      <span className="text-[10px] bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded-full font-semibold">GENERAL</span>
-                      <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">ฟรี</span>
+                      <span className="text-[11px] bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded-full font-semibold">GENERAL</span>
+                      <span className="text-[11px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">ฟรี</span>
                     </div>
                     <p className="text-xs font-semibold text-zinc-900 mb-0.5">{(g.events as any)?.title ?? "—"}</p>
-                    <p className="text-[10px] text-zinc-400 mb-4">
+                    <p className="text-[11px] text-zinc-500 mb-4">
                       {(g.events as any)?.date ? formatDate((g.events as any).date) : ""} · {(g.events as any)?.location ?? ""}
                     </p>
                     <div className="flex justify-center mb-2">
                       <QRCode value={g.qr_code} />
                     </div>
                     <Barcode value={g.qr_code} />
-                    <p className="text-[10px] text-center text-zinc-400 font-mono mt-2 mb-3">{g.qr_code}</p>
+                    <p className="text-[11px] text-center text-zinc-500 font-mono mt-2 mb-3">{g.qr_code}</p>
                     {/* สิทธิ์ — โชว์เฉพาะ event ที่เปิดสิทธิ์นี้ไว้ (general_perk_enabled) */}
                     {(g.events as any)?.general_perk_enabled !== false && (
                       <div className="bg-zinc-50 rounded-xl p-3 space-y-2">
-                        <p className="text-[10px] font-semibold text-zinc-500 tracking-widest uppercase">สิทธิ์ของคุณ</p>
+                        <p className="text-[11px] font-semibold text-zinc-500 tracking-widest uppercase">สิทธิ์ของคุณ</p>
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2 min-w-0">
                             <span className="text-sm">🎲</span>
                             <span className="text-[11px] text-zinc-700">สิทธิ์ลุ้นซื้อ ชุด “30th CELEBRATION” FUTURISTIC RARE</span>
                           </div>
-                          <span className="flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600">ลุ้นหน้างาน</span>
+                          <span className="flex-shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600">ลุ้นหน้างาน</span>
                         </div>
                       </div>
                     )}
-                    <p className="text-[9px] text-zinc-400 text-center mt-3">แสดง QR Code นี้หน้างานเพื่อใช้สิทธิ์</p>
+                    <p className="text-[10px] text-zinc-500 text-center mt-3">แสดง QR Code นี้หน้างานเพื่อใช้สิทธิ์</p>
                   </div>
                 ))}
 
@@ -793,13 +806,13 @@ export default function ProfilePage() {
                 {priorityTickets.map((p) => (
                   <div key={p.id} className="card px-5 py-5 border-2 border-amber-200">
                     <div className="flex items-center gap-2 mb-3">
-                      <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold">🥇 PRIORITY GUEST</span>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${p.status === "approved" ? "bg-green-100 text-green-700" : "bg-amber-50 text-amber-600"}`}>
+                      <span className="text-[11px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold">🥇 PRIORITY GUEST</span>
+                      <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${p.status === "approved" ? "bg-green-100 text-green-700" : "bg-amber-50 text-amber-600"}`}>
                         {p.status === "approved" ? "✓ อนุมัติแล้ว" : "รอยืนยัน"}
                       </span>
                     </div>
                     <p className="text-xs font-semibold text-zinc-900 mb-0.5">{(p.events as any)?.title ?? "—"}</p>
-                    <p className="text-[10px] text-zinc-400 mb-4">
+                    <p className="text-[11px] text-zinc-500 mb-4">
                       {(p.events as any)?.date ? formatDate((p.events as any).date) : ""} · {(p.events as any)?.location ?? ""}
                     </p>
                     {p.status === "approved" && (
@@ -808,21 +821,21 @@ export default function ProfilePage() {
                           <QRCode value={p.qr_code} />
                         </div>
                         <Barcode value={p.qr_code} />
-                        <p className="text-[10px] text-center text-zinc-400 font-mono mt-2 mb-3">{p.qr_code}</p>
+                        <p className="text-[11px] text-center text-zinc-500 font-mono mt-2 mb-3">{p.qr_code}</p>
                       </>
                     )}
                     {/* สิทธิ์ */}
                     <div className="bg-amber-50 rounded-xl p-3 space-y-2">
-                      <p className="text-[10px] font-semibold text-zinc-500 tracking-widest uppercase">สิทธิ์ของคุณ</p>
+                      <p className="text-[11px] font-semibold text-zinc-500 tracking-widest uppercase">สิทธิ์ของคุณ</p>
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
                           <span className="text-sm">🎲</span>
                           <span className="text-[11px] text-zinc-700">สิทธิ์ลุ้นซื้อ ชุด “30th CELEBRATION” FUTURISTIC RARE</span>
                         </div>
-                        <span className="flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600">ลุ้นหน้างาน</span>
+                        <span className="flex-shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600">ลุ้นหน้างาน</span>
                       </div>
                     </div>
-                    <p className="text-[9px] text-zinc-400 text-center mt-3">แสดง QR Code นี้หน้างานเพื่อใช้สิทธิ์</p>
+                    <p className="text-[10px] text-zinc-500 text-center mt-3">แสดง QR Code นี้หน้างานเพื่อใช้สิทธิ์</p>
                   </div>
                 ))}
               </>

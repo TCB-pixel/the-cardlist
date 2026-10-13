@@ -87,7 +87,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <div className="px-4 pt-4">
-        <Link href="/" className="text-zinc-400 inline-flex items-center" aria-label="กลับหน้าแรก">
+        <Link href="/" className="text-zinc-500 inline-flex items-center" aria-label="กลับหน้าแรก">
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
             <path d="M12 5l-5 5 5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
@@ -99,7 +99,7 @@ export default function LoginPage() {
         <h1 className="text-2xl font-bold text-zinc-900 tracking-tight leading-snug">
           {mode === "forgot" ? "ลืมรหัสผ่าน" : "เข้าสู่ระบบ"}
         </h1>
-        <p className="text-sm text-zinc-400 mt-2 leading-relaxed">
+        <p className="text-sm text-zinc-500 mt-2 leading-relaxed">
           {mode === "forgot" ? "กรอกอีเมลที่ใช้สมัคร แล้วเราจะส่งลิงก์ตั้งรหัสผ่านใหม่ให้" : <>ยินดีต้อนรับทุกคนสู่<br />The Cardlist Community</>}
         </p>
       </div>
@@ -138,7 +138,7 @@ export default function LoginPage() {
 
             <div className="flex items-center gap-3 mb-6">
               <div className="flex-1 h-px bg-zinc-100"></div>
-              <span className="text-[10px] text-zinc-400">หรือเข้าสู่ระบบด้วยอีเมล</span>
+              <span className="text-[11px] text-zinc-500">หรือเข้าสู่ระบบด้วยอีเมล</span>
               <div className="flex-1 h-px bg-zinc-100"></div>
             </div>
 
@@ -155,7 +155,7 @@ export default function LoginPage() {
                   <input id="pw" type={showPw ? "text" : "password"} className="input pr-14" placeholder="••••••••" value={password}
                     onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
                   <button type="button" onClick={() => setShowPw(!showPw)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400 hover:text-zinc-700">
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-500 hover:text-zinc-700">
                     {showPw ? "ซ่อน" : "แสดง"}
                   </button>
                 </div>
@@ -192,7 +192,7 @@ export default function LoginPage() {
                 {loading ? "กำลังส่ง..." : "ส่งลิงก์ตั้งรหัสผ่านใหม่"}
               </button>
             </form>
-            <p className="text-[11px] text-zinc-400 mt-4 leading-relaxed">
+            <p className="text-[11px] text-zinc-500 mt-4 leading-relaxed">
               สมัครด้วย LINE? ไม่ต้องใช้รหัสผ่าน กลับไปกด "เข้าสู่ระบบด้วย LINE" ได้เลย
             </p>
             <button onClick={() => { setMode("login"); setError(""); setNotice(""); }}

@@ -122,11 +122,11 @@ export default function CompleteProfilePage() {
         {lineDisplayName && (
           <div className="flex items-center gap-2 mb-1">
             <span className="text-sm font-bold text-zinc-900">{lineDisplayName}</span>
-            <span className="text-[10px] bg-[#06C755] text-white px-2 py-0.5 rounded-full font-semibold">LINE</span>
+            <span className="text-[11px] bg-[#06C755] text-white px-2 py-0.5 rounded-full font-semibold">LINE</span>
           </div>
         )}
         <h1 className="text-xl font-bold text-zinc-900 mt-2">กรอกข้อมูลเพิ่มเติม</h1>
-        <p className="text-sm text-zinc-400 mt-1">แค่ชื่อ-นามสกุล ก็เสร็จแล้ว!</p>
+        <p className="text-sm text-zinc-500 mt-1">แค่ชื่อ-นามสกุล ก็เสร็จแล้ว!</p>
       </div>
 
       <div className="flex-1 px-6 pb-10">
@@ -150,7 +150,7 @@ export default function CompleteProfilePage() {
 
           <div>
             <label className="text-[11px] font-semibold text-zinc-500 tracking-wide block mb-1.5">
-              วันเกิด <span className="text-zinc-300">(ไม่บังคับ)</span>
+              วันเกิด <span className="text-zinc-500 font-normal">(ไม่บังคับ)</span>
             </label>
             <div className="grid grid-cols-3 gap-2">
               <select className="input text-sm" value={birthDay} onChange={(e) => setBirthDay(e.target.value)}>
@@ -169,7 +169,7 @@ export default function CompleteProfilePage() {
 
           <div>
             <label className="text-[11px] font-semibold text-zinc-500 tracking-wide block mb-1.5">
-              เบอร์โทรศัพท์ <span className="text-zinc-300">(ไม่บังคับ)</span>
+              เบอร์โทรศัพท์ <span className="text-zinc-500 font-normal">(ไม่บังคับ)</span>
             </label>
             <input type="tel" className="input" placeholder="08x-xxx-xxxx"
               value={phone} onChange={(e) => setPhone(e.target.value)} />

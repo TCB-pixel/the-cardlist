@@ -134,7 +134,7 @@ export default function CollectionPage() {
       <header className="sticky top-0 z-40 bg-white border-b border-zinc-100">
         <div className="flex items-center justify-between px-4 h-12">
           <div className="flex items-center gap-3">
-            <Link href="/profile" className="text-zinc-400 active:text-zinc-700">
+            <Link href="/profile" className="text-zinc-500 active:text-zinc-700">
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                 <path d="M12 5l-5 5 5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
@@ -150,12 +150,12 @@ export default function CollectionPage() {
         <div className="bg-white border-b border-zinc-100 px-4 py-3 flex items-center gap-4">
           <div className="text-center">
             <p className="text-sm font-bold text-zinc-900">{cards.length}</p>
-            <p className="text-[9px] text-zinc-400 tracking-wide">รายการ</p>
+            <p className="text-[10px] text-zinc-500 tracking-wide">รายการ</p>
           </div>
           <div className="w-px h-8 bg-zinc-100" />
           <div className="text-center">
             <p className="text-sm font-bold text-zinc-900">{totalCards}</p>
-            <p className="text-[9px] text-zinc-400 tracking-wide">ใบรวม</p>
+            <p className="text-[10px] text-zinc-500 tracking-wide">ใบรวม</p>
           </div>
           <div className="w-px h-8 bg-zinc-100" />
           {TCG_LIST.map((t) => {
@@ -164,7 +164,7 @@ export default function CollectionPage() {
             return (
               <div key={t} className="text-center">
                 <p className="text-sm font-bold text-zinc-900">{count}</p>
-                <p className="text-[9px] text-zinc-400 tracking-wide">{t.split(" ")[0]}</p>
+                <p className="text-[10px] text-zinc-500 tracking-wide">{t.split(" ")[0]}</p>
               </div>
             );
           })}
@@ -186,7 +186,7 @@ export default function CollectionPage() {
             </div>
             {/* TCG */}
             <div>
-              <p className="text-[10px] text-zinc-400 mb-1.5">TCG</p>
+              <p className="text-[11px] text-zinc-500 mb-1.5">TCG</p>
               <div className="flex gap-2 flex-wrap">
                 {TCG_LIST.map((t) => (
                   <button key={t} onClick={() => setForm({ ...form, tcg: t })}
@@ -198,7 +198,7 @@ export default function CollectionPage() {
             </div>
             {/* Rarity */}
             <div>
-              <p className="text-[10px] text-zinc-400 mb-1.5">Rarity</p>
+              <p className="text-[11px] text-zinc-500 mb-1.5">Rarity</p>
               <div className="flex gap-2 flex-wrap">
                 {RARITY_LIST.map((r) => (
                   <button key={r} onClick={() => setForm({ ...form, rarity: r })}
@@ -210,7 +210,7 @@ export default function CollectionPage() {
             </div>
             {/* Condition */}
             <div>
-              <p className="text-[10px] text-zinc-400 mb-1.5">Condition</p>
+              <p className="text-[11px] text-zinc-500 mb-1.5">Condition</p>
               <div className="flex gap-2 flex-wrap">
                 {CONDITION_LIST.map((c) => (
                   <button key={c} onClick={() => setForm({ ...form, condition: c })}
@@ -222,7 +222,7 @@ export default function CollectionPage() {
             </div>
             {/* Quantity */}
             <div className="flex items-center gap-3">
-              <p className="text-[10px] text-zinc-400 w-16">จำนวน</p>
+              <p className="text-[11px] text-zinc-500 w-16">จำนวน</p>
               <div className="flex items-center gap-3 border border-zinc-200 rounded-xl px-3 py-2">
                 <button onClick={() => setForm({ ...form, quantity: Math.max(1, form.quantity - 1) })}
                   className="text-zinc-500 w-6 text-center font-bold">−</button>
@@ -265,7 +265,7 @@ export default function CollectionPage() {
         <div className="px-4 py-2 space-y-2">
           {filtered.length === 0 && (
             <div className="card px-5 py-10 text-center">
-              <p className="text-sm text-zinc-400 mb-1">
+              <p className="text-sm text-zinc-500 mb-1">
                 {cards.length === 0 ? "ยังไม่มีการ์ดในคอลเลกชัน" : "ไม่พบการ์ดที่ค้นหา"}
               </p>
               {cards.length === 0 && (
@@ -279,19 +279,19 @@ export default function CollectionPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <p className="text-xs font-semibold text-zinc-900 truncate">{c.card_name}</p>
-                    <span className="text-[9px] font-bold bg-zinc-100 text-zinc-600 px-1.5 py-0.5 rounded flex-shrink-0">{c.condition}</span>
+                    <span className="text-[10px] font-bold bg-zinc-100 text-zinc-600 px-1.5 py-0.5 rounded flex-shrink-0">{c.condition}</span>
                   </div>
-                  <p className="text-[10px] text-zinc-400">
+                  <p className="text-[11px] text-zinc-500">
                     {c.set_name}{c.card_number ? ` · ${c.card_number}` : ""} · {c.tcg}
                   </p>
                   <div className="flex items-center gap-2 mt-1.5">
-                    <span className="text-[9px] bg-zinc-50 text-zinc-500 border border-zinc-100 px-1.5 py-0.5 rounded">{c.rarity}</span>
-                    <span className="text-[10px] text-zinc-500">×{c.quantity}</span>
-                    {c.note && <span className="text-[10px] text-zinc-400 truncate">{c.note}</span>}
+                    <span className="text-[10px] bg-zinc-50 text-zinc-500 border border-zinc-100 px-1.5 py-0.5 rounded">{c.rarity}</span>
+                    <span className="text-[11px] text-zinc-500">×{c.quantity}</span>
+                    {c.note && <span className="text-[11px] text-zinc-500 truncate">{c.note}</span>}
                   </div>
                 </div>
                 <div className="flex items-center gap-3 ml-3 flex-shrink-0">
-                  <button onClick={() => openEdit(c)} className="text-[11px] text-zinc-400 underline">แก้ไข</button>
+                  <button onClick={() => openEdit(c)} className="text-[11px] text-zinc-500 underline">แก้ไข</button>
                   <button onClick={() => handleDelete(c.id)} disabled={deleting === c.id}
                     className="text-[11px] text-red-400 underline disabled:opacity-40">
                     {deleting === c.id ? "..." : "ลบ"}

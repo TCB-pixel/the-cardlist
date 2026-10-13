@@ -1,3 +1,4 @@
+import { publicError } from "@/lib/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -33,7 +34,7 @@ export async function GET(req: NextRequest) {
     .in("status", ["open", "drawn"])
     .order("created_at", { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: publicError(error) }, { status: 500 });
 
   // เอา lottery ล่าสุดต่อสินค้าหนึ่งชิ้น (เผื่อมีประวัติหลายรอบ)
   const latestByProduct = new Map<string, (typeof lotteries)[number]>();
@@ -90,7 +91,7 @@ export async function POST(req: NextRequest) {
       .limit(1)
       .maybeSingle();
 
-    if (lotErr) return NextResponse.json({ error: lotErr.message }, { status: 500 });
+    if (lotErr) return NextResponse.json({ error: publicError(lotErr) }, { status: 500 });
     if (!lottery) return NextResponse.json({ error: "สินค้านี้ไม่มีรอบขอสิทธิ์ที่เปิดอยู่" }, { status: 400 });
 
     const { data: entry, error: insErr } = await admin
@@ -103,11 +104,11 @@ export async function POST(req: NextRequest) {
       if (insErr.code === "23505") {
         return NextResponse.json({ error: "คุณขอสิทธิ์ซื้อรายการนี้ไปแล้ว" }, { status: 400 });
       }
-      return NextResponse.json({ error: insErr.message }, { status: 400 });
+      return NextResponse.json({ error: publicError(insErr) }, { status: 400 });
     }
 
     return NextResponse.json({ entry });
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "เกิดข้อผิดพลาด" }, { status: 500 });
+    return NextResponse.json({ error: publicError(e) }, { status: 500 });
   }
 }

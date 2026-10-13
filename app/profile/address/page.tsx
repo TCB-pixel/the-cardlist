@@ -140,7 +140,7 @@ export default function AddressPage() {
       <header className="sticky top-0 z-40 bg-white border-b border-zinc-100">
         <div className="flex items-center justify-between px-4 h-12">
           <div className="flex items-center gap-3">
-            <Link href="/profile" className="text-zinc-400 active:text-zinc-700">
+            <Link href="/profile" className="text-zinc-500 active:text-zinc-700">
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                 <path d="M12 5l-5 5 5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
@@ -207,8 +207,8 @@ export default function AddressPage() {
       <div className="px-4 py-4 space-y-3">
         {addresses.length === 0 && !showForm && (
           <div className="card px-5 py-10 text-center">
-            <p className="text-sm text-zinc-400 mb-1">ยังไม่มีที่อยู่จัดส่ง</p>
-            <p className="text-[11px] text-zinc-400 mb-4">เพิ่มที่อยู่เพื่อใช้งานในการสั่งซื้อ</p>
+            <p className="text-sm text-zinc-500 mb-1">ยังไม่มีที่อยู่จัดส่ง</p>
+            <p className="text-[11px] text-zinc-500 mb-4">เพิ่มที่อยู่เพื่อใช้งานในการสั่งซื้อ</p>
             <button onClick={openAdd} className="btn-primary px-6 py-2.5">เพิ่มที่อยู่</button>
           </div>
         )}
@@ -217,11 +217,11 @@ export default function AddressPage() {
           <div key={a.id} className={`card px-4 py-4 ${a.is_default ? "ring-1 ring-zinc-900" : ""}`}>
             <div className="flex items-start justify-between mb-2">
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded">
+                <span className="text-[11px] font-bold bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded">
                   {a.label}
                 </span>
                 {a.is_default && (
-                  <span className="text-[9px] font-bold bg-zinc-900 text-white px-2 py-0.5 rounded">
+                  <span className="text-[10px] font-bold bg-zinc-900 text-white px-2 py-0.5 rounded">
                     ค่าเริ่มต้น
                   </span>
                 )}

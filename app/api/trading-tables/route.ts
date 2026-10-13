@@ -1,3 +1,4 @@
+import { publicError } from "@/lib/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import {
@@ -62,7 +63,7 @@ export async function GET(req: NextRequest) {
     .select("id, event_id, user_id, table_type, table_number, booking_date, slot_start, slot_end, status")
     .eq("event_id", eventId)
     .eq("status", "confirmed");
-  if (bkErr) return NextResponse.json({ error: bkErr.message }, { status: 500 });
+  if (bkErr) return NextResponse.json({ error: publicError(bkErr) }, { status: 500 });
 
   const rows = (bookings ?? []) as BookingRow[];
 
@@ -146,7 +147,7 @@ export async function POST(req: NextRequest) {
       .eq("user_id", user.id)
       .eq("booking_date", date)
       .eq("status", "confirmed");
-    if (ubErr) return NextResponse.json({ error: ubErr.message }, { status: 500 });
+    if (ubErr) return NextResponse.json({ error: publicError(ubErr) }, { status: 500 });
 
     if (violatesCooldown(slot, (userBookings ?? []).map((b) => ({ slot_start: b.slot_start.slice(0, 5), slot_end: b.slot_end.slice(0, 5) })))) {
       return NextResponse.json(
@@ -165,7 +166,7 @@ export async function POST(req: NextRequest) {
       .eq("booking_date", date)
       .eq("slot_start", slot.start)
       .eq("status", "confirmed");
-    if (takenErr) return NextResponse.json({ error: takenErr.message }, { status: 500 });
+    if (takenErr) return NextResponse.json({ error: publicError(takenErr) }, { status: 500 });
 
     const takenNumbers = new Set((takenRows ?? []).map((r) => r.table_number));
     let tableNumber = 0;
@@ -196,12 +197,12 @@ export async function POST(req: NextRequest) {
       if (insErr.code === "23505") {
         return NextResponse.json({ error: "มีคนจองรอบนี้ไปพอดี กรุณาลองใหม่" }, { status: 409 });
       }
-      return NextResponse.json({ error: insErr.message }, { status: 400 });
+      return NextResponse.json({ error: publicError(insErr) }, { status: 400 });
     }
 
     return NextResponse.json({ booking: inserted });
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "เกิดข้อผิดพลาด" }, { status: 500 });
+    return NextResponse.json({ error: publicError(e) }, { status: 500 });
   }
 }
 
@@ -236,10 +237,10 @@ export async function DELETE(req: NextRequest) {
       .from("trading_table_bookings")
       .update({ status: "cancelled" })
       .eq("id", id);
-    if (updErr) return NextResponse.json({ error: updErr.message }, { status: 400 });
+    if (updErr) return NextResponse.json({ error: publicError(updErr) }, { status: 400 });
 
     return NextResponse.json({ ok: true });
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "เกิดข้อผิดพลาด" }, { status: 500 });
+    return NextResponse.json({ error: publicError(e) }, { status: 500 });
   }
 }

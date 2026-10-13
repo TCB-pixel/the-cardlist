@@ -79,7 +79,7 @@ export default function HeroBanner({ banners, intervalMs = 4000 }: HeroBannerPro
           {banner.badge && (
             <div className="inline-flex items-center gap-1.5 mb-2.5">
               <span className="w-1 h-1 rounded-full bg-white/50" />
-              <p className="text-[9px] tracking-[0.25em] text-zinc-400 font-bold uppercase">{banner.badge}</p>
+              <p className="text-[10px] tracking-[0.25em] text-zinc-500 font-bold uppercase">{banner.badge}</p>
             </div>
           )}
 
@@ -93,7 +93,7 @@ export default function HeroBanner({ banners, intervalMs = 4000 }: HeroBannerPro
           </h1>
 
           {banner.subtitle && (
-            <p className="text-[11px] text-zinc-400 mb-4 leading-relaxed">{banner.subtitle}</p>
+            <p className="text-[11px] text-zinc-500 mb-4 leading-relaxed">{banner.subtitle}</p>
           )}
 
           <div className="flex gap-2 flex-wrap">
@@ -140,7 +140,7 @@ export default function HeroBanner({ banners, intervalMs = 4000 }: HeroBannerPro
       {/* ── Navigation ── */}
       {active.length > 1 && (
         <div className="relative z-10 flex items-center justify-between px-5 pb-3.5">
-          <button onClick={prev} className="text-zinc-600 hover:text-white transition-colors p-1">
+          <button onClick={prev} aria-label="แบนเนอร์ก่อนหน้า" className="text-zinc-400 hover:text-white transition-colors p-2.5 -m-1.5">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
               <path d="M10 3L6 8l4 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
@@ -150,11 +150,13 @@ export default function HeroBanner({ banners, intervalMs = 4000 }: HeroBannerPro
               <button
                 key={i}
                 onClick={() => { setCurrent(i); setAnimKey((k) => k + 1); }}
+                aria-label={`ไปแบนเนอร์ที่ ${i + 1}`}
+                aria-current={i === current ? "true" : undefined}
                 className={`transition-all rounded-full ${i === current ? "w-6 h-1 bg-white" : "w-1 h-1 bg-zinc-600 hover:bg-zinc-400"}`}
               />
             ))}
           </div>
-          <button onClick={next} className="text-zinc-600 hover:text-white transition-colors p-1">
+          <button onClick={next} aria-label="แบนเนอร์ถัดไป" className="text-zinc-400 hover:text-white transition-colors p-2.5 -m-1.5">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
               <path d="M6 3l4 5-4 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>

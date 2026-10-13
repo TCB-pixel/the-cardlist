@@ -4,6 +4,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 import BottomNav from "@/components/BottomNav";
 import TopBar from "@/components/TopBar";
+import { goLogin } from "@/lib/auth-next";
 
 type Booking = {
   id: string; status: string; days: string[]; tables: string[]; total: number;
@@ -20,15 +21,28 @@ export default function BoothSuccessPage() {
   const [tries, setTries] = useState(0);
   const [id, setId] = useState<string | null>(null);
 
-  useEffect(() => { setId(new URLSearchParams(window.location.search).get("booking")); }, []);
+  // ไม่มีรหัสการจองใน URL หรือยังไม่ได้เข้าสู่ระบบ → บอกให้ชัด แทนการหมุนรอไม่จบ
+  const [problem, setProblem] = useState<null | "missing" | "login">(null);
+
+  useEffect(() => {
+    const bk = new URLSearchParams(window.location.search).get("booking");
+    setId(bk);
+    if (!bk) setProblem("missing");
+  }, []);
 
   useEffect(() => {
     if (!id) return;
     let stop = false;
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-      const res = await fetch("/api/booth/my", { headers: { Authorization: `Bearer ${session.access_token}` } });
+      if (!session) { setProblem("login"); return; }
+      let res: Response;
+      try {
+        res = await fetch("/api/booth/my", { headers: { Authorization: `Bearer ${session.access_token}` } });
+      } catch {
+        if (!stop) setTimeout(() => !stop && setTries((t) => t + 1), 3000);
+        return;
+      }
       if (!res.ok || stop) return;
       const found = ((await res.json()).bookings as Booking[]).find((x) => x.id === id) ?? null;
       setB(found);
@@ -45,7 +59,17 @@ export default function BoothSuccessPage() {
       <TopBar title="จองโต๊ะ Vendor" />
       <div className="px-4 py-6 lg:max-w-md lg:mx-auto">
         <div className="bg-white border border-zinc-100 rounded-2xl p-6 text-center">
-          {paid ? (
+          {problem ? (
+            <>
+              <h1 className="text-base font-semibold text-zinc-900">{problem === "login" ? "เข้าสู่ระบบเพื่อดูการจองของคุณ" : "ไม่พบรายการจอง"}</h1>
+              <p className="text-xs text-zinc-500 mt-1">
+                {problem === "login" ? "เข้าสู่ระบบด้วยบัญชีที่ใช้จอง แล้วระบบจะแสดงสถานะการจองให้" : "ดูรายการทั้งหมดได้ที่หน้าจองโต๊ะ → การจองของฉัน"}
+              </p>
+              {problem === "login" && (
+                <button onClick={goLogin} className="inline-block mt-4 text-xs font-semibold bg-zinc-900 text-white rounded-xl px-5 py-2.5">เข้าสู่ระบบ</button>
+              )}
+            </>
+          ) : paid ? (
             <>
               <p className="text-3xl mb-2">✅</p>
               <h1 className="text-base font-semibold text-zinc-900">จองโต๊ะสำเร็จ</h1>
@@ -55,7 +79,7 @@ export default function BoothSuccessPage() {
                 <p><span className="text-zinc-500">วันที่</span> {b?.days.map(dayLabel).join(", ")}</p>
                 <p><span className="text-zinc-500">ชำระแล้ว</span> ฿{Math.round(b?.total ?? 0).toLocaleString("th-TH")}{b?.discount_code ? ` (โค้ด ${b.discount_code})` : ""}</p>
               </div>
-              <p className="text-[11px] text-zinc-400 mt-3">เก็บหน้านี้ไว้เป็นหลักฐาน หรือดูย้อนหลังได้ที่หน้าจองโต๊ะ → การจองของฉัน</p>
+              <p className="text-[11px] text-zinc-500 mt-3">เก็บหน้านี้ไว้เป็นหลักฐาน หรือดูย้อนหลังได้ที่หน้าจองโต๊ะ → การจองของฉัน</p>
             </>
           ) : b && (b.status === "needs_refund") ? (
             <>

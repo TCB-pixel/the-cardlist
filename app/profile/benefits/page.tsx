@@ -85,7 +85,7 @@ export default function BenefitsPage() {
       {/* Header */}
       <header className="sticky top-0 z-40 bg-white border-b border-zinc-100">
         <div className="flex items-center gap-3 px-4 h-12">
-          <Link href="/profile" className="text-zinc-400 active:text-zinc-700">
+          <Link href="/profile" className="text-zinc-500 active:text-zinc-700">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
               <path d="M12 5l-5 5 5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
@@ -98,7 +98,7 @@ export default function BenefitsPage() {
         {/* Intro */}
         <div className="card px-5 py-4 text-center">
           <p className="text-xs font-semibold text-zinc-900 mb-1">The Cardlist Membership</p>
-          <p className="text-[11px] text-zinc-400 leading-relaxed">
+          <p className="text-[11px] text-zinc-500 leading-relaxed">
             ยิ่งซื้อมาก ยิ่งได้รับสิทธิ์มากขึ้น<br/>ยอดสะสมรายปีจะถูกนับใหม่ทุกวันที่ 1 มกราคม
           </p>
         </div>
@@ -120,7 +120,7 @@ export default function BenefitsPage() {
                     {tier.label.toUpperCase()}
                   </span>
                   {isActive && (
-                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-full text-white"
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white"
                       style={{ background: tier.color }}>
                       ระดับปัจจุบัน
                     </span>

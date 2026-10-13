@@ -1,5 +1,5 @@
 "use client";
-import { goLogin } from "@/lib/auth-next";
+import { goLogin, currentPath } from "@/lib/auth-next";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -44,7 +44,6 @@ const TCG_COLOR: Record<string, string> = {
 };
 
 const TABS = ["อีเวนต์", "จองโต๊ะ", "จองโต๊ะเทรด"];
-const TIME_SLOTS = ["11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00"];
 
 type TradingSlot = { start: string; end: string };
 type TradingBooking = {
@@ -80,9 +79,6 @@ export default function EventsPage() {
   const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
 
   // จองโต๊ะ (ที่ร้าน) state
-  const [selectedSlot, setSelectedSlot] = useState("");
-  const [tableDate, setTableDate] = useState("");
-  const [tableDone, setTableDone] = useState(false);
 
   // จองโต๊ะเทรด state
   const [tradingEventId, setTradingEventId] = useState("");
@@ -97,6 +93,9 @@ export default function EventsPage() {
   const [registrations, setRegistrations] = useState<Record<string, string>>({}); // eventId -> qrCode
   const [registeringId, setRegisteringId] = useState("");
   const [registerError, setRegisterError] = useState("");
+  const [registerErrorId, setRegisterErrorId] = useState(""); // แสดงข้อผิดพลาดใต้การ์ดงานที่ลงทะเบียนไม่สำเร็จเท่านั้น
+  const [loadError, setLoadError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const authedFetch = useCallback(async (input: string, init?: RequestInit) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -112,10 +111,14 @@ export default function EventsPage() {
 
   useEffect(() => {
     async function load() {
-      const [{ data: eventsData }, { data: { session } }] = await Promise.all([
+      setLoading(true);
+      setLoadError(false);
+      try {
+      const [{ data: eventsData, error: evErr }, { data: { session } }] = await Promise.all([
         supabase.from("events").select("*").eq("hidden", false).order("date", { ascending: true }),
         supabase.auth.getSession(),
       ]);
+      if (evErr) throw evErr;
       setEvents(eventsData ?? []);
       setLoggedIn(!!session);
       const firstTrading = (eventsData ?? []).find((e: Event) => e.trading_tables_enabled);
@@ -131,11 +134,15 @@ export default function EventsPage() {
         (regs ?? []).forEach((r: any) => { map[r.event_id] = r.qr_code; });
         setRegistrations(map);
       }
-
-      setLoading(false);
+      } catch {
+        // โหลดไม่สำเร็จ ≠ ไม่มีงาน — บอกให้ชัดและให้ลองใหม่
+        setLoadError(true);
+      } finally {
+        setLoading(false);
+      }
     }
     load();
-  }, []);
+  }, [reloadKey]);
 
   async function handleRegister(ev: Event) {
     if (!loggedIn) {
@@ -144,6 +151,7 @@ export default function EventsPage() {
     }
     setRegisteringId(ev.id);
     setRegisterError("");
+    setRegisterErrorId("");
     try {
       const res = await fetch("/api/events/register", {
         method: "POST",
@@ -155,6 +163,7 @@ export default function EventsPage() {
       setRegistrations((prev) => ({ ...prev, [ev.id]: data.qrCode }));
     } catch (e: any) {
       setRegisterError(e?.message ?? "ลงทะเบียนไม่สำเร็จ");
+      setRegisterErrorId(ev.id);
     } finally {
       setRegisteringId("");
     }
@@ -255,7 +264,7 @@ export default function EventsPage() {
         <div className="flex lg:max-w-[70%] lg:mx-auto">
           {TABS.map((t) => (
             <button key={t} onClick={() => setActiveTab(t)}
-              className={`flex-1 text-xs py-3 tracking-wide border-b-2 transition-colors ${activeTab === t ? "border-zinc-900 text-zinc-900 font-semibold" : "border-transparent text-zinc-400"}`}>
+              className={`flex-1 text-xs py-3 tracking-wide border-b-2 transition-colors ${activeTab === t ? "border-zinc-900 text-zinc-900 font-semibold" : "border-transparent text-zinc-500"}`}>
               {t}
             </button>
           ))}
@@ -274,11 +283,17 @@ export default function EventsPage() {
             <div className="flex items-center justify-center py-20">
               <div className="w-8 h-8 border-2 border-zinc-200 border-t-zinc-900 rounded-full animate-spin" />
             </div>
+          ) : loadError ? (
+            <div className="text-center py-16 px-6" role="alert">
+              <p className="text-sm font-semibold text-zinc-700">โหลดรายการอีเวนต์ไม่สำเร็จ</p>
+              <p className="text-xs text-zinc-500 mt-1">ตรวจอินเทอร์เน็ตแล้วลองใหม่อีกครั้ง</p>
+              <button onClick={() => setReloadKey((k) => k + 1)} className="mt-4 text-xs font-semibold border border-zinc-200 rounded-xl px-5 py-2.5 text-zinc-700">ลองใหม่</button>
+            </div>
           ) : events.length === 0 ? (
             <div className="text-center py-16 px-6">
               <p className="text-3xl mb-3">🗓️</p>
               <p className="text-sm font-semibold text-zinc-700">กำลังเตรียมงานครั้งถัดไป</p>
-              <p className="text-xs text-zinc-400 mt-1">กดไลค์เพจด้านบนเพื่อรับแจ้งวันและสถานที่ก่อนใคร</p>
+              <p className="text-xs text-zinc-500 mt-1">กดไลค์เพจด้านบนเพื่อรับแจ้งวันและสถานที่ก่อนใคร</p>
               <Link href="/news" className="inline-block mt-4 text-xs font-semibold border border-zinc-200 rounded-xl px-5 py-2 text-zinc-700">ดูข่าวสารงานที่ผ่านมา</Link>
             </div>
           ) : (
@@ -298,12 +313,12 @@ export default function EventsPage() {
                       {/* Date badge on image */}
                       <div className="absolute top-3 left-3 bg-zinc-900/80 backdrop-blur-sm rounded-xl px-2.5 py-2 text-center min-w-[44px]">
                         <div className="text-lg font-bold text-white leading-none">{day}</div>
-                        <div className="text-[8px] text-zinc-300 tracking-wider mt-0.5">{month}</div>
+                        <div className="text-[10px] text-zinc-300 tracking-wider mt-0.5">{month}</div>
                       </div>
                       {/* Event type badge — เข้าฟรีทั้งหมด */}
                       {ev.event_type !== "tournament" && (
                         <div className="absolute top-3 right-3">
-                          <span className="text-[9px] bg-green-500/90 text-white px-2 py-0.5 rounded-full font-semibold backdrop-blur-sm">เข้าฟรี</span>
+                          <span className="text-[10px] bg-green-500/90 text-white px-2 py-0.5 rounded-full font-semibold backdrop-blur-sm">เข้าฟรี</span>
                         </div>
                       )}
                     </div>
@@ -315,17 +330,17 @@ export default function EventsPage() {
                       <div className="flex gap-3 items-start mb-3">
                         <div className="bg-zinc-900 rounded-xl px-2.5 py-2 text-center min-w-[44px] flex-shrink-0">
                           <div className="text-lg font-bold text-white leading-none">{day}</div>
-                          <div className="text-[8px] text-zinc-400 tracking-wider mt-0.5">{month}</div>
+                          <div className="text-[10px] text-zinc-500 tracking-wider mt-0.5">{month}</div>
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-0.5">
                             <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: TCG_COLOR[ev.tcg] ?? "#888" }} />
-                            <span className="text-[9px] tracking-wider text-zinc-400 font-semibold">
+                            <span className="text-[10px] tracking-wider text-zinc-500 font-semibold">
                               {ev.tcg}{ev.format ? ` · ${ev.format}` : ""}
                             </span>
                           </div>
                           <p className="text-sm font-semibold text-zinc-900 leading-snug">{ev.title}</p>
-                          <p className="text-[10px] text-zinc-400 mt-1">{ev.location} · {ev.time?.slice(0, 5)} น.</p>
+                          <p className="text-[11px] text-zinc-500 mt-1">{ev.location} · {ev.time?.slice(0, 5)} น.</p>
                         </div>
                       </div>
                     )}
@@ -335,12 +350,12 @@ export default function EventsPage() {
                       <div className="mb-3">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: TCG_COLOR[ev.tcg] ?? "#888" }} />
-                          <span className="text-[9px] tracking-wider text-zinc-400 font-semibold">
+                          <span className="text-[10px] tracking-wider text-zinc-500 font-semibold">
                             {ev.tcg}{ev.format ? ` · ${ev.format}` : ""}
                           </span>
                         </div>
                         <p className="text-sm font-semibold text-zinc-900 leading-snug">{ev.title}</p>
-                        <p className="text-[10px] text-zinc-400 mt-1">
+                        <p className="text-[11px] text-zinc-500 mt-1">
                           📍 {ev.location} · 📅 {formatDate(ev.date, ev.date_end)} · 🕐 {ev.time?.slice(0, 5)} น.
                         </p>
                       </div>
@@ -354,7 +369,7 @@ export default function EventsPage() {
                     {isTournament && ev.max_slots > 0 && (
                       <div className="mb-3">
                         <div className="flex justify-between mb-1.5">
-                          <span className="text-[10px] text-zinc-500">
+                          <span className="text-[11px] text-zinc-500">
                             ที่นั่ง {full ? "เต็มแล้ว" : `คงเหลือ ${ev.max_slots - ev.booked_slots}`} / {ev.max_slots}
                           </span>
                         </div>
@@ -389,13 +404,13 @@ export default function EventsPage() {
                         <ul className="space-y-1">
                           {(ev.lucky_draw_prizes ?? []).map((prize) => (
                             <li key={prize} className="flex items-start gap-1.5">
-                              <span className="text-amber-500 text-[10px] mt-[3px] flex-shrink-0" aria-hidden="true">★</span>
+                              <span className="text-amber-500 text-[11px] mt-[3px] flex-shrink-0" aria-hidden="true">★</span>
                               <span className="text-[11px] font-semibold text-amber-900 leading-snug">{prize}</span>
                             </li>
                           ))}
                         </ul>
                         {ev.require_fb_follow && (
-                          <p className="text-[10px] text-amber-700/80 mt-1.5">ต้องกดติดตามเพจ Facebook ด้วย</p>
+                          <p className="text-[11px] text-amber-700/80 mt-1.5">ต้องกดติดตามเพจ Facebook ด้วย</p>
                         )}
                       </div>
                     )}
@@ -416,15 +431,15 @@ export default function EventsPage() {
                         <div className="flex items-center justify-between gap-2">
                           <div className="min-w-0">
                             <p className="text-xs font-semibold text-green-600">✓ ลงทะเบียนแล้ว</p>
-                            <p className="text-[10px] text-zinc-400 font-mono truncate">{registrations[ev.id]}</p>
+                            <p className="text-[11px] text-zinc-500 font-mono truncate">{registrations[ev.id]}</p>
                           </div>
-                          <Link href="/profile" className="flex-shrink-0 text-[10px] font-semibold text-zinc-900 border border-zinc-200 rounded-lg px-2.5 py-1.5 active:bg-zinc-100">
+                          <Link href="/profile" className="flex-shrink-0 text-[11px] font-semibold text-zinc-900 border border-zinc-200 rounded-lg px-2.5 py-1.5 active:bg-zinc-100">
                             ดู QR →
                           </Link>
                         </div>
                       </div>
                     ) : full ? (
-                      <div className="w-full text-center text-xs font-semibold py-2.5 rounded-xl bg-zinc-100 text-zinc-400">
+                      <div className="w-full text-center text-xs font-semibold py-2.5 rounded-xl bg-zinc-100 text-zinc-500">
                         ที่นั่งเต็ม
                       </div>
                     ) : isTournament ? (
@@ -441,8 +456,8 @@ export default function EventsPage() {
                         {registeringId === ev.id ? "กำลังลงทะเบียน..." : "ลงทะเบียน →"}
                       </button>
                     )}
-                    {registerError && registeringId === "" && (
-                      <p className="text-[10px] text-red-600 mt-1.5">{registerError}</p>
+                    {registerError && registerErrorId === ev.id && (
+                      <p className="text-[11px] text-red-600 mt-1.5">{registerError}</p>
                     )}
                   </div>
                 </div>
@@ -465,55 +480,18 @@ export default function EventsPage() {
         <div className="px-4 py-4">
           <div className="card p-5">
             <h3 className="text-sm font-semibold text-zinc-900 mb-1">จองโต๊ะเล่นการ์ดที่ร้าน</h3>
-            <p className="text-[11px] text-zinc-400 mb-4">เปิดให้จองทุกวัน 11:00 – 21:00 น. (สูงสุด 2 ชั่วโมง / ครั้ง)</p>
-            <div className="space-y-4">
-              <div>
-                <label className="text-[11px] font-semibold text-zinc-600 tracking-wide mb-1.5 block">เลือกวันที่</label>
-                <input type="date" className="input text-sm" value={tableDate}
-                  onChange={(e) => setTableDate(e.target.value)}
-                  min={new Date().toISOString().split("T")[0]} />
-              </div>
-              <div>
-                <label className="text-[11px] font-semibold text-zinc-600 tracking-wide mb-1.5 block">เลือกเวลา</label>
-                <div className="grid grid-cols-4 gap-2">
-                  {TIME_SLOTS.map((t) => (
-                    <button key={t} onClick={() => setSelectedSlot(t)}
-                      className={`text-xs py-2 rounded-xl border transition-colors ${selectedSlot === t ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 text-zinc-600 bg-white"}`}>
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="text-[11px] font-semibold text-zinc-600 tracking-wide mb-1.5 block">จำนวนที่นั่ง</label>
-                <select className="input text-sm">
-                  <option>1 คน</option><option>2 คน</option><option>3 คน</option><option>4 คน</option>
-                </select>
-              </div>
-              {tableDone ? (
-                <div className="bg-zinc-50 rounded-2xl p-4 text-center border border-zinc-100">
-                  <div className="text-2xl mb-2">✓</div>
-                  <p className="text-sm font-semibold text-zinc-900">จองสำเร็จ!</p>
-                  <p className="text-[11px] text-zinc-400 mt-1">วันที่ {tableDate} เวลา {selectedSlot} น.</p>
-                </div>
-              ) : (
-                <button onClick={() => tableDate && selectedSlot && setTableDone(true)}
-                  disabled={!tableDate || !selectedSlot}
-                  className={`w-full py-3 text-sm font-semibold rounded-xl ${tableDate && selectedSlot ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-400 cursor-not-allowed"}`}>
-                  ยืนยันการจอง
-                </button>
-              )}
-            </div>
+            <p className="text-xs text-zinc-600 leading-relaxed">
+              ตอนนี้ยังไม่เปิดให้จองโต๊ะเล่นที่ร้านผ่านเว็บไซต์ ต้องการจองโต๊ะหรือสอบถามเวลาว่าง ติดต่อทีมงานได้ที่ Inbox เพจ The Cardlist
+            </p>
           </div>
         </div>
       )}
-
       {/* ── TAB: จองโต๊ะเทรด ── */}
       {activeTab === "จองโต๊ะเทรด" && (
         <div className="px-4 py-4 space-y-4">
           {tradingEvents.length === 0 ? (
             <div className="card px-5 py-10 text-center">
-              <p className="text-sm text-zinc-400">ยังไม่มีอีเวนต์ที่เปิดให้จองโต๊ะเทรด</p>
+              <p className="text-sm text-zinc-500">ยังไม่มีอีเวนต์ที่เปิดให้จองโต๊ะเทรด</p>
             </div>
           ) : (
             <>
@@ -533,8 +511,8 @@ export default function EventsPage() {
               {!loggedIn && (
                 <div className="card px-4 py-3 bg-amber-50 border-amber-100">
                   <p className="text-[11px] text-amber-700">
-                    กรุณา <Link href="/login" className="font-semibold underline">เข้าสู่ระบบ</Link> หรือ{" "}
-                    <Link href="/register" className="font-semibold underline">สมัครสมาชิก</Link> ก่อนจองโต๊ะเทรด
+                    กรุณา <button type="button" onClick={goLogin} className="font-semibold underline">เข้าสู่ระบบ</button> หรือ{" "}
+                    <button type="button" onClick={() => { window.location.href = "/register?next=" + encodeURIComponent(currentPath()); }} className="font-semibold underline">สมัครสมาชิก</button> ก่อนจองโต๊ะเทรด
                   </p>
                 </div>
               )}
@@ -545,7 +523,11 @@ export default function EventsPage() {
                 </div>
               )}
 
-              {tradingLoading || !tradingData ? (
+              {!tradingLoading && !tradingData && tradingError ? (
+                <div className="text-center py-10">
+                  <button onClick={() => loadTradingData()} className="text-xs font-semibold border border-zinc-200 rounded-xl px-5 py-2.5 text-zinc-700">ลองใหม่</button>
+                </div>
+              ) : tradingLoading || !tradingData ? (
                 <div className="flex items-center justify-center py-20">
                   <div className="w-8 h-8 border-2 border-zinc-200 border-t-zinc-900 rounded-full animate-spin" />
                 </div>
@@ -553,7 +535,7 @@ export default function EventsPage() {
                 <>
                   <div className="card p-4">
                     <h3 className="text-sm font-semibold text-zinc-900 mb-0.5">จองพื้นที่เทรด — {tradingData.event.title}</h3>
-                    <p className="text-[11px] text-zinc-400 mb-4">รอบละ 45 นาที เริ่ม 10:00 น. · เว้น 60 นาทีระหว่างรอบของคุณ</p>
+                    <p className="text-[11px] text-zinc-500 mb-4">รอบละ 45 นาที เริ่ม 10:00 น. · เว้น 60 นาทีระหว่างรอบของคุณ</p>
 
                     {/* เลือกวันที่ */}
                     <div className="mb-3">
@@ -603,7 +585,7 @@ export default function EventsPage() {
                               }`}
                             >
                               <p className="text-[11px] font-semibold">{s.start}</p>
-                              <p className="text-[9px] mt-0.5">
+                              <p className="text-[10px] mt-0.5">
                                 {bookingBusy === s.start ? "..." : isPast ? "ผ่านไปแล้ว" : full ? "เต็ม" : `ว่าง ${remaining}/${capacity}`}
                               </p>
                             </button>
@@ -629,7 +611,7 @@ export default function EventsPage() {
                                   <p className="text-xs font-semibold text-zinc-900">
                                     {TABLE_TYPE_LABEL[b.table_type]} · โต๊ะ {b.table_number}
                                   </p>
-                                  <p className="text-[10px] text-zinc-400 mt-0.5">
+                                  <p className="text-[11px] text-zinc-500 mt-0.5">
                                     {formatThaiDate(b.booking_date)} · {b.slot_start.slice(0, 5)}-{b.slot_end.slice(0, 5)} น.
                                   </p>
                                 </div>
@@ -637,7 +619,7 @@ export default function EventsPage() {
                                   <button
                                     onClick={() => cancelTradingBooking(b.id)}
                                     disabled={bookingBusy === b.id}
-                                    className="text-[10px] text-red-600 border border-red-100 rounded-lg px-2.5 py-1 active:bg-red-50 disabled:opacity-50"
+                                    className="text-[11px] text-red-600 border border-red-100 rounded-lg px-2.5 py-1 active:bg-red-50 disabled:opacity-50"
                                   >
                                     {bookingBusy === b.id ? "..." : "ยกเลิก"}
                                   </button>

@@ -1,9 +1,21 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
+const SITE_DESCRIPTION = "แพลตฟอร์มสำหรับคนเล่นการ์ดเกมในไทย — ซื้อการ์ดและอุปกรณ์ ติดตามอีเวนต์ และจองโต๊ะร้านค้าในงาน The Cardlist";
+
 export const metadata: Metadata = {
-  title: "The Cardlist — TCG Platform Thailand",
-  description: "One-stop platform สำหรับวงการ Trading Card Game ในไทย — ซื้อขาย อีเวนต์ ข่าวสาร",
+  metadataBase: new URL("https://thecardlistbkk.com"),
+  title: { default: "The Cardlist — ชุมชนการ์ดเกมไทย", template: "%s | The Cardlist" },
+  description: SITE_DESCRIPTION,
+  openGraph: {
+    type: "website",
+    siteName: "The Cardlist",
+    locale: "th_TH",
+    title: "The Cardlist — ชุมชนการ์ดเกมไทย",
+    description: SITE_DESCRIPTION,
+    images: [{ url: "/icons/icon-512.png", width: 512, height: 512, alt: "The Cardlist" }],
+  },
+  twitter: { card: "summary", title: "The Cardlist — ชุมชนการ์ดเกมไทย", description: SITE_DESCRIPTION, images: ["/icons/icon-512.png"] },
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -22,7 +34,6 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
   themeColor: "#0a0a0a",
 };
 

@@ -17,17 +17,19 @@ export type Banner = {
   order: number;
 };
 
+// แบนเนอร์สำรอง: แสดงก่อนแบนเนอร์จากหลังบ้านโหลดเสร็จ หรือเมื่อหลังบ้านไม่มีแบนเนอร์ที่เปิดใช้
+// ตั้งใจไม่ใส่วันที่/สินค้าเฉพาะรุ่น เพื่อไม่ให้ข้อความหมดอายุค้างอยู่บนหน้าแรก
 export const DEFAULT_HOME_BANNERS: Banner[] = [
   {
     id: "h1",
     type: "home",
-    title: "One Piece TCG\nOP-10 Manga",
-    subtitle: "วางจำหน่าย 20 เมษายน 2026",
-    badge: "NEW RELEASE",
-    ctaLabel: "Pre-order",
-    ctaHref: "/shop?category=preorder",
-    ctaSecondaryLabel: "ดูทั้งหมด",
-    ctaSecondaryHref: "/shop",
+    title: "The Cardlist\nชุมชนการ์ดเกมไทย",
+    subtitle: "ซื้อการ์ด · เข้าร่วมอีเวนต์ · จองโต๊ะร้านค้าในงาน",
+    badge: "THE CARDLIST",
+    ctaLabel: "ไปช้อปเลย",
+    ctaHref: "/shop",
+    ctaSecondaryLabel: "ดูอีเวนต์",
+    ctaSecondaryHref: "/events",
     bgColor: "#111111",
     imageUrl: null,
     productImageUrl: null,
@@ -37,32 +39,16 @@ export const DEFAULT_HOME_BANNERS: Banner[] = [
   {
     id: "h2",
     type: "home",
-    title: "Pokémon SV9\nสีดำ-สีขาว",
-    subtitle: "Pre-order เปิดแล้ว จำนวนจำกัด",
-    badge: "PRE-ORDER",
-    ctaLabel: "จองเลย",
-    ctaHref: "/shop?category=preorder&tcg=pokemon",
-    ctaSecondaryLabel: "ดูสินค้า",
-    ctaSecondaryHref: "/shop?tcg=pokemon",
+    title: "จองโต๊ะ Vendor\nในงานอีเวนต์",
+    subtitle: "เลือกโต๊ะจากผังงานจริง แล้วชำระเงินได้ทันที",
+    badge: "VENDOR",
+    ctaLabel: "จองโต๊ะ",
+    ctaHref: "/booth",
     bgColor: "#1a1a2e",
     imageUrl: null,
     productImageUrl: null,
     active: true,
     order: 2,
-  },
-  {
-    id: "h3",
-    type: "home",
-    title: "MTG Aetherdrift\nFull Art Collection",
-    subtitle: "Single Cards พร้อมจำหน่ายแล้ว",
-    badge: "IN STOCK",
-    ctaLabel: "ดูการ์ด",
-    ctaHref: "/shop?tcg=mtg",
-    bgColor: "#1c1410",
-    imageUrl: null,
-    productImageUrl: null,
-    active: true,
-    order: 3,
   },
 ];
 

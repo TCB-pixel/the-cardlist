@@ -68,7 +68,7 @@ export default function NewsDetailPage() {
       <div className="min-h-screen bg-zinc-50 pb-20">
         <TopBar title="ข่าวสาร" showBack />
         <div className="text-center py-24 px-6">
-          <p className="text-sm text-zinc-400 mb-4">ไม่พบบทความนี้</p>
+          <p className="text-sm text-zinc-500 mb-4">ไม่พบบทความนี้</p>
           <Link href="/news" className="btn-primary inline-block px-6 py-2.5">กลับไปหน้าข่าวสาร</Link>
         </div>
         <BottomNav />
@@ -86,9 +86,9 @@ export default function NewsDetailPage() {
       )}
 
       <div className="px-5 py-5">
-        <span className={`text-[9px] font-bold px-2 py-0.5 rounded tracking-widest ${TAG_COLOR[post.tag] ?? "bg-zinc-100 text-zinc-600"}`}>{post.tag}</span>
+        <span className={`text-[10px] font-bold px-2 py-0.5 rounded tracking-widest ${TAG_COLOR[post.tag] ?? "bg-zinc-100 text-zinc-600"}`}>{post.tag}</span>
         <h1 className="text-lg font-bold text-zinc-900 mt-3 mb-2 leading-snug">{post.title}</h1>
-        <p className="text-[11px] text-zinc-400 mb-5">{formatDate(post.published_at)}</p>
+        <p className="text-[11px] text-zinc-500 mb-5">{formatDate(post.published_at)}</p>
 
         {post.excerpt && (
           <p className="text-sm text-zinc-600 leading-relaxed mb-4 font-medium">{post.excerpt}</p>

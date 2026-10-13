@@ -9,7 +9,7 @@ export default function OfflinePage() {
         </svg>
       </div>
       <h1 className="text-lg font-bold text-zinc-900 mb-2">ไม่มีการเชื่อมต่ออินเทอร์เน็ต</h1>
-      <p className="text-sm text-zinc-400 mb-6">กรุณาตรวจสอบการเชื่อมต่อแล้วลองใหม่อีกครั้ง</p>
+      <p className="text-sm text-zinc-500 mb-6">กรุณาตรวจสอบการเชื่อมต่อแล้วลองใหม่อีกครั้ง</p>
       <Link href="/" className="bg-zinc-900 text-white text-sm font-semibold px-6 py-3 rounded-xl">ลองใหม่</Link>
     </div>
   );

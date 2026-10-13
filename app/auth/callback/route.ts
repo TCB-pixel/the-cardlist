@@ -12,6 +12,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/login?error=line_cancelled", request.url));
   }
 
+  // state ต้องตรงกับที่เราตั้งไว้ตอนเริ่มล็อกอิน ไม่งั้นปฏิเสธ
+  const expectedState = request.cookies.get("line_oauth_state")?.value;
+  if (!expectedState || searchParams.get("state") !== expectedState) {
+    const r = NextResponse.redirect(new URL("/login?error=line_state", request.url));
+    r.cookies.set("line_oauth_state", "", { path: "/", maxAge: 0 });
+    return r;
+  }
+
   try {
     const tokenRes = await fetch("https://api.line.me/oauth2/v2.1/token", {
       method: "POST",
@@ -56,6 +64,7 @@ export async function GET(request: NextRequest) {
     const goto = (path: string) => {
       const r = NextResponse.redirect(new URL(path, request.url));
       r.cookies.set("login_next", "", { path: "/", maxAge: 0 });
+      r.cookies.set("line_oauth_state", "", { path: "/", maxAge: 0 });
       return r;
     };
     const completeUrl = dest ? `/profile/complete?next=${encodeURIComponent(dest)}` : "/profile/complete";

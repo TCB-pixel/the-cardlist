@@ -82,7 +82,7 @@ export default function FacebookFollowCard({
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-xs font-semibold text-zinc-900">ติดตามเพจ The Cardlist</p>
-          <p className="text-[10px] text-zinc-400 mt-0.5">
+          <p className="text-[11px] text-zinc-500 mt-0.5">
             {clicked ? "ขอบคุณที่ติดตามนะครับ 🙌" : "อัปเดตอีเวนต์ การ์ดใหม่ และโปรโมชั่นก่อนใคร"}
           </p>
         </div>

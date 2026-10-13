@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useMemo } from "react";
+import { useModal } from "@/lib/use-modal";
 import { createClient } from "@/lib/supabase";
 import BottomNav from "@/components/BottomNav";
 import TopBar from "@/components/TopBar";
@@ -14,7 +15,7 @@ const ALL = "ทั้งหมด";
 function SampleWatermark({ size = "sm" }: { size?: "sm" | "lg" }) {
   const rows = size === "lg" ? 7 : 5;
   const perRow = 3;
-  const cls = size === "lg" ? "text-[15px] tracking-[0.35em]" : "text-[8px] tracking-[0.25em]";
+  const cls = size === "lg" ? "text-[15px] tracking-[0.35em]" : "text-[10px] tracking-[0.25em]";
 
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none select-none" aria-hidden="true">
@@ -54,17 +55,17 @@ function CardTile({ card, artist, category, onClick }: {
         )}
         <SampleWatermark />
         {card.limited_count != null && (
-          <span className="absolute top-1.5 right-1.5 bg-zinc-900/85 text-white text-[8px] font-bold px-1.5 py-0.5 rounded tracking-wider">
+          <span className="absolute top-1.5 right-1.5 bg-zinc-900/85 text-white text-[10px] font-bold px-1.5 py-0.5 rounded tracking-wider">
             LTD {card.limited_count}
           </span>
         )}
       </div>
       <div className="px-2.5 py-2">
         <p className="text-[11px] font-semibold text-zinc-900 leading-tight line-clamp-2">{card.name}</p>
-        {artist && <p className="text-[9px] text-zinc-400 mt-1 truncate">{artist.name}</p>}
+        {artist && <p className="text-[10px] text-zinc-500 mt-1 truncate">{artist.name}</p>}
         <div className="flex items-center gap-1 mt-1.5 flex-wrap">
           {category && (
-            <span className="bg-zinc-100 text-zinc-600 text-[8px] font-bold px-1.5 py-0.5 rounded tracking-wider">
+            <span className="bg-zinc-100 text-zinc-600 text-[10px] font-bold px-1.5 py-0.5 rounded tracking-wider">
               {category.name}
             </span>
           )}
@@ -80,7 +81,7 @@ function DetailSection({ icon, title, body }: { icon: string; title: string; bod
   if (!body?.trim()) return null;
   return (
     <div className="mt-4 pt-4 border-t border-zinc-100">
-      <p className="text-[9px] text-zinc-400 tracking-widest font-semibold mb-1.5">
+      <p className="text-[10px] text-zinc-500 tracking-widest font-semibold mb-1.5">
         {icon} {title}
       </p>
       <p className="text-xs text-zinc-600 leading-relaxed whitespace-pre-line">{body}</p>
@@ -102,10 +103,11 @@ function CardDetail({ card, artist, category, onClose }: {
         ["X", artist.x_url],
       ] as const).filter(([, url]) => !!url)
     : [];
+  useModal(true, onClose);
 
   return (
     <div className="fixed inset-0 z-[60] bg-black/60 flex items-end sm:items-center justify-center"
-      onClick={onClose}>
+      onClick={onClose} role="dialog" aria-modal="true" aria-label={card.name}>
       <div className="bg-white w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl max-h-[88vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}>
         <div className="aspect-[3/4] bg-zinc-100 relative">
@@ -116,8 +118,8 @@ function CardDetail({ card, artist, category, onClose }: {
             <div className="w-full h-full flex items-center justify-center text-4xl text-zinc-300">🎨</div>
           )}
           <SampleWatermark size="lg" />
-          <button onClick={onClose}
-            className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 text-zinc-600 flex items-center justify-center text-lg leading-none">
+          <button onClick={onClose} aria-label="ปิด"
+            className="absolute top-3 right-3 w-10 h-10 rounded-full bg-white/90 text-zinc-700 flex items-center justify-center text-lg leading-none">
             ×
           </button>
         </div>
@@ -125,13 +127,13 @@ function CardDetail({ card, artist, category, onClose }: {
         <div className="px-4 py-4">
           <div className="flex items-center gap-1.5 flex-wrap mb-2">
             {category && (
-              <span className="bg-zinc-100 text-zinc-600 text-[9px] font-bold px-2 py-0.5 rounded tracking-wider">
+              <span className="bg-zinc-100 text-zinc-600 text-[10px] font-bold px-2 py-0.5 rounded tracking-wider">
                 {category.name}
               </span>
             )}
             {card.rarity && <span className="badge-rare">{card.rarity}</span>}
             {card.limited_count != null && (
-              <span className="bg-amber-50 text-amber-700 text-[9px] font-bold px-2 py-0.5 rounded tracking-wider">
+              <span className="bg-amber-50 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded tracking-wider">
                 LIMITED {card.limited_count}
               </span>
             )}
@@ -140,7 +142,7 @@ function CardDetail({ card, artist, category, onClose }: {
           <h2 className="text-base font-semibold text-zinc-900 leading-snug">{card.name}</h2>
 
           {(card.collection || card.release_year) && (
-            <p className="text-[11px] text-zinc-400 mt-1">
+            <p className="text-[11px] text-zinc-500 mt-1">
               {[card.collection, card.release_year].filter(Boolean).join(" · ")}
             </p>
           )}
@@ -155,9 +157,9 @@ function CardDetail({ card, artist, category, onClose }: {
 
           {artist && (
             <div className="mt-4 pt-4 border-t border-zinc-100">
-              <p className="text-[9px] text-zinc-400 tracking-widest font-semibold mb-2">ศิลปิน</p>
+              <p className="text-[10px] text-zinc-500 tracking-widest font-semibold mb-2">ศิลปิน</p>
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-full bg-zinc-100 overflow-hidden flex-shrink-0 flex items-center justify-center text-xs font-bold text-zinc-400">
+                <div className="w-9 h-9 rounded-full bg-zinc-100 overflow-hidden flex-shrink-0 flex items-center justify-center text-xs font-bold text-zinc-500">
                   {artist.avatar_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={artist.avatar_url} alt={artist.name} className="w-full h-full object-cover" />
@@ -167,7 +169,7 @@ function CardDetail({ card, artist, category, onClose }: {
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs font-semibold text-zinc-900 truncate">{artist.name}</p>
-                  {artist.bio && <p className="text-[10px] text-zinc-400 line-clamp-2">{artist.bio}</p>}
+                  {artist.bio && <p className="text-[11px] text-zinc-500 line-clamp-2">{artist.bio}</p>}
                 </div>
               </div>
 
@@ -175,7 +177,7 @@ function CardDetail({ card, artist, category, onClose }: {
                 <div className="flex gap-2 mt-3">
                   {socials.map(([label, url]) => (
                     <a key={label} href={url!} target="_blank" rel="noopener noreferrer"
-                      className="btn-secondary text-[10px] px-3 py-1.5">
+                      className="btn-secondary text-[11px] px-3 py-1.5">
                       {label}
                     </a>
                   ))}
@@ -260,7 +262,7 @@ export default function ThaiArtistCardsPage() {
 
       <div className="px-4 pt-4 pb-1">
         <h1 className="text-sm font-semibold text-zinc-900">การ์ดศิลปินไทย</h1>
-        <p className="text-[11px] text-zinc-400 mt-0.5">
+        <p className="text-[11px] text-zinc-500 mt-0.5">
           รวมผลงานการ์ดจากศิลปินไทย — คัดสรรโดย The Cardlist
         </p>
       </div>
@@ -286,10 +288,10 @@ export default function ThaiArtistCardsPage() {
         <div className="flex gap-2 overflow-x-auto scrollbar-hide px-4 pb-3">
           {artistTabs.map((name) => (
             <button key={name} onClick={() => setActiveArtist(name)}
-              className={`flex-shrink-0 text-[10px] px-2.5 py-1 rounded-lg transition-colors ${
+              className={`flex-shrink-0 text-[11px] px-2.5 py-1 rounded-lg transition-colors ${
                 activeArtist === name
                   ? "bg-zinc-200 text-zinc-900 font-semibold"
-                  : "bg-white text-zinc-400 border border-zinc-100"
+                  : "bg-white text-zinc-500 border border-zinc-100"
               }`}>
               {name}
             </button>
@@ -299,11 +301,11 @@ export default function ThaiArtistCardsPage() {
 
       <div className="px-4">
         {loading ? (
-          <p className="text-center text-xs text-zinc-400 py-16">กำลังโหลด...</p>
+          <p className="text-center text-xs text-zinc-500 py-16">กำลังโหลด...</p>
         ) : filtered.length === 0 ? (
           <div className="card px-4 py-12 text-center">
             <p className="text-2xl mb-2">🎨</p>
-            <p className="text-xs text-zinc-400">
+            <p className="text-xs text-zinc-500">
               {visible.length === 0 ? "ยังไม่มีการ์ดศิลปิน" : "ไม่พบการ์ดตามที่กรอง"}
             </p>
           </div>
@@ -323,7 +325,7 @@ export default function ThaiArtistCardsPage() {
                 <section key={artist.id}>
                   <div className="flex items-baseline gap-2 mb-2.5">
                     <h2 className="text-xs font-bold text-zinc-900">{artist.name}</h2>
-                    <span className="text-[10px] text-zinc-400 flex-shrink-0">{artistCards.length} ใบ</span>
+                    <span className="text-[11px] text-zinc-500 flex-shrink-0">{artistCards.length} ใบ</span>
                     <span className="flex-1 h-px bg-zinc-200" />
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

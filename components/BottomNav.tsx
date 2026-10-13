@@ -83,10 +83,10 @@ export default function BottomNav() {
       {NAV.map((item) => {
         const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
         return (
-          <Link key={item.href} href={item.href}
-            className={`flex flex-1 min-w-0 flex-col items-center gap-1 px-0.5 py-1 transition-colors ${active ? "text-zinc-900" : "text-zinc-400"}`}>
+          <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined}
+            className={`flex flex-1 min-w-0 flex-col items-center gap-1 px-0.5 py-1 transition-colors ${active ? "text-zinc-900" : "text-zinc-500"}`}>
             {item.icon(active)}
-            <span className={`text-[9px] tracking-tight whitespace-nowrap ${active ? "font-semibold" : "font-normal"}`}>{item.label}</span>
+            <span className={`text-[10px] tracking-tight whitespace-nowrap ${active ? "font-semibold" : "font-normal"}`}>{item.label}</span>
           </Link>
         );
       })}
