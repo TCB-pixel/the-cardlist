@@ -4,6 +4,8 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 import BottomNav from "@/components/BottomNav";
+import Linkify from "@/components/Linkify";
+import { newsCover } from "@/lib/news-cover";
 import TopBar from "@/components/TopBar";
 
 type NewsPost = {
@@ -80,10 +82,8 @@ export default function NewsDetailPage() {
     <div className="min-h-screen bg-zinc-50 pb-20">
       <TopBar title="ข่าวสาร" showBack />
 
-      {post.image_url && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={post.image_url} alt={post.title} className="w-full h-48 object-cover" />
-      )}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={newsCover(post)} alt={post.title} className={`w-full lg:max-w-3xl lg:mx-auto ${post.image_url ? "h-48 object-cover" : "aspect-[1200/630] object-cover"}`} />
 
       <div className="px-5 py-5">
         <span className={`text-[10px] font-bold px-2 py-0.5 rounded tracking-widest ${TAG_COLOR[post.tag] ?? "bg-zinc-100 text-zinc-600"}`}>{post.tag}</span>
@@ -96,7 +96,7 @@ export default function NewsDetailPage() {
 
         <div className="h-px bg-zinc-100 mb-4" />
 
-        <div className="text-sm text-zinc-700 leading-relaxed whitespace-pre-wrap">{post.content}</div>
+        <div className="text-sm text-zinc-700 leading-relaxed whitespace-pre-wrap"><Linkify text={post.content} /></div>
       </div>
 
       <BottomNav />

@@ -19,7 +19,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return {
     title: row.title,
     description,
-    openGraph: { title: row.title, description, ...(row.image_url ? { images: [row.image_url] } : {}) },
+    openGraph: { title: row.title, description, images: [row.image_url || `/api/news-cover/${encodeURIComponent(row.slug)}`] },
+    twitter: { card: "summary_large_image", title: row.title, description, images: [row.image_url || `/api/news-cover/${encodeURIComponent(row.slug)}`] },
   };
 }
 

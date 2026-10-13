@@ -4,6 +4,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 import BottomNav from "@/components/BottomNav";
 import TopBar from "@/components/TopBar";
+import { newsCover } from "@/lib/news-cover";
 
 type NewsPost = {
   id: string;
@@ -94,9 +95,9 @@ export default function NewsPage() {
             {featured && (
               <Link href={`/news/${featured.slug}`} className="block card overflow-hidden active:bg-zinc-50">
                 <div className="h-36 bg-zinc-900 relative flex items-end p-4 overflow-hidden">
-                  {featured.image_url ? (
+                  {featured.image_url || featured.slug ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={featured.image_url} alt={featured.title} className="absolute inset-0 w-full h-full object-cover opacity-60" />
+                    <img src={newsCover(featured)} alt={featured.title} className={`absolute inset-0 w-full h-full object-cover ${featured.image_url ? "opacity-60" : "opacity-40"}`} />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center opacity-5">
                       <span className="text-8xl font-black text-white">TCG</span>
@@ -118,9 +119,9 @@ export default function NewsPage() {
             {rest.map((n) => (
               <Link key={n.id} href={`/news/${n.slug}`} className="card px-4 py-3.5 flex gap-3 items-start active:bg-zinc-50 block">
                 <div className="w-12 h-12 bg-zinc-100 rounded-xl flex-shrink-0 flex items-center justify-center overflow-hidden">
-                  {n.image_url ? (
+                  {n.image_url || n.slug ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={n.image_url} alt={n.title} className="w-full h-full object-cover" />
+                    <img src={newsCover(n)} alt="" className="w-full h-full object-cover" loading="lazy" />
                   ) : (
                     <span className="text-[11px] font-black text-zinc-500 tracking-tight">TCG</span>
                   )}
