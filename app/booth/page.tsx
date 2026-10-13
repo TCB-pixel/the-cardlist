@@ -282,7 +282,8 @@ export default function BoothPage() {
                 <span className="inline-flex items-center gap-1.5"><i className="w-3 h-3 rounded-sm bg-zinc-900 inline-block" />ที่เลือก</span>
                 <span className="inline-flex items-center gap-1.5"><i className="w-3 h-3 rounded-sm border border-dashed border-zinc-300 bg-zinc-100 inline-block" />ไม่ว่างในวันที่เลือก</span>
               </div>
-              <div className="border border-zinc-100 rounded-xl p-1.5 bg-white">
+              <div className="border border-zinc-100 rounded-xl p-1.5 bg-white overflow-x-auto">
+                <div style={{ minWidth: 520 }}>
                 <BoothMap
                   layout={ev.layout}
                   typeOrder={typeOrder}
@@ -290,6 +291,7 @@ export default function BoothPage() {
                   onToggle={toggleTable}
                   label={(id) => `โต๊ะ ${id}${freeFor(id) ? "" : " ไม่ว่าง"}`}
                 />
+                </div>
               </div>
             </div>
 
