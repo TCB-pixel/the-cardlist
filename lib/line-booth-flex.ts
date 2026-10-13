@@ -1,4 +1,4 @@
-// ── LINE Flex: ยืนยันการจองโต๊ะ Vendor ──
+// ── LINE Flex: การจองโต๊ะ Vendor (การ์ดยืนยันของ Vendor และการ์ดแจ้งทีมงาน) ──
 // กฎเดียวกับ line-order-flex: LINE ปฏิเสธทั้งข้อความถ้าฟิลด์ผิด จึงกรองทุกค่าและมี altText เสมอ
 
 export type BoothFlexInput = {
@@ -6,7 +6,7 @@ export type BoothFlexInput = {
   location: string | null;
   shopName: string;
   tables: string[];
-  daysLabel: string; // เช่น "20, 21, 22 พ.ย." หรือ "ครบ 3 วัน (20–22 พ.ย.)"
+  daysLabel: string; // เช่น "ครบ 3 วัน (20 พ.ย., 21 พ.ย., 22 พ.ย.)"
   subtotal: number;
   discountCode: string | null;
   discountAmount: number;
@@ -14,6 +14,10 @@ export type BoothFlexInput = {
   total: number;
   bookingRef: string;
   siteUrl: string;
+  // ใช้กับการ์ดแจ้งทีมงาน
+  forStaff?: boolean;
+  contactName?: string | null;
+  phone?: string | null;
 };
 
 const clip = (s: string, max: number) => {
@@ -33,10 +37,13 @@ function row(label: string, value: string, opts: { bold?: boolean; color?: strin
 }
 
 export function buildBoothFlex(o: BoothFlexInput) {
+  const staff = !!o.forStaff;
   const rows: any[] = [
     row("งาน", o.eventTitle),
     ...(o.location ? [row("สถานที่", o.location)] : []),
     row("ร้าน", o.shopName),
+    ...(staff && o.contactName ? [row("ผู้ติดต่อ", o.contactName)] : []),
+    ...(staff && o.phone ? [row("โทร", o.phone)] : []),
     row("โต๊ะ", o.tables.join(", "), { bold: true }),
     row("วันที่", o.daysLabel),
   ];
@@ -54,30 +61,40 @@ export function buildBoothFlex(o: BoothFlexInput) {
     ],
   });
 
+  const heading = staff ? "🪑 มีการจองโต๊ะใหม่" : "✅ จองโต๊ะสำเร็จ";
+  const alt = staff
+    ? `🪑 จองโต๊ะใหม่ · ${o.shopName} · โต๊ะ ${o.tables.join(", ")} · ${baht(o.total)}`
+    : `✅ จองโต๊ะสำเร็จ · ${o.eventTitle} · โต๊ะ ${o.tables.join(", ")}`;
+
   return {
     type: "flex",
-    altText: clip(`✅ จองโต๊ะสำเร็จ · ${o.eventTitle} · โต๊ะ ${o.tables.join(", ")}`, 400),
+    altText: clip(alt, 400),
     contents: {
       type: "bubble",
       size: "mega",
       body: {
         type: "box", layout: "vertical", paddingAll: "lg", spacing: "md",
         contents: [
-          { type: "text", text: "✅ จองโต๊ะสำเร็จ", weight: "bold", size: "lg", color: "#18181b", wrap: true },
+          { type: "text", text: heading, weight: "bold", size: "lg", color: "#18181b", wrap: true },
           { type: "text", text: `รหัสการจอง #${o.bookingRef}`, size: "xs", color: "#71717a" },
           { type: "separator", margin: "md" },
           { type: "box", layout: "vertical", margin: "md", spacing: "sm", contents: rows },
           { type: "separator", margin: "md" },
           { type: "box", layout: "vertical", margin: "md", spacing: "xs", contents: sums },
-          { type: "text", text: "เก็บข้อความนี้ไว้เป็นหลักฐานการจอง ขอบคุณที่ร่วมงานกับ The Cardlist", size: "xs", color: "#71717a", wrap: true, margin: "md" },
+          ...(staff
+            ? []
+            : [{ type: "text", text: "เก็บข้อความนี้ไว้เป็นหลักฐานการจอง ขอบคุณที่ร่วมงานกับ The Cardlist", size: "xs", color: "#71717a", wrap: true, margin: "md" }]),
         ],
       },
       footer: {
         type: "box", layout: "vertical", spacing: "sm",
         contents: [
           {
-            type: "button", style: "link", height: "sm",
-            action: { type: "uri", label: "ดูการจองของฉัน", uri: `${o.siteUrl}/booth` },
+            type: "button", style: staff ? "primary" : "link", height: "sm",
+            ...(staff ? { color: "#18181b" } : {}),
+            action: staff
+              ? { type: "uri", label: "เปิดหลังบ้าน", uri: `${o.siteUrl}/admin/booth` }
+              : { type: "uri", label: "ดูการจองของฉัน", uri: `${o.siteUrl}/booth` },
           },
         ],
       },

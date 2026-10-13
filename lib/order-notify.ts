@@ -51,7 +51,7 @@ function addressText(a: NotifyShipping | null) {
 
 type MailResult = { ok: true } | { ok: false; error: string };
 
-async function sendEmail(to: string[], subject: string, html: string): Promise<MailResult> {
+export async function sendEmail(to: string[], subject: string, html: string): Promise<MailResult> {
   const key = process.env.RESEND_API_KEY;
   if (!key) return { ok: false, error: "ไม่ได้ตั้งค่า RESEND_API_KEY" };
   if (to.length === 0) return { ok: false, error: "ไม่มีผู้รับอีเมล" };

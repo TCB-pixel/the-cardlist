@@ -3,7 +3,7 @@ import Stripe from "stripe";
 import { adminDb, requireAdmin } from "@/lib/require-admin";
 import { parseBoothSvg } from "@/lib/booth-layout";
 import { releaseExpired } from "@/lib/booth";
-import { notifyBoothVendor } from "@/lib/booth-notify";
+import { notifyBoothVendor, notifyBoothStaff } from "@/lib/booth-notify";
 
 export const maxDuration = 30;
 
@@ -77,6 +77,11 @@ export async function POST(req: Request) {
     }
     // รายการที่จ่ายแล้ว: ปล่อยโต๊ะคืนให้ แต่การคืนเงินต้องทำเองที่ Stripe
     return NextResponse.json({ ok: true, refundNeeded: b.status === "paid" || b.status === "needs_refund" });
+  }
+
+  if (body.action === "resendStaff") {
+    const r = await notifyBoothStaff(adminDb, String(body.bookingId ?? ""));
+    return NextResponse.json(r, { status: r.ok ? 200 : 400 });
   }
 
   if (body.action === "resendLine") {

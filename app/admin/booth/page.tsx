@@ -16,6 +16,7 @@ type Booking = {
   discount_code: string | null; discount_amount: number; shop_name: string | null;
   contact_name: string | null; phone: string | null; created_at: string; hold_expires_at: string;
   line_notified_at: string | null; line_notify_error: string | null;
+  staff_notified_at: string | null; staff_notify_error: string | null;
 };
 
 const STATUS: Record<string, { text: string; cls: string }> = {
@@ -134,6 +135,14 @@ export default function AdminBoothPage() {
     const res = await authed("/api/admin/booth", { method: "POST", body: JSON.stringify({ action: "resendLine", bookingId: b.id }) });
     const j = await res.json();
     alert(res.ok ? "ส่งการ์ดให้ Vendor แล้ว" : "ส่งไม่สำเร็จ: " + (j.error ?? "ไม่ทราบสาเหตุ"));
+    if (bookingsFor) loadBookings(bookingsFor);
+  }
+
+  async function resendStaff(b: Booking) {
+    if (!window.confirm("ส่งแจ้งเตือนการจองของ " + b.shop_name + " ให้ทีมงานอีกครั้งใช่ไหม?")) return;
+    const res = await authed("/api/admin/booth", { method: "POST", body: JSON.stringify({ action: "resendStaff", bookingId: b.id }) });
+    const j = await res.json();
+    alert(res.ok ? "ส่งแจ้งเตือนทีมงานแล้ว" : "ส่งไม่สำเร็จ: " + (j.error ?? "ไม่ทราบสาเหตุ"));
     if (bookingsFor) loadBookings(bookingsFor);
   }
 
@@ -265,7 +274,15 @@ export default function AdminBoothPage() {
                         {b.line_notified_at ? "✅ แจ้ง LINE แล้ว" : "⚠ ยังไม่ได้แจ้ง LINE" + (b.line_notify_error ? " — " + b.line_notify_error : "")}
                       </p>
                     )}
+                    {b.status === "paid" && (
+                      <p className={"text-[10px] " + (b.staff_notified_at ? "text-green-600" : "text-amber-700")}>
+                        {b.staff_notified_at ? "✅ แจ้งทีมงานแล้ว" : "⚠ ยังไม่ได้แจ้งทีมงาน" + (b.staff_notify_error ? " — " + b.staff_notify_error : "")}
+                      </p>
+                    )}
                     <div className="flex gap-2">
+                      {canEdit && b.status === "paid" && (
+                        <button onClick={() => resendStaff(b)} className="text-[11px] text-zinc-600 border border-zinc-200 rounded-lg px-3 py-1.5">แจ้งทีมงานซ้ำ</button>
+                      )}
                       {canEdit && b.status === "paid" && (
                         <button onClick={() => resendLine(b)} className="text-[11px] text-zinc-600 border border-zinc-200 rounded-lg px-3 py-1.5">ส่ง LINE ซ้ำ</button>
                       )}

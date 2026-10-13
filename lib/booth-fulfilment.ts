@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { notifyBoothVendor } from "@/lib/booth-notify";
+import { notifyBoothVendor, notifyBoothStaff } from "@/lib/booth-notify";
 
 // Stripe แจ้งว่าชำระการจองโต๊ะสำเร็จ → ยืนยันการจอง (ทำซ้ำได้ ไม่เกิดผลซ้ำ)
 export async function fulfilBoothBooking(
@@ -48,6 +48,8 @@ export async function fulfilBoothBooking(
 
   // แจ้ง Vendor ทาง LINE — ทำหลังยืนยันสำเร็จเท่านั้น และไม่ทำให้ webhook ล้ม
   await notifyBoothVendor(supabase, b.id);
+  // แจ้งทีมงาน (LINE + อีเมล) — ผู้รับชุดเดียวกับแจ้งเตือนออเดอร์
+  await notifyBoothStaff(supabase, b.id);
 }
 
 // หน้าชำระเงินหมดอายุ/ถูกยกเลิก → คืนโต๊ะทันที (ไม่ต้องรอครบเวลากัน)
