@@ -44,7 +44,11 @@ export default function BoothPage() {
   const supabase = useMemo(() => createClient(), []);
   const [events, setEvents] = useState<{ id: string; title: string; location: string | null; days: string[] }[] | null>(null);
   const [eventId, setEventId] = useState<string | null>(null);
-  const [data, setData] = useState<{ event: EventData; booked: Record<string, string[]>; partialOpen: boolean } | null>(null);
+  const [data, setData] = useState<{
+    event: EventData; booked: Record<string, string[]>; partialOpen: boolean;
+    vendors?: Record<string, Record<string, { shop: string; logo: string | null }>>;
+  } | null>(null);
+  const [tableInfo, setTableInfo] = useState<string | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [days, setDays] = useState<string[]>([]);
   const [sel, setSel] = useState<string[]>([]);
@@ -162,6 +166,14 @@ export default function BoothPage() {
   const isFull = !!ev && days.length === ev.days.length;
   const typeOrder = useMemo(() => Array.from(new Set((ev?.layout?.tables ?? []).map((t) => t.type))).sort(), [ev]);
   const typeOf = useCallback((id: string) => ev?.layout?.tables.find((t) => t.id === id)?.type ?? "", [ev]);
+
+  // ร้านที่ชำระแล้วของโต๊ะนี้ ในวันที่เลือก (ถ้าหลายร้าน ใช้ร้านของวันแรกที่มี)
+  const vendorOn = useCallback((id: string) => {
+    const byDay = data?.vendors?.[id];
+    if (!byDay) return null;
+    for (const d of days) if (byDay[d]) return byDay[d];
+    return null;
+  }, [data, days]);
 
   const freeFor = useCallback((id: string) => {
     const b = data?.booked[id] ?? [];
@@ -376,10 +388,20 @@ export default function BoothPage() {
                   typeOrder={typeOrder}
                   stateOf={(id): TableState => (sel.includes(id) ? "selected" : freeFor(id) && ev.pricing[typeOf(id)] ? "free" : "booked")}
                   onToggle={toggleTable}
+                  onBookedClick={(id) => {
+                    const v = vendorOn(id);
+                    setTableInfo(v ? `โต๊ะ ${id} · ร้าน ${v.shop}` : `โต๊ะ ${id} · มีผู้จองแล้วในวันที่เลือก`);
+                  }}
+                  logoOf={(id) => {
+                    const v = vendorOn(id);
+                    return v?.logo ? { url: v.logo, name: `โต๊ะ ${id} · ${v.shop}` } : null;
+                  }}
                   label={(id) => `โต๊ะ ${id}${freeFor(id) ? "" : " ไม่ว่าง"}`}
                 />
                 </div>
               </div>
+              {tableInfo && <p className="text-[11px] text-zinc-600 bg-zinc-50 rounded-lg px-3 py-1.5 mt-2">{tableInfo}</p>}
+              <p className="text-[10px] text-zinc-400 mt-1.5">โต๊ะที่ชำระแล้วแสดงโลโก้ร้าน แตะที่โต๊ะเพื่อดูชื่อร้าน</p>
             </div>
 
             <div className="bg-white border border-zinc-100 rounded-2xl p-4">
