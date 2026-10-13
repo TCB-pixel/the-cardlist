@@ -15,6 +15,7 @@ type Booking = {
   id: string; status: string; days: string[]; tables: string[]; total: number; subtotal: number;
   discount_code: string | null; discount_amount: number; shop_name: string | null;
   contact_name: string | null; phone: string | null; created_at: string; hold_expires_at: string;
+  line_notified_at: string | null; line_notify_error: string | null;
 };
 
 const STATUS: Record<string, { text: string; cls: string }> = {
@@ -126,6 +127,14 @@ export default function AdminBoothPage() {
     } catch (e: any) {
       setMsg({ ok: false, text: e?.message ?? "บันทึกไม่สำเร็จ" });
     } finally { setSaving(false); }
+  }
+
+  async function resendLine(b: Booking) {
+    if (!window.confirm("ส่งการ์ดยืนยันการจองให้ " + b.shop_name + " ทาง LINE อีกครั้งใช่ไหม?")) return;
+    const res = await authed("/api/admin/booth", { method: "POST", body: JSON.stringify({ action: "resendLine", bookingId: b.id }) });
+    const j = await res.json();
+    alert(res.ok ? "ส่งการ์ดให้ Vendor แล้ว" : "ส่งไม่สำเร็จ: " + (j.error ?? "ไม่ทราบสาเหตุ"));
+    if (bookingsFor) loadBookings(bookingsFor);
   }
 
   async function cancelBooking(b: Booking) {
@@ -250,9 +259,21 @@ export default function AdminBoothPage() {
                     <p className="text-[11px] text-zinc-500 mt-0.5">โต๊ะ {b.tables.join(", ")} · {b.days.map((d) => d.slice(5)).join(", ")}</p>
                     <p className="text-[11px] text-zinc-500">ยอด {baht(b.total)}{b.discount_code ? ` · โค้ด ${b.discount_code} (-${baht(b.discount_amount)})` : ""} · {new Date(b.created_at).toLocaleString("th-TH")}</p>
                   </div>
-                  {canEdit && b.status !== "cancelled" && b.status !== "expired" && (
-                    <button onClick={() => cancelBooking(b)} className="text-[11px] text-red-600 border border-red-100 rounded-lg px-3 py-1.5">ยกเลิก/ปล่อยโต๊ะ</button>
-                  )}
+                  <div className="flex flex-col items-end gap-1.5">
+                    {b.status === "paid" && (
+                      <p className={"text-[10px] " + (b.line_notified_at ? "text-green-600" : "text-amber-700")}>
+                        {b.line_notified_at ? "✅ แจ้ง LINE แล้ว" : "⚠ ยังไม่ได้แจ้ง LINE" + (b.line_notify_error ? " — " + b.line_notify_error : "")}
+                      </p>
+                    )}
+                    <div className="flex gap-2">
+                      {canEdit && b.status === "paid" && (
+                        <button onClick={() => resendLine(b)} className="text-[11px] text-zinc-600 border border-zinc-200 rounded-lg px-3 py-1.5">ส่ง LINE ซ้ำ</button>
+                      )}
+                      {canEdit && b.status !== "cancelled" && b.status !== "expired" && (
+                        <button onClick={() => cancelBooking(b)} className="text-[11px] text-red-600 border border-red-100 rounded-lg px-3 py-1.5">ยกเลิก/ปล่อยโต๊ะ</button>
+                      )}
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
