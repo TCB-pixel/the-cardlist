@@ -15,7 +15,7 @@ export async function POST(req: Request) {
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: "เข้าสู่ระบบก่อนบันทึกข้อมูลร้าน" }, { status: 401 });
   const body = await req.json().catch(() => ({}));
-  const v = validateVendor(body);
+  const v = validateVendor(body, user.id);
   if (!v.ok) return NextResponse.json({ error: v.error }, { status: 400 });
 
   const { error } = await adminDb.from("vendor_profiles").upsert(

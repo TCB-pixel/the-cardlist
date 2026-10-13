@@ -15,7 +15,7 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => ({}));
   const paymentMethod: "card" | "promptpay" = body.paymentMethod === "card" ? "card" : "promptpay";
-  const vendor = validateVendor(body.vendor);
+  const vendor = validateVendor(body.vendor, user.id);
   if (!vendor.ok) return NextResponse.json({ error: vendor.error }, { status: 400 });
   // บันทึกข้อมูลร้านไว้ใช้ซ้ำในงานถัดไป (ไม่ทำให้การจองล้มถ้าบันทึกพลาด)
   await adminDb.from("vendor_profiles").upsert(

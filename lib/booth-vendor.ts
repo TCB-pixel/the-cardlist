@@ -17,9 +17,18 @@ export type VendorInfo = {
   social_url: string | null;
   product_types: string[];
   product_detail: string | null;
+  logo_url: string | null;
 };
 
-export function validateVendor(input: any): { ok: true; value: VendorInfo } | { ok: false; error: string } {
+// โลโก้ต้องเป็นไฟล์ที่ผู้ใช้คนนี้อัปโหลดผ่านระบบเราเอง (กันใส่ลิงก์ภายนอก/ของคนอื่น)
+function logoPrefix(userId: string) {
+  return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/vendor-logos/${userId}/`;
+}
+
+export function validateVendor(
+  input: any,
+  userId: string
+): { ok: true; value: VendorInfo } | { ok: false; error: string } {
   const shop = String(input?.shop_name ?? "").trim();
   const contact = String(input?.contact_name ?? "").trim();
   const phone = String(input?.phone ?? "").replace(/\D/g, "");
@@ -46,9 +55,15 @@ export function validateVendor(input: any): { ok: true; value: VendorInfo } | { 
     }
   }
 
+  const logo = String(input?.logo_url ?? "").trim();
+  if (logo && (!logo.startsWith(logoPrefix(userId)) || logo.length > 400)) {
+    return { ok: false, error: "โลโก้ไม่ถูกต้อง กรุณาอัปโหลดใหม่" };
+  }
+
   return {
     ok: true,
     value: {
+      logo_url: logo || null,
       shop_name: shop, contact_name: contact, phone,
       line_id: line || null, social_url: social || null,
       product_types: types, product_detail: detail || null,

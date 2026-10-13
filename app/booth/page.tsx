@@ -17,10 +17,10 @@ type EventData = {
 };
 type VendorForm = {
   shop_name: string; contact_name: string; phone: string; line_id: string; social_url: string;
-  product_types: string[]; product_detail: string;
+  product_types: string[]; product_detail: string; logo_url: string;
 };
 const EMPTY_VENDOR: VendorForm = {
-  shop_name: "", contact_name: "", phone: "", line_id: "", social_url: "", product_types: [], product_detail: "",
+  shop_name: "", contact_name: "", phone: "", line_id: "", social_url: "", product_types: [], product_detail: "", logo_url: "",
 };
 type MyBooking = {
   id: string; status: string; days: string[]; tables: string[]; total: number;
@@ -53,6 +53,8 @@ export default function BoothPage() {
   const [vendor, setVendor] = useState<VendorForm>(EMPTY_VENDOR);
   const [vendorSaved, setVendorSaved] = useState(false); // มีข้อมูลร้านเดิมที่เคยบันทึก → โชว์แบบย่อ
   const [editingVendor, setEditingVendor] = useState(true);
+  const [logoBusy, setLogoBusy] = useState(false);
+  const [logoMsg, setLogoMsg] = useState<string | null>(null);
   const [rulesFor, setRulesFor] = useState<"promptpay" | "card" | null>(null);
   const [rulesRead, setRulesRead] = useState(false);
   const [rulesOk, setRulesOk] = useState(false);
@@ -97,7 +99,7 @@ export default function BoothPage() {
         setVendor({
           shop_name: p.shop_name ?? "", contact_name: p.contact_name ?? "", phone: p.phone ?? "",
           line_id: p.line_id ?? "", social_url: p.social_url ?? "",
-          product_types: p.product_types ?? [], product_detail: p.product_detail ?? "",
+          product_types: p.product_types ?? [], product_detail: p.product_detail ?? "", logo_url: p.logo_url ?? "",
         });
         setVendorSaved(true);
         setEditingVendor(false);
@@ -192,6 +194,26 @@ export default function BoothPage() {
       setApplied({ code: j.code, label: j.label, amount: j.amount });
       setCodeMsg({ ok: true, text: `ใช้โค้ด ${j.code} แล้ว · ${j.label}` });
     } finally { setBusy(null); }
+  }
+
+  async function uploadLogo(file: File | undefined) {
+    if (!file) return;
+    setLogoMsg(null);
+    if (file.size > 2 * 1024 * 1024) return setLogoMsg("ไฟล์ใหญ่เกิน 2 MB");
+    if (!/^image\/(png|jpeg|webp)$/.test(file.type)) return setLogoMsg("รองรับเฉพาะไฟล์ PNG, JPG หรือ WebP");
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { setLogoMsg("เข้าสู่ระบบก่อนอัปโหลดโลโก้"); return; }
+    setLogoBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/booth/logo", { method: "POST", headers: { Authorization: `Bearer ${session.access_token}` }, body: fd });
+      const j = await res.json();
+      if (!res.ok) return setLogoMsg(j.error ?? "อัปโหลดไม่สำเร็จ");
+      setVendor((v) => ({ ...v, logo_url: j.url }));
+    } catch {
+      setLogoMsg("อัปโหลดไม่สำเร็จ ลองใหม่อีกครั้ง");
+    } finally { setLogoBusy(false); }
   }
 
   // ตรวจข้อมูลก่อนเปิดหน้าต่างกฎระเบียบ — ผู้จองต้องเห็นและยอมรับกฎก่อนไปชำระเงินทุกครั้ง
@@ -388,13 +410,41 @@ export default function BoothPage() {
                 </div>
 
                 {!editingVendor ? (
-                  <div className="bg-zinc-50 rounded-xl px-3 py-2.5 text-xs text-zinc-700 space-y-0.5">
-                    <p className="font-semibold text-zinc-900">{vendor.shop_name}</p>
-                    <p>{vendor.contact_name} · {vendor.phone}</p>
-                    <p className="text-zinc-500">{vendor.product_types.join(", ")}</p>
+                  <div className="bg-zinc-50 rounded-xl px-3 py-2.5 text-xs text-zinc-700 flex items-center gap-3">
+                    {vendor.logo_url && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={vendor.logo_url} alt="โลโก้ร้าน" className="w-12 h-12 rounded-lg object-contain bg-white border border-zinc-100 flex-shrink-0" />
+                    )}
+                    <div className="space-y-0.5 min-w-0">
+                      <p className="font-semibold text-zinc-900">{vendor.shop_name}</p>
+                      <p>{vendor.contact_name} · {vendor.phone}</p>
+                      <p className="text-zinc-500">{vendor.product_types.join(", ")}</p>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-16 h-16 rounded-xl border border-dashed border-zinc-300 bg-zinc-50 flex items-center justify-center overflow-hidden flex-shrink-0">
+                        {vendor.logo_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={vendor.logo_url} alt="โลโก้ร้าน" className="w-full h-full object-contain" />
+                        ) : (
+                          <span className="text-[10px] text-zinc-400 text-center leading-tight px-1">โลโก้<br />ร้าน</span>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <label className="inline-block text-xs font-semibold border border-zinc-200 rounded-lg px-3 py-1.5 text-zinc-700 cursor-pointer">
+                          {logoBusy ? "กำลังอัปโหลด..." : vendor.logo_url ? "เปลี่ยนโลโก้" : "อัปโหลดโลโก้ร้าน"}
+                          <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" disabled={logoBusy}
+                            onChange={(e) => { uploadLogo(e.target.files?.[0]); e.target.value = ""; }} />
+                        </label>
+                        {vendor.logo_url && !logoBusy && (
+                          <button type="button" onClick={() => setVendor({ ...vendor, logo_url: "" })} className="ml-2 text-[11px] text-zinc-400 underline">ลบ</button>
+                        )}
+                        <p className="text-[10px] text-zinc-400 mt-1">PNG / JPG / WebP ไม่เกิน 2 MB · ใช้ประชาสัมพันธ์ร้านในงาน</p>
+                        {logoMsg && <p className="text-[11px] text-red-600 mt-0.5">{logoMsg}</p>}
+                      </div>
+                    </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <input className={inputCls} placeholder="ชื่อร้าน / แบรนด์ *" value={vendor.shop_name} onChange={(e) => setVendor({ ...vendor, shop_name: e.target.value })} />
                       <input className={inputCls} placeholder="ชื่อผู้ติดต่อ *" value={vendor.contact_name} onChange={(e) => setVendor({ ...vendor, contact_name: e.target.value })} />

@@ -18,7 +18,7 @@ type Booking = {
   contact_name: string | null; phone: string | null; created_at: string; hold_expires_at: string;
   line_notified_at: string | null; line_notify_error: string | null;
   staff_notified_at: string | null; staff_notify_error: string | null;
-  vendor_info: { line_id?: string | null; social_url?: string | null; product_types?: string[]; product_detail?: string | null } | null;
+  vendor_info: { logo_url?: string | null; line_id?: string | null; social_url?: string | null; product_types?: string[]; product_detail?: string | null } | null;
   rules_version: number | null; rules_accepted_at: string | null;
 };
 
@@ -273,7 +273,11 @@ export default function AdminBoothPage() {
             <div className="space-y-2">
               {bookings.map((b) => (
                 <div key={b.id} className="border border-zinc-100 rounded-xl px-3 py-2.5 flex items-start justify-between gap-3 flex-wrap">
-                  <div className="min-w-0">
+                  {b.vendor_info?.logo_url && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={b.vendor_info.logo_url} alt="โลโก้ร้าน" className="w-12 h-12 rounded-lg object-contain bg-white border border-zinc-100 flex-shrink-0" />
+                  )}
+                  <div className="min-w-0 flex-1">
                     <p className="text-xs font-semibold text-zinc-900">
                       {b.shop_name} <span className="text-zinc-400 font-normal">· {b.contact_name} · {b.phone}</span>
                       <span className={`ml-2 text-[10px] px-2 py-0.5 rounded ${STATUS[b.status]?.cls ?? "bg-zinc-100"}`}>{STATUS[b.status]?.text ?? b.status}</span>
