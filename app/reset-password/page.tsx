@@ -20,6 +20,17 @@ export default function ResetPasswordPage() {
     let done = false;
     const ok = () => { if (!done) { done = true; setState("ready"); } };
 
+    // ลิงก์แบบ token_hash (ตั้งในแม่แบบอีเมล): ยืนยันด้วย JavaScript ของหน้านี้ จึงเปิดบนเครื่อง/เบราว์เซอร์ไหนก็ได้
+    // (ต่างจากลิงก์แบบ code ที่ต้องเปิดในเบราว์เซอร์เดียวกับที่กดขอรีเซ็ต และโปรแกรมสแกนลิงก์ของอีเมลมักทำให้ลิงก์ถูกใช้ไปก่อน)
+    const q = new URLSearchParams(window.location.search);
+    const tokenHash = q.get("token_hash");
+    if (tokenHash && q.get("type") === "recovery") {
+      supabase.auth.verifyOtp({ type: "recovery", token_hash: tokenHash }).then(({ error }) => {
+        if (error) setState("invalid"); else ok();
+      });
+      return;
+    }
+
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && session)) ok();
     });
