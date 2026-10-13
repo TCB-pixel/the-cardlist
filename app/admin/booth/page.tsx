@@ -9,6 +9,7 @@ type EventRow = {
   id: string; title: string; location: string | null; days: string[];
   partial_open_at: string | null; hold_minutes: number; max_tables: number;
   pricing: Record<string, TypePricing>; active: boolean; paidCount: number;
+  rules: string | null; rules_version: number;
   layoutInfo: { tables: number; types: string[]; viewBox: number[] } | null;
 };
 type Booking = {
@@ -17,6 +18,8 @@ type Booking = {
   contact_name: string | null; phone: string | null; created_at: string; hold_expires_at: string;
   line_notified_at: string | null; line_notify_error: string | null;
   staff_notified_at: string | null; staff_notify_error: string | null;
+  vendor_info: { line_id?: string | null; social_url?: string | null; product_types?: string[]; product_detail?: string | null } | null;
+  rules_version: number | null; rules_accepted_at: string | null;
 };
 
 const STATUS: Record<string, { text: string; cls: string }> = {
@@ -38,10 +41,11 @@ type Form = {
   id?: string; title: string; location: string; days: string; partial_open_at: string;
   hold_minutes: number; max_tables: number; active: boolean;
   pricing: Record<string, TypePricing>; svg: string; svgName: string; viewBox: string;
+  rules: string; rulesVersion: number;
 };
 const EMPTY: Form = {
   title: "", location: "", days: "", partial_open_at: "", hold_minutes: 30, max_tables: 4, active: false,
-  pricing: {}, svg: "", svgName: "", viewBox: "",
+  pricing: {}, svg: "", svgName: "", viewBox: "", rules: "", rulesVersion: 1,
 };
 
 export default function AdminBoothPage() {
@@ -87,6 +91,7 @@ export default function AdminBoothPage() {
       partial_open_at: isoToLocal(e.partial_open_at), hold_minutes: e.hold_minutes, max_tables: e.max_tables,
       active: e.active, pricing: e.pricing ?? {}, svg: "", svgName: "",
       viewBox: e.layoutInfo?.viewBox?.join(" ") ?? "",
+      rules: e.rules ?? "", rulesVersion: e.rules_version ?? 1,
     });
   }
 
@@ -109,7 +114,7 @@ export default function AdminBoothPage() {
           days: form.days.split(/[\s,]+/).filter(Boolean),
           partial_open_at: localToIso(form.partial_open_at),
           hold_minutes: Number(form.hold_minutes), max_tables: Number(form.max_tables),
-          active: form.active, pricing: form.pricing, svg: form.svg || undefined, viewBox: vb,
+          active: form.active, pricing: form.pricing, svg: form.svg || undefined, viewBox: vb, rules: form.rules,
         }),
       });
       const j = await res.json();
@@ -238,6 +243,14 @@ export default function AdminBoothPage() {
             </div>
           </div>
 
+          <div>
+            <label className={labelCls}>กฎระเบียบภายในงานสำหรับ Vendor (แสดงเป็นหน้าต่างให้อ่านและกดยอมรับก่อนชำระเงิน · เว้นว่าง = ไม่แสดง)</label>
+            <textarea className={inputCls} rows={9} value={form.rules} onChange={(e) => setForm({ ...form, rules: e.target.value })} />
+            <p className="text-[10px] text-zinc-400 mt-1">
+              ปัจจุบันเป็นเวอร์ชัน {form.rulesVersion} · แก้ไขข้อความแล้วบันทึก ระบบเพิ่มเวอร์ชันให้เอง ผู้ที่ยังไม่ชำระเงินจะต้องยอมรับฉบับใหม่ · ผู้ที่ชำระแล้วระบบเก็บเวอร์ชันที่เขายอมรับไว้
+            </p>
+          </div>
+
           <label className="flex items-center gap-2 text-sm text-zinc-800">
             <input type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} /> เปิดรับจอง (แสดงในหน้าเว็บ)
           </label>
@@ -266,6 +279,16 @@ export default function AdminBoothPage() {
                       <span className={`ml-2 text-[10px] px-2 py-0.5 rounded ${STATUS[b.status]?.cls ?? "bg-zinc-100"}`}>{STATUS[b.status]?.text ?? b.status}</span>
                     </p>
                     <p className="text-[11px] text-zinc-500 mt-0.5">โต๊ะ {b.tables.join(", ")} · {b.days.map((d) => d.slice(5)).join(", ")}</p>
+                    {b.vendor_info && (
+                      <p className="text-[11px] text-zinc-500">
+                        สินค้า: {(b.vendor_info.product_types ?? []).join(", ")}{b.vendor_info.product_detail ? ` (${b.vendor_info.product_detail})` : ""}
+                        {b.vendor_info.line_id ? ` · LINE: ${b.vendor_info.line_id}` : ""}
+                        {b.vendor_info.social_url ? <> · <a href={b.vendor_info.social_url} target="_blank" rel="noreferrer" className="underline">เพจ/โซเชียล</a></> : null}
+                      </p>
+                    )}
+                    <p className="text-[10px] text-zinc-400">
+                      {b.rules_accepted_at ? `ยอมรับกฎระเบียบ v${b.rules_version} เมื่อ ${new Date(b.rules_accepted_at).toLocaleString("th-TH")}` : "ไม่มีกฎระเบียบในตอนจอง"}
+                    </p>
                     <p className="text-[11px] text-zinc-500">ยอด {baht(b.total)}{b.discount_code ? ` · โค้ด ${b.discount_code} (-${baht(b.discount_amount)})` : ""} · {new Date(b.created_at).toLocaleString("th-TH")}</p>
                   </div>
                   <div className="flex flex-col items-end gap-1.5">

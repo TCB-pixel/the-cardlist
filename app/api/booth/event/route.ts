@@ -26,6 +26,7 @@ export async function GET(req: Request) {
       id: ev.id, title: ev.title, location: ev.location, days: ev.days,
       partial_open_at: ev.partial_open_at, hold_minutes: ev.hold_minutes, max_tables: ev.max_tables,
       pricing: ev.pricing, layout: ev.layout,
+      rules: ev.rules, rules_version: ev.rules_version,
     },
     booked: await getBooked(ev.id),
     partialOpen: isPartialOpen(ev),

@@ -6,12 +6,21 @@ import BottomNav from "@/components/BottomNav";
 import TopBar from "@/components/TopBar";
 import BoothMap, { TableState } from "@/components/BoothMap";
 import type { BoothLayout } from "@/lib/booth-layout";
+import { PRODUCT_TYPES } from "@/lib/booth-vendor";
 
 type TypePricing = { label: string; size: string; full: number; per_day: number };
 type EventData = {
   id: string; title: string; location: string | null; days: string[];
   partial_open_at: string | null; hold_minutes: number; max_tables: number;
   pricing: Record<string, TypePricing>; layout: BoothLayout | null;
+  rules: string | null; rules_version: number;
+};
+type VendorForm = {
+  shop_name: string; contact_name: string; phone: string; line_id: string; social_url: string;
+  product_types: string[]; product_detail: string;
+};
+const EMPTY_VENDOR: VendorForm = {
+  shop_name: "", contact_name: "", phone: "", line_id: "", social_url: "", product_types: [], product_detail: "",
 };
 type MyBooking = {
   id: string; status: string; days: string[]; tables: string[]; total: number;
@@ -41,7 +50,12 @@ export default function BoothPage() {
   const [code, setCode] = useState("");
   const [applied, setApplied] = useState<{ code: string; label: string; amount: number } | null>(null);
   const [codeMsg, setCodeMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const [vendor, setVendor] = useState({ shop: "", name: "", phone: "" });
+  const [vendor, setVendor] = useState<VendorForm>(EMPTY_VENDOR);
+  const [vendorSaved, setVendorSaved] = useState(false); // มีข้อมูลร้านเดิมที่เคยบันทึก → โชว์แบบย่อ
+  const [editingVendor, setEditingVendor] = useState(true);
+  const [rulesFor, setRulesFor] = useState<"promptpay" | "card" | null>(null);
+  const [rulesRead, setRulesRead] = useState(false);
+  const [rulesOk, setRulesOk] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [mine, setMine] = useState<MyBooking[]>([]);
@@ -69,11 +83,27 @@ export default function BoothPage() {
         setEvents([]);
       }
     })();
-    try {
-      const saved = JSON.parse(localStorage.getItem("cardlist_vendor") ?? "null");
-      if (saved) setVendor((v) => ({ ...v, ...saved }));
-    } catch { /* ignore */ }
   }, []);
+
+  // ข้อมูลร้านที่เคยลงทะเบียนไว้ (ใช้ซ้ำทุกงาน)
+  useEffect(() => {
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const res = await authed("/api/booth/vendor");
+      if (!res.ok) return;
+      const p = (await res.json()).profile;
+      if (p) {
+        setVendor({
+          shop_name: p.shop_name ?? "", contact_name: p.contact_name ?? "", phone: p.phone ?? "",
+          line_id: p.line_id ?? "", social_url: p.social_url ?? "",
+          product_types: p.product_types ?? [], product_detail: p.product_detail ?? "",
+        });
+        setVendorSaved(true);
+        setEditingVendor(false);
+      }
+    })();
+  }, [supabase, authed]);
 
   const loadEvent = useCallback(async (id: string, first: boolean) => {
     try {
@@ -164,24 +194,36 @@ export default function BoothPage() {
     } finally { setBusy(null); }
   }
 
-  async function pay(method: "promptpay" | "card") {
+  // ตรวจข้อมูลก่อนเปิดหน้าต่างกฎระเบียบ — ผู้จองต้องเห็นและยอมรับกฎก่อนไปชำระเงินทุกครั้ง
+  async function startPay(method: "promptpay" | "card") {
     setMsg(null);
     if (sel.length === 0) return setMsg("เลือกโต๊ะอย่างน้อย 1 โต๊ะก่อนชำระเงิน");
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) { window.location.href = "/login"; return; }
-    if (!vendor.shop.trim() || !vendor.name.trim()) return setMsg("กรอกชื่อร้านและชื่อผู้ติดต่อ");
-    if (!/^0\d{8,9}$/.test(vendor.phone.replace(/\D/g, ""))) return setMsg("เบอร์โทรไม่ถูกต้อง");
-    try { localStorage.setItem("cardlist_vendor", JSON.stringify(vendor)); } catch { /* ignore */ }
+    const err = vendorError(vendor);
+    if (err) { setEditingVendor(true); return setMsg(err); }
+    if (ev?.rules && ev.rules.trim()) {
+      setRulesRead(false); setRulesOk(false); setRulesFor(method);
+      return;
+    }
+    await pay(method);
+  }
 
+  async function pay(method: "promptpay" | "card") {
     setBusy(method);
     try {
       const res = await authed("/api/booth/hold", {
         method: "POST",
-        body: JSON.stringify({ eventId, days, tables: sel, code: isFull && applied ? applied.code : "", paymentMethod: method, vendor }),
+        body: JSON.stringify({
+          eventId, days, tables: sel, code: isFull && applied ? applied.code : "", paymentMethod: method, vendor,
+          acceptRules: rulesOk, rulesVersion: ev?.rules_version,
+        }),
       });
       const j = await res.json();
       if (!res.ok) {
+        setRulesFor(null);
         setMsg(j.error ?? "จองไม่สำเร็จ");
+        if (j.rulesChanged && eventId) loadEvent(eventId, false);
         if (eventId) loadEvent(eventId, false);
         return;
       }
@@ -337,18 +379,59 @@ export default function BoothPage() {
                 </div>
               </div>
 
-              <div className="border-t border-zinc-100 mt-3 pt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <input className={inputCls} placeholder="ชื่อร้าน / แบรนด์" value={vendor.shop} onChange={(e) => setVendor({ ...vendor, shop: e.target.value })} />
-                <input className={inputCls} placeholder="ชื่อผู้ติดต่อ" value={vendor.name} onChange={(e) => setVendor({ ...vendor, name: e.target.value })} />
-                <input className={inputCls} placeholder="เบอร์โทร" inputMode="tel" value={vendor.phone} onChange={(e) => setVendor({ ...vendor, phone: e.target.value })} />
+              <div className="border-t border-zinc-100 mt-3 pt-3">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-zinc-500">3. ข้อมูลร้านของคุณ (ลงทะเบียนครั้งเดียว ใช้ได้ทุกงาน)</p>
+                  {vendorSaved && !editingVendor && (
+                    <button onClick={() => setEditingVendor(true)} className="text-[11px] text-zinc-500 underline">แก้ไข</button>
+                  )}
+                </div>
+
+                {!editingVendor ? (
+                  <div className="bg-zinc-50 rounded-xl px-3 py-2.5 text-xs text-zinc-700 space-y-0.5">
+                    <p className="font-semibold text-zinc-900">{vendor.shop_name}</p>
+                    <p>{vendor.contact_name} · {vendor.phone}</p>
+                    <p className="text-zinc-500">{vendor.product_types.join(", ")}</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <input className={inputCls} placeholder="ชื่อร้าน / แบรนด์ *" value={vendor.shop_name} onChange={(e) => setVendor({ ...vendor, shop_name: e.target.value })} />
+                      <input className={inputCls} placeholder="ชื่อผู้ติดต่อ *" value={vendor.contact_name} onChange={(e) => setVendor({ ...vendor, contact_name: e.target.value })} />
+                      <input className={inputCls} placeholder="เบอร์โทร *" inputMode="tel" value={vendor.phone} onChange={(e) => setVendor({ ...vendor, phone: e.target.value })} />
+                      <input className={inputCls} placeholder="LINE ID (ถ้ามี)" value={vendor.line_id} onChange={(e) => setVendor({ ...vendor, line_id: e.target.value })} />
+                    </div>
+                    <input className={inputCls} placeholder="ลิงก์เพจ/โซเชียลร้าน เช่น Facebook, Instagram (ถ้ามี)" value={vendor.social_url} onChange={(e) => setVendor({ ...vendor, social_url: e.target.value })} />
+
+                    <div>
+                      <p className="text-[11px] text-zinc-500 mb-1.5">ประเภทสินค้าที่จะจำหน่าย * (เลือกได้หลายข้อ)</p>
+                      <div className="flex flex-wrap gap-2">
+                        {PRODUCT_TYPES.map((t) => {
+                          const on = vendor.product_types.includes(t);
+                          return (
+                            <button key={t} type="button" aria-pressed={on}
+                              onClick={() => setVendor({ ...vendor, product_types: on ? vendor.product_types.filter((x) => x !== t) : [...vendor.product_types, t] })}
+                              className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${on ? "bg-zinc-900 text-white border-zinc-900" : "bg-white text-zinc-600 border-zinc-200"}`}>
+                              {t}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <textarea className={inputCls} rows={2} maxLength={300}
+                      placeholder={vendor.product_types.includes("อื่นๆ") ? "รายละเอียดสินค้า (จำเป็น เพราะเลือก \"อื่นๆ\")" : "รายละเอียดสินค้าเพิ่มเติม (ถ้ามี) เช่น เกมที่ขาย ยี่ห้อ"}
+                      value={vendor.product_detail} onChange={(e) => setVendor({ ...vendor, product_detail: e.target.value })} />
+                    <p className="text-[10px] text-zinc-400">ข้อมูลนี้ทีมงานใช้ติดต่อและตรวจสอบสินค้าที่จำหน่ายในงาน · บันทึกอัตโนมัติเมื่อกดชำระเงิน</p>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2 mt-3">
-                <button onClick={() => pay("promptpay")} disabled={busy !== null}
+                <button onClick={() => startPay("promptpay")} disabled={busy !== null}
                   className="btn-primary w-full py-3.5 text-center text-sm font-semibold disabled:opacity-50">
                   {busy === "promptpay" ? "กำลังไปหน้าชำระเงิน..." : `ชำระผ่าน PromptPay — ${baht(subtotal - discount)} (ไม่มีค่าธรรมเนียม)`}
                 </button>
-                <button onClick={() => pay("card")} disabled={busy !== null}
+                <button onClick={() => startPay("card")} disabled={busy !== null}
                   className="w-full py-3.5 text-center text-sm font-semibold rounded-xl border border-zinc-200 text-zinc-700 disabled:opacity-50">
                   {busy === "card" ? "กำลังไปหน้าชำระเงิน..." : `ชำระด้วยบัตรเครดิต/เดบิต — ${baht(subtotal - discount + Math.round((subtotal - discount) * 0.03))}`}
                 </button>
@@ -384,7 +467,52 @@ export default function BoothPage() {
         )}
       </div>
 
+      {/* หน้าต่างกฎระเบียบภายในงาน — ต้องเลื่อนอ่านจนจบและกดยอมรับก่อนไปชำระเงิน */}
+      {rulesFor && ev && (
+        <div className="fixed inset-0 z-[70] bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true" aria-label="กฎระเบียบภายในงาน">
+          <div className="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl flex flex-col" style={{ maxHeight: "88vh" }}>
+            <div className="px-5 py-4 border-b border-zinc-100 flex-shrink-0">
+              <h2 className="text-sm font-semibold text-zinc-900">กฎระเบียบสำหรับ Vendor ภายในงาน</h2>
+              <p className="text-[11px] text-zinc-500 mt-0.5">{ev.title} · กรุณาอ่านให้ครบก่อนชำระเงิน</p>
+            </div>
+            <div
+              className="px-5 py-4 overflow-y-auto flex-1 text-sm text-zinc-700 leading-relaxed whitespace-pre-line"
+              onScroll={(e) => {
+                const el = e.currentTarget;
+                if (el.scrollTop + el.clientHeight >= el.scrollHeight - 8) setRulesRead(true);
+              }}
+              ref={(el) => { if (el && !rulesRead && el.scrollHeight <= el.clientHeight + 8) setRulesRead(true); }}
+            >
+              {ev.rules}
+            </div>
+            <div className="px-5 py-4 border-t border-zinc-100 flex-shrink-0 space-y-3">
+              {!rulesRead && <p className="text-[11px] text-amber-700">เลื่อนอ่านให้จบก่อน จึงจะกดยอมรับได้</p>}
+              <label className={`flex items-start gap-2 text-xs ${rulesRead ? "text-zinc-800" : "text-zinc-400"}`}>
+                <input type="checkbox" className="mt-0.5" disabled={!rulesRead} checked={rulesOk} onChange={(e) => setRulesOk(e.target.checked)} />
+                <span>ข้าพเจ้าได้อ่านและยอมรับกฎระเบียบภายในงานทั้งหมด และยืนยันว่าข้อมูลร้านที่กรอกเป็นความจริง</span>
+              </label>
+              <div className="flex gap-2">
+                <button onClick={() => setRulesFor(null)} disabled={busy !== null} className="flex-1 py-3 text-sm rounded-xl border border-zinc-200 text-zinc-600">ยกเลิก</button>
+                <button onClick={() => rulesFor && pay(rulesFor)} disabled={!rulesOk || busy !== null}
+                  className="flex-[2] py-3 text-sm font-semibold rounded-xl bg-zinc-900 text-white disabled:opacity-40">
+                  {busy ? "กำลังไปหน้าชำระเงิน..." : "ยอมรับและไปชำระเงิน"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <BottomNav />
     </div>
   );
+}
+
+function vendorError(v: VendorForm): string | null {
+  if (v.shop_name.trim().length < 2) return "กรอกชื่อร้าน/แบรนด์";
+  if (v.contact_name.trim().length < 2) return "กรอกชื่อผู้ติดต่อ";
+  if (!/^0\d{8,9}$/.test(v.phone.replace(/\D/g, ""))) return "เบอร์โทรไม่ถูกต้อง";
+  if (v.product_types.length === 0) return "เลือกประเภทสินค้าที่จะจำหน่ายอย่างน้อย 1 ข้อ";
+  if (v.product_types.includes("อื่นๆ") && !v.product_detail.trim()) return "ระบุรายละเอียดสินค้าในช่อง \"อื่นๆ\"";
+  return null;
 }

@@ -21,7 +21,7 @@ export async function GET(req: Request) {
 
   if (action === "events") {
     const { data: events } = await adminDb.from("booth_events")
-      .select("id, title, location, days, partial_open_at, hold_minutes, max_tables, pricing, active, created_at, layout")
+      .select("id, title, location, days, partial_open_at, hold_minutes, max_tables, pricing, active, created_at, layout, rules, rules_version")
       .order("created_at", { ascending: false });
     const out = [];
     for (const e of events ?? []) {
@@ -124,6 +124,16 @@ export async function POST(req: Request) {
       days, partial_open_at: partialOpen ? partialOpen.toISOString() : null,
       hold_minutes: holdMinutes, max_tables: maxTables, pricing, active: body.active === true,
     };
+
+    // กฎระเบียบ: แก้เนื้อหาเมื่อไหร่เพิ่มเลขเวอร์ชัน → คนที่ยังไม่จ่ายต้องยอมรับฉบับใหม่
+    if (typeof body.rules === "string") {
+      const rules = body.rules.trim().slice(0, 8000) || null;
+      row.rules = rules;
+      if (body.id) {
+        const { data: cur } = await adminDb.from("booth_events").select("rules, rules_version").eq("id", body.id).maybeSingle();
+        if (cur && (cur.rules ?? null) !== rules) row.rules_version = (cur.rules_version ?? 1) + 1;
+      }
+    }
 
     let layout: any = undefined;
     if (typeof body.svg === "string" && body.svg.trim()) {

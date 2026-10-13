@@ -18,6 +18,8 @@ export type BoothFlexInput = {
   forStaff?: boolean;
   contactName?: string | null;
   phone?: string | null;
+  productTypes?: string | null;
+  socialUrl?: string | null;
 };
 
 const clip = (s: string, max: number) => {
@@ -44,6 +46,7 @@ export function buildBoothFlex(o: BoothFlexInput) {
     row("ร้าน", o.shopName),
     ...(staff && o.contactName ? [row("ผู้ติดต่อ", o.contactName)] : []),
     ...(staff && o.phone ? [row("โทร", o.phone)] : []),
+    ...(staff && o.productTypes ? [row("สินค้า", o.productTypes)] : []),
     row("โต๊ะ", o.tables.join(", "), { bold: true }),
     row("วันที่", o.daysLabel),
   ];

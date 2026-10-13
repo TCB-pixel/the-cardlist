@@ -18,6 +18,8 @@ export type BoothEvent = {
   pricing: Pricing;
   layout: BoothLayout | null;
   active: boolean;
+  rules: string | null;
+  rules_version: number;
 };
 
 export async function getUserFromRequest(req: Request): Promise<{ id: string; email: string | null } | null> {

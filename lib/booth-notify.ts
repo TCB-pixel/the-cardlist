@@ -43,6 +43,8 @@ async function loadCard(supabase: SupabaseClient, bookingId: string) {
     siteUrl: SITE_URL,
     contactName: b.contact_name,
     phone: b.phone,
+    productTypes: ((b.vendor_info?.product_types ?? []) as string[]).join(", ") || null,
+    socialUrl: (b.vendor_info?.social_url as string | null) ?? null,
   };
   return { b, input, lineUserId: (profile?.line_user_id as string | null) ?? null };
 }
@@ -120,6 +122,8 @@ export async function notifyBoothStaff(
         `<table style="width:100%;border-collapse:collapse;font-size:14px">` +
         `<tr><td style="padding:3px 0;color:#71717a">ร้าน</td><td style="text-align:right">${escapeHtml(i.shopName)}</td></tr>` +
         `<tr><td style="padding:3px 0;color:#71717a">ผู้ติดต่อ</td><td style="text-align:right">${escapeHtml(i.contactName ?? "-")} · ${escapeHtml(i.phone ?? "-")}</td></tr>` +
+        (i.productTypes ? `<tr><td style="padding:3px 0;color:#71717a">สินค้า</td><td style="text-align:right">${escapeHtml(i.productTypes)}</td></tr>` : "") +
+        (i.socialUrl ? `<tr><td style="padding:3px 0;color:#71717a">เพจ/โซเชียล</td><td style="text-align:right">${escapeHtml(i.socialUrl)}</td></tr>` : "") +
         `<tr><td style="padding:3px 0;color:#71717a">โต๊ะ</td><td style="text-align:right"><b>${escapeHtml(i.tables.join(", "))}</b></td></tr>` +
         `<tr><td style="padding:3px 0;color:#71717a">วันที่</td><td style="text-align:right">${escapeHtml(i.daysLabel)}</td></tr>` +
         `${sumRows}</table>` +

@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { adminDb } from "@/lib/require-admin";
 import { fmtDay, getUserFromRequest, loadEvent, quote, releaseExpired } from "@/lib/booth";
 import { validateDiscount } from "@/lib/discount";
+import { validateVendor } from "@/lib/booth-vendor";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://thecardlistbkk.com";
 
@@ -14,15 +15,28 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => ({}));
   const paymentMethod: "card" | "promptpay" = body.paymentMethod === "card" ? "card" : "promptpay";
-  const shop = String(body.vendor?.shop ?? "").trim().slice(0, 80);
-  const contact = String(body.vendor?.name ?? "").trim().slice(0, 80);
-  const phone = String(body.vendor?.phone ?? "").replace(/\D/g, "");
-  if (!shop || !contact) return NextResponse.json({ error: "กรอกชื่อร้านและชื่อผู้ติดต่อ" }, { status: 400 });
-  if (!/^0\d{8,9}$/.test(phone)) return NextResponse.json({ error: "เบอร์โทรไม่ถูกต้อง" }, { status: 400 });
+  const vendor = validateVendor(body.vendor);
+  if (!vendor.ok) return NextResponse.json({ error: vendor.error }, { status: 400 });
+  // บันทึกข้อมูลร้านไว้ใช้ซ้ำในงานถัดไป (ไม่ทำให้การจองล้มถ้าบันทึกพลาด)
+  await adminDb.from("vendor_profiles").upsert(
+    { user_id: user.id, ...vendor.value, updated_at: new Date().toISOString() },
+    { onConflict: "user_id" }
+  );
+  const shop = vendor.value.shop_name;
+  const contact = vendor.value.contact_name;
+  const phone = vendor.value.phone;
 
   await releaseExpired();
   const ev = await loadEvent(String(body.eventId ?? ""));
   if (!ev || !ev.active) return NextResponse.json({ error: "ไม่พบงานนี้หรือปิดรับจองแล้ว" }, { status: 404 });
+
+  // กฎระเบียบ: ต้องยอมรับฉบับล่าสุดก่อนชำระเงิน (ถ้างานนี้มีกฎ) — ถ้าแอดมินเพิ่งแก้กฎ ให้ลูกค้ากลับไปอ่านใหม่
+  if (ev.rules && ev.rules.trim()) {
+    if (body.acceptRules !== true) return NextResponse.json({ error: "ต้องอ่านและยอมรับกฎระเบียบภายในงานก่อนชำระเงิน" }, { status: 400 });
+    if (Number(body.rulesVersion) !== ev.rules_version) {
+      return NextResponse.json({ error: "กฎระเบียบมีการอัปเดต กรุณาอ่านและยอมรับอีกครั้ง", rulesChanged: true }, { status: 409 });
+    }
+  }
 
   const q = quote(ev, body.tables, body.days);
   if (!q.ok) return NextResponse.json({ error: q.error }, { status: 400 });
@@ -54,6 +68,9 @@ export async function POST(req: Request) {
     discount_amount: discountAmount, card_fee: cardFee, total,
     hold_expires_at: holdExpires.toISOString(),
     shop_name: shop, contact_name: contact, phone,
+    vendor_info: vendor.value,
+    rules_version: ev.rules && ev.rules.trim() ? ev.rules_version : null,
+    rules_accepted_at: ev.rules && ev.rules.trim() ? new Date().toISOString() : null,
   }).select("id").single();
   if (bErr || !booking) return NextResponse.json({ error: "กันโต๊ะไม่สำเร็จ ลองใหม่อีกครั้ง" }, { status: 500 });
 
