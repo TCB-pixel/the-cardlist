@@ -10,11 +10,13 @@ export async function GET(req: Request) {
 
   const { data: bookings } = await adminDb
     .from("booth_bookings")
-    .select("id, event_id, status, days, subtotal, discount_code, discount_amount, card_fee, total, hold_expires_at, created_at, paid_at, booth_events(title, location)")
+    .select("id, event_id, status, days, subtotal, discount_code, discount_amount, card_fee, total, hold_expires_at, created_at, paid_at, vendor_info, booth_events(title, location)")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(30);
-  const ids = (bookings ?? []).map((b: any) => b.id);
+  // รายการที่ทีมงานจองแทนร้านอื่น (vendor_info.staff_reserved) ไม่ใช่การจองของผู้ใช้คนนี้ → ไม่แสดง
+  const mine = (bookings ?? []).filter((b: any) => b.vendor_info?.staff_reserved !== true);
+  const ids = mine.map((b: any) => b.id);
   const { data: rows } = ids.length
     ? await adminDb.from("booth_booking_tables").select("booking_id, table_id").in("booking_id", ids)
     : { data: [] as any[] };
@@ -22,7 +24,7 @@ export async function GET(req: Request) {
   for (const r of rows ?? []) (tablesBy[(r as any).booking_id] ??= []).push((r as any).table_id);
 
   return NextResponse.json({
-    bookings: (bookings ?? []).map((b: any) => ({
+    bookings: mine.map(({ vendor_info: _v, ...b }: any) => ({
       ...b,
       days: (b.days as string[]).map((d) => String(d).slice(0, 10)),
       tables: Array.from(new Set(tablesBy[b.id] ?? [])).sort((a, c) => a.localeCompare(c, "en", { numeric: true })),
