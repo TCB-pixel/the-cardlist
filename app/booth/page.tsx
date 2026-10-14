@@ -214,11 +214,15 @@ export default function BoothPage() {
     return !days.some((d) => b.includes(d));
   }, [data, days]);
 
-  // เปลี่ยนวัน → โต๊ะที่ไม่ว่างในวันใหม่หลุดจากรายการ และโค้ดต้องตรวจใหม่
+  // เปลี่ยนวัน/ข้อมูลโต๊ะอัปเดต → โต๊ะที่ไม่ว่างหลุดจากรายการ
   useEffect(() => {
     setSel((cur) => cur.filter((t) => freeFor(t)));
+  }, [freeFor]);
+  // เปลี่ยนวันจริงๆ เท่านั้นที่ต้องตรวจโค้ดใหม่ (ข้อมูลโต๊ะรีเฟรชเฉยๆ ห้ามล้างโค้ดที่ใช้แล้ว)
+  const daysKey = days.join(",");
+  useEffect(() => {
     setApplied(null); setCodeMsg(null);
-  }, [days, freeFor]);
+  }, [daysKey]);
 
   const lines = sel.map((id) => {
     const p = ev?.pricing[typeOf(id)];
@@ -237,7 +241,9 @@ export default function BoothPage() {
 
   function toggleTable(id: string) {
     if (!ev) return;
-    setMsg(null); setApplied(null); setCodeMsg(null);
+    setMsg(null);
+    if (applied) { setApplied(null); setCodeMsg({ ok: false, text: "เปลี่ยนโต๊ะแล้ว กด \"ใช้โค้ด\" อีกครั้งเพื่อคำนวณส่วนลดใหม่" }); }
+    else setCodeMsg(null);
     setSel((cur) => {
       if (cur.includes(id)) return cur.filter((x) => x !== id);
       if (cur.length >= ev.max_tables) {
@@ -324,7 +330,7 @@ export default function BoothPage() {
       const res = await authed("/api/booth/hold", {
         method: "POST",
         body: JSON.stringify({
-          eventId, days, tables: sel, code: isFull && applied ? applied.code : "", paymentMethod: method, vendor,
+          eventId, days, tables: sel, code: isFull ? (applied?.code ?? code.trim()) : "", paymentMethod: method, vendor,
           acceptRules: rulesOk, rulesVersion: ev?.rules_version,
         }),
       });
