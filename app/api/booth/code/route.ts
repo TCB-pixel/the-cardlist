@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { getUserFromRequest, loadEvent, quote } from "@/lib/booth";
 import { validateDiscount } from "@/lib/discount";
 
+// โค้ดพิเศษที่มีฉากฉลองตอนกดใช้ (เก็บไว้ฝั่งเซิร์ฟเวอร์ ชื่อโค้ดจะไม่หลุดไปอยู่ในหน้าเว็บ)
+const CELEBRATE: Record<string, { text: string; sub?: string }> = {
+  RAGNAROGUE: { text: "ขอบคุณเสี่ยลิค และ เสี่ยโด", sub: "ลด 50%" },
+};
+
 // ตรวจโค้ดส่วนลดเบื้องต้น (แสดงให้เห็นก่อนชำระ) — ตอนจองจริงเซิร์ฟเวอร์ตรวจซ้ำอีกครั้ง
 export async function POST(req: Request) {
   const user = await getUserFromRequest(req);
@@ -22,5 +27,5 @@ export async function POST(req: Request) {
     subtotal: q.subtotal, itemCount: q.lines.length,
   });
   if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 });
-  return NextResponse.json({ ok: true, code: r.code, label: r.label, amount: r.amount });
+  return NextResponse.json({ ok: true, code: r.code, label: r.label, amount: r.amount, celebrate: CELEBRATE[r.code] ?? null });
 }

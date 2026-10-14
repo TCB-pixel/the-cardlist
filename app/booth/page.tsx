@@ -7,6 +7,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 import BottomNav from "@/components/BottomNav";
 import LogoLoader from "@/components/LogoLoader";
+import CodeCelebration from "@/components/CodeCelebration";
 import TopBar from "@/components/TopBar";
 import BoothMap, { TableState } from "@/components/BoothMap";
 import type { BoothLayout, BoothZone } from "@/lib/booth-layout";
@@ -72,6 +73,7 @@ export default function BoothPage() {
   const [eventsError, setEventsError] = useState(false);
   const [eventsKey, setEventsKey] = useState(0);
   const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
+  const [celebrate, setCelebrate] = useState<{ text: string; sub?: string } | null>(null);
   const [applied, setApplied] = useState<{ code: string; label: string; amount: number } | null>(null);
   const [codeMsg, setCodeMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [vendor, setVendor] = useState<VendorForm>(EMPTY_VENDOR);
@@ -284,6 +286,7 @@ export default function BoothPage() {
       if (!res.ok) { setApplied(null); return setCodeMsg({ ok: false, text: j.error ?? "ใช้โค้ดไม่สำเร็จ" }); }
       setApplied({ code: j.code, label: j.label, amount: j.amount });
       setCodeMsg({ ok: true, text: `ใช้โค้ด ${j.code} แล้ว · ${j.label}` });
+      if (j.celebrate?.text) setCelebrate(j.celebrate);
     } catch {
       setCodeMsg({ ok: false, text: "เชื่อมต่อไม่สำเร็จ ลองใหม่อีกครั้ง" });
     } finally { setBusy(null); }
@@ -696,6 +699,7 @@ export default function BoothPage() {
         </div>
       )}
 
+      {celebrate && <CodeCelebration text={celebrate.text} sub={celebrate.sub} onDone={() => setCelebrate(null)} />}
       <BottomNav />
     </div>
   );
