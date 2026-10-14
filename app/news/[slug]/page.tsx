@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 import BottomNav from "@/components/BottomNav";
 import Linkify from "@/components/Linkify";
+import BrandText from "@/components/BrandText";
 import { newsCover } from "@/lib/news-cover";
 import TopBar from "@/components/TopBar";
 
@@ -87,7 +88,7 @@ export default function NewsDetailPage() {
 
       <div className="px-5 py-5">
         <span className={`text-[10px] font-bold px-2 py-0.5 rounded tracking-widest ${TAG_COLOR[post.tag] ?? "bg-zinc-100 text-zinc-600"}`}>{post.tag}</span>
-        <h1 className="text-lg font-bold text-zinc-900 mt-3 mb-2 leading-snug">{post.title}</h1>
+        <h1 className="text-lg font-bold text-zinc-900 mt-3 mb-2 leading-snug"><BrandText text={post.title} /></h1>
         <p className="text-[11px] text-zinc-500 mb-5">{formatDate(post.published_at)}</p>
 
         {post.excerpt && (

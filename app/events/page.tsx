@@ -3,6 +3,7 @@ import { goLogin, currentPath } from "@/lib/auth-next";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import BrandText from "@/components/BrandText";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 import BottomNav from "@/components/BottomNav";
@@ -339,7 +340,7 @@ export default function EventsPage() {
                               {ev.tcg}{ev.format ? ` · ${ev.format}` : ""}
                             </span>
                           </div>
-                          <p className="text-sm font-semibold text-zinc-900 leading-snug">{ev.title}</p>
+                          <p className="text-sm font-semibold text-zinc-900 leading-snug"><BrandText text={ev.title} /></p>
                           <p className="text-[11px] text-zinc-500 mt-1">{ev.location} · {ev.time?.slice(0, 5)} น.</p>
                         </div>
                       </div>
@@ -354,7 +355,7 @@ export default function EventsPage() {
                             {ev.tcg}{ev.format ? ` · ${ev.format}` : ""}
                           </span>
                         </div>
-                        <p className="text-sm font-semibold text-zinc-900 leading-snug">{ev.title}</p>
+                        <p className="text-sm font-semibold text-zinc-900 leading-snug"><BrandText text={ev.title} /></p>
                         <p className="text-[11px] text-zinc-500 mt-1">
                           📍 {ev.location} · 📅 {formatDate(ev.date, ev.date_end)} · 🕐 {ev.time?.slice(0, 5)} น.
                         </p>
@@ -534,7 +535,7 @@ export default function EventsPage() {
               ) : (
                 <>
                   <div className="card p-4">
-                    <h3 className="text-sm font-semibold text-zinc-900 mb-0.5">จองพื้นที่เทรด — {tradingData.event.title}</h3>
+                    <h3 className="text-sm font-semibold text-zinc-900 mb-0.5">จองพื้นที่เทรด — <BrandText text={tradingData.event.title} /></h3>
                     <p className="text-[11px] text-zinc-500 mb-4">รอบละ 45 นาที เริ่ม 10:00 น. · เว้น 60 นาทีระหว่างรอบของคุณ</p>
 
                     {/* เลือกวันที่ */}

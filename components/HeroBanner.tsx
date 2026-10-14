@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Banner } from "@/lib/banners";
+import BrandText from "@/components/BrandText";
 
 interface HeroBannerProps {
   banners: Banner[];
@@ -88,7 +89,7 @@ export default function HeroBanner({ banners, intervalMs = 4000 }: HeroBannerPro
             style={{ fontSize: "clamp(1.15rem, 4.5vw, 1.6rem)", textShadow: "0 2px 16px rgba(0,0,0,0.9)" }}
           >
             {titleLines.map((line, i) => (
-              <span key={i}>{line}{i < titleLines.length - 1 && <br />}</span>
+              <span key={i}><BrandText text={line} />{i < titleLines.length - 1 && <br />}</span>
             ))}
           </h1>
 

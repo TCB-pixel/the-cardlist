@@ -11,6 +11,27 @@ const COLOR: Record<string, string> = {
 };
 const col = (c: string) => COLOR[c] ?? c;
 
+// ลูกศรทางเข้างาน — โทนทองตามธีมงาน วาดในแนวนอนแล้วหมุนตามทิศ ข้อความไม่หมุนตาม
+const ROT = { right: 0, down: 90, left: 180, up: -90 } as const;
+function Entrance({ x, y, len, dir }: NonNullable<BoothLayout["entrance"]>) {
+  const head = 16;
+  const horizontal = dir === "right" || dir === "left";
+  const cx = horizontal ? x + (dir === "right" ? len / 2 : -len / 2) : x;
+  const cy = horizontal ? y : y + (dir === "down" ? len / 2 : -len / 2);
+  return (
+    <g role="img" aria-label="ทางเข้างาน">
+      <g transform={`translate(${x} ${y}) rotate(${ROT[dir]})`}>
+        <g className="bm-entr-arrow">
+          <rect x={0} y={-4} width={len - head + 2} height={8} rx={4} fill="#C9A96E" />
+          <polygon points={`${len - head},-12 ${len},0 ${len - head},12`} fill="#A8823F" />
+        </g>
+      </g>
+      <text x={cx} y={cy - 15} textAnchor="middle" fontSize={12} fontWeight={700} fill="#8A6A2F" style={{ fontFamily: "inherit" }}>ทางเข้า</text>
+      <text x={cx} y={cy + 24} textAnchor="middle" fontSize={7.5} letterSpacing={2} fill="#8A6A2F" style={{ fontFamily: "inherit" }}>ENTRANCE</text>
+    </g>
+  );
+}
+
 export default function BoothMap({
   layout, stateOf, onToggle, onBookedClick, typeOrder, label, logoOf,
 }: {
@@ -37,6 +58,9 @@ export default function BoothMap({
         .bm-t.booked text{fill:#a1a1aa}
         .bm-t.selected rect{fill:#18181b;stroke:#18181b}
         .bm-t.selected text{fill:#fff;font-weight:600}
+        .bm-entr-arrow{animation:bm-nudge 1.6s ease-in-out infinite}
+        @keyframes bm-nudge{0%,100%{transform:translateX(0)}50%{transform:translateX(5px)}}
+        @media (prefers-reduced-motion: reduce){.bm-entr-arrow{animation:none}}
       `}</style>
 
       {layout.shapes.map((s, i) =>
@@ -54,6 +78,8 @@ export default function BoothMap({
           {t.text}
         </text>
       ))}
+
+      {layout.entrance && <Entrance {...layout.entrance} />}
 
       {layout.tables.map((t) => {
         const st = stateOf(t.id);

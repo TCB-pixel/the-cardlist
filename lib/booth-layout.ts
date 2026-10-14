@@ -13,6 +13,8 @@ export type BoothLayout = {
   tables: BoothTable[];
   shapes: BoothShape[];
   texts: BoothText[];
+  // ทางเข้างาน (ตั้งแยกจากไฟล์ผัง): จุดเริ่มลูกศร ความยาว และทิศที่ชี้
+  entrance?: { x: number; y: number; len: number; dir: "right" | "left" | "up" | "down" };
 };
 
 const TABLE_LABEL = /^[A-Z]{1,3}\d{1,3}$/;

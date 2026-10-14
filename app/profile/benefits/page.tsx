@@ -97,7 +97,7 @@ export default function BenefitsPage() {
       <div className="px-4 py-5 space-y-4">
         {/* Intro */}
         <div className="card px-5 py-4 text-center">
-          <p className="text-xs font-semibold text-zinc-900 mb-1">The Cardlist Membership</p>
+          <p className="text-xs font-semibold text-zinc-900 mb-1"><span className="font-cardlist font-normal tracking-wide">The Cardlist</span> Membership</p>
           <p className="text-[11px] text-zinc-500 leading-relaxed">
             ยิ่งซื้อมาก ยิ่งได้รับสิทธิ์มากขึ้น<br/>ยอดสะสมรายปีจะถูกนับใหม่ทุกวันที่ 1 มกราคม
           </p>

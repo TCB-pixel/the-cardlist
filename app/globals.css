@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ฟอนต์แบรนด์: ใช้เฉพาะคำว่า The Cardlist ในหัวข้อ (ผ่าน components/BrandText.tsx หรือ class font-cardlist) */
+@font-face {
+  font-family: "CardlistDisplay";
+  src: url("/fonts/CardlistDisplay-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 * { box-sizing: border-box; }
 
 body {

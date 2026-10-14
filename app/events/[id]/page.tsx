@@ -3,6 +3,7 @@ import { goLogin } from "@/lib/auth-next";
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
+import BrandText from "@/components/BrandText";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 import BottomNav from "@/components/BottomNav";
@@ -193,7 +194,7 @@ export default function EventDetailPage() {
               {event.tcg}{event.format ? ` · ${event.format}` : ""}
             </span>
           </div>
-          <h1 className="text-lg font-bold text-zinc-900 leading-snug mb-3">{event.title}</h1>
+          <h1 className="text-lg font-bold text-zinc-900 leading-snug mb-3"><BrandText text={event.title} /></h1>
 
           <div className="space-y-1.5 mb-4">
             <p className="text-xs text-zinc-500">📅 {formatDate(event.date, event.date_end)}</p>

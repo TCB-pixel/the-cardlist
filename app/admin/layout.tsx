@@ -108,7 +108,7 @@ function AdminSidebar({ onClose }: { onClose?: () => void }) {
         <Image src="/images/logo-square.jpg" alt="The Cardlist" width={28} height={28} className="invert flex-shrink-0" />
         {!collapsed && (
           <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-bold text-white tracking-widest leading-none">THE CARDLIST</p>
+            <p className="font-cardlist text-[13px] text-white tracking-[0.18em] leading-none">THE CARDLIST</p>
             <p className="text-[9px] text-zinc-500 tracking-wider mt-0.5">ADMIN PANEL</p>
           </div>
         )}

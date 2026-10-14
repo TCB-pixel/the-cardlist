@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase";
 import BottomNav from "@/components/BottomNav";
 import TopBar from "@/components/TopBar";
 import { newsCover } from "@/lib/news-cover";
+import BrandText from "@/components/BrandText";
 
 type NewsPost = {
   id: string;
@@ -105,7 +106,7 @@ export default function NewsPage() {
                   )}
                   <div className="relative">
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded tracking-widest ${TAG_COLOR[featured.tag] ?? "bg-zinc-100 text-zinc-600"}`}>{featured.tag}</span>
-                    <h2 className="text-sm font-bold text-white mt-2 leading-snug">{featured.title}</h2>
+                    <h2 className="text-sm font-bold text-white mt-2 leading-snug"><BrandText text={featured.title} /></h2>
                   </div>
                 </div>
                 <div className="p-4">
@@ -128,7 +129,7 @@ export default function NewsPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded tracking-widest ${TAG_COLOR[n.tag] ?? "bg-zinc-100 text-zinc-600"}`}>{n.tag}</span>
-                  <p className="text-xs font-semibold text-zinc-900 leading-snug mt-1.5 line-clamp-2">{n.title}</p>
+                  <p className="text-xs font-semibold text-zinc-900 leading-snug mt-1.5 line-clamp-2"><BrandText text={n.title} /></p>
                   <p className="text-[11px] text-zinc-500 mt-1">{formatDate(n.published_at)}</p>
                 </div>
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="text-zinc-300 flex-shrink-0 mt-1">

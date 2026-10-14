@@ -435,7 +435,7 @@ export default function ProfilePage() {
           <div className="flex items-center gap-2.5">
             <Image src="/icons/icon-192.png" alt="" width={32} height={32} className="rounded-lg flex-shrink-0" />
             <div>
-              <p className="text-xs font-semibold text-white">ติดตั้งแอป The Cardlist</p>
+              <p className="text-xs font-semibold text-white">ติดตั้งแอป <span className="font-cardlist font-normal tracking-wide">The Cardlist</span></p>
               <p className="text-[11px] text-zinc-500 mt-0.5">เพิ่มไปยังหน้าจอหลักได้เลย</p>
             </div>
           </div>
@@ -579,7 +579,7 @@ export default function ProfilePage() {
             </div>
             {!installed && (
               <div className="card px-4 py-4 mb-4">
-                <p className="text-xs font-semibold text-zinc-900 mb-1">ดาวน์โหลดแอป The Cardlist</p>
+                <p className="text-xs font-semibold text-zinc-900 mb-1">ดาวน์โหลดแอป <span className="font-cardlist font-normal tracking-wide">The Cardlist</span></p>
                 <p className="text-[11px] text-zinc-500 mb-3">ติดตั้งเป็นแอปบนมือถือและคอมพิวเตอร์ได้เลย</p>
                 <div className="grid grid-cols-2 gap-2">
                   <button onClick={handleInstall} className="flex items-center gap-2 border border-zinc-200 rounded-xl px-3 py-2.5 text-left hover:bg-zinc-50 transition-colors">

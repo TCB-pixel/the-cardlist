@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import BrandText from "@/components/BrandText";
 import BottomNav from "@/components/BottomNav";
 import HeroBanner from "@/components/HeroBanner";
 import { Banner, DEFAULT_HOME_BANNERS } from "@/lib/banners";
@@ -252,7 +253,7 @@ export default function HomePage() {
                   <div className="text-[10px] text-zinc-500 tracking-wider mt-0.5">{month}</div>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-zinc-900 truncate">{ev.title}</p>
+                  <p className="text-xs font-semibold text-zinc-900 truncate"><BrandText text={ev.title} /></p>
                   <p className="text-[11px] text-zinc-500 mt-0.5">{ev.location}</p>
                   {isMeetup ? (
                     <div className="flex gap-1 mt-2">
@@ -302,7 +303,7 @@ export default function HomePage() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-[10px] font-semibold tracking-widest text-zinc-500 mb-0.5">{n.tag?.toUpperCase()}</p>
-                <p className="text-xs font-medium text-zinc-900 leading-snug line-clamp-2">{n.title}</p>
+                <p className="text-xs font-medium text-zinc-900 leading-snug line-clamp-2"><BrandText text={n.title} /></p>
                 <p className="text-[11px] text-zinc-500 mt-1">
                   {n.published_at ? new Date(n.published_at).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" }) : ""}
                 </p>

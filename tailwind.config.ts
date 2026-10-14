@@ -9,6 +9,7 @@ const config: Config = {
     extend: {
       fontFamily: {
         sans: ["'Noto Sans'", "'Noto Sans Thai'", "sans-serif"],
+        cardlist: ["CardlistDisplay", "'Noto Sans'", "'Noto Sans Thai'", "sans-serif"],
       },
       colors: {
         brand: {

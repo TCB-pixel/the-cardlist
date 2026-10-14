@@ -2,6 +2,7 @@
 import { goLogin } from "@/lib/auth-next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useModal } from "@/lib/use-modal";
+import BrandText from "@/components/BrandText";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 import BottomNav from "@/components/BottomNav";
@@ -373,7 +374,7 @@ export default function BoothPage() {
           <div className="space-y-2">
             {events.map((e) => (
               <button key={e.id} onClick={() => pickEvent(e.id)} className="w-full text-left bg-white border border-zinc-100 rounded-2xl p-4">
-                <p className="text-sm font-semibold text-zinc-900">{e.title}</p>
+                <p className="text-sm font-semibold text-zinc-900"><BrandText text={e.title} /></p>
                 <p className="text-xs text-zinc-500 mt-0.5">{e.location} · {e.days.map(dayLabel).join(", ")}</p>
               </button>
             ))}
@@ -387,7 +388,7 @@ export default function BoothPage() {
             <div className="bg-white border border-zinc-100 rounded-2xl p-4">
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div>
-                  <h1 className="text-base font-semibold text-zinc-900">{ev.title}</h1>
+                  <h1 className="text-base font-semibold text-zinc-900"><BrandText text={ev.title} /></h1>
                   <p className="text-xs text-zinc-500 mt-0.5">{ev.location ? `${ev.location} · ` : ""}{ev.days.map(dayLabel).join(" · ")}</p>
                 </div>
                 <p className="text-xs text-zinc-500">โต๊ะว่างในวันที่เลือก <b className="text-zinc-900">{freeCount}</b> / {totalTables}</p>
