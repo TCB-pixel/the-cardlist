@@ -11,7 +11,8 @@ import BoothMap, { TableState } from "@/components/BoothMap";
 import type { BoothLayout } from "@/lib/booth-layout";
 import { PRODUCT_TYPES } from "@/lib/booth-vendor";
 
-type TypePricing = { label: string; size: string; full: number; per_day: number };
+// features / photo: รายละเอียดที่แสดงตอนชี้เมาส์บนโต๊ะ (ตั้งใน pricing ของงาน ไม่ต้องแก้โค้ด)
+type TypePricing = { label: string; size: string; full: number; per_day: number; features?: string[]; photo?: string | null };
 type EventData = {
   id: string; title: string; location: string | null; days: string[];
   partial_open_at: string | null; hold_minutes: number; max_tables: number;
@@ -51,6 +52,18 @@ export default function BoothPage() {
     vendors?: Record<string, Record<string, { shop: string; logo: string | null }>>;
   } | null>(null);
   const [tableInfo, setTableInfo] = useState<string | null>(null);
+  const [hover, setHover] = useState<{ id: string; rect: DOMRect } | null>(null);
+  // การ์ดรายละเอียดวางแบบ fixed ตามตำแหน่งโต๊ะ — เลื่อนหน้าแล้วซ่อน ไม่ให้ค้างผิดที่
+  useEffect(() => {
+    if (!hover) return;
+    const hide = () => setHover(null);
+    window.addEventListener("scroll", hide, { passive: true, capture: true });
+    window.addEventListener("resize", hide);
+    return () => {
+      window.removeEventListener("scroll", hide, { capture: true });
+      window.removeEventListener("resize", hide);
+    };
+  }, [hover]);
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [days, setDays] = useState<string[]>([]);
   const [sel, setSel] = useState<string[]>([]);
@@ -453,9 +466,20 @@ export default function BoothPage() {
                     return v?.logo ? { url: v.logo, name: `โต๊ะ ${id} · ${v.shop}` } : null;
                   }}
                   label={(id) => `โต๊ะ ${id}${freeFor(id) ? "" : " ไม่ว่าง"}`}
+                  onHover={(id, rect) => setHover(id && rect ? { id, rect } : null)}
                 />
                 </div>
               </div>
+              {hover && ev.pricing[typeOf(hover.id)] && (
+                <TableCard
+                  id={hover.id}
+                  rect={hover.rect}
+                  p={ev.pricing[typeOf(hover.id)]}
+                  days={ev.days.length}
+                  status={sel.includes(hover.id) ? "selected" : freeFor(hover.id) ? "free" : "booked"}
+                  shop={vendorOn(hover.id)?.shop ?? null}
+                />
+              )}
               {tableInfo && <p className="text-[11px] text-zinc-600 bg-zinc-50 rounded-lg px-3 py-1.5 mt-2">{tableInfo}</p>}
               <p className="text-[11px] text-zinc-500 mt-1.5">โต๊ะที่ชำระแล้วแสดงโลโก้ร้าน แตะที่โต๊ะเพื่อดูชื่อร้าน</p>
             </div>
@@ -668,4 +692,49 @@ function vendorError(v: VendorForm): string | null {
   if (v.product_types.length === 0) return "เลือกประเภทสินค้าที่จะจำหน่ายอย่างน้อย 1 ข้อ";
   if (v.product_types.includes("อื่นๆ") && !v.product_detail.trim()) return "ระบุรายละเอียดสินค้าในช่อง \"อื่นๆ\"";
   return null;
+}
+
+// การ์ดรายละเอียดโต๊ะ: ชี้เมาส์ / แตะ / โฟกัสที่โต๊ะบนผัง — แสดงเหนือโต๊ะ (ถ้าที่ด้านบนไม่พอแสดงด้านล่าง)
+const CARD_W = 248;
+function TableCard({ id, rect, p, days, status, shop }: {
+  id: string; rect: DOMRect; p: TypePricing; days: number;
+  status: "free" | "selected" | "booked"; shop: string | null;
+}) {
+  const left = Math.min(Math.max(rect.left + rect.width / 2 - CARD_W / 2, 8), window.innerWidth - CARD_W - 8);
+  const above = rect.top > (p.photo ? 400 : 220);
+  const chip = status === "selected"
+    ? { text: "ที่คุณเลือก", cls: "bg-zinc-900 text-white" }
+    : status === "free"
+      ? { text: "ว่าง", cls: "bg-green-50 text-green-700" }
+      : { text: "ไม่ว่าง", cls: "bg-zinc-100 text-zinc-600" };
+  return (
+    <div
+      role="tooltip"
+      className="fixed z-[60] pointer-events-none bg-white border border-zinc-200 rounded-2xl shadow-lg p-3"
+      style={{ left, top: above ? rect.top - 8 : rect.bottom + 8, width: CARD_W, transform: above ? "translateY(-100%)" : undefined }}
+    >
+      {p.photo && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={p.photo} alt={`ตัวอย่างโต๊ะ ${p.label}`} className="w-full aspect-[4/3] object-contain rounded-xl mb-2 bg-[#FBF8F2]" />
+      )}
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-semibold text-zinc-900">พื้นที่ {id}</p>
+        <span className={`text-[11px] px-2 py-0.5 rounded-full ${chip.cls}`}>{chip.text}</span>
+      </div>
+      <p className="text-[11px] text-zinc-500 mt-0.5">{p.label} · พื้นที่ {p.size}</p>
+      {shop && status === "booked" && <p className="text-[11px] text-zinc-700 mt-1">ร้าน {shop}</p>}
+      {p.features && p.features.length > 0 && (
+        <ul className="mt-2 space-y-0.5">
+          {p.features.map((f) => (
+            <li key={f} className="text-xs text-zinc-700 flex gap-1.5"><span className="text-[#A8823F]" aria-hidden="true">•</span>{f}</li>
+          ))}
+        </ul>
+      )}
+      <div className="mt-2 pt-2 border-t border-zinc-100 flex items-baseline justify-between">
+        <span className="text-[11px] text-zinc-500">แพ็กเกจ {days} วัน</span>
+        <span className="text-sm font-semibold text-zinc-900">{baht(p.full)}</span>
+      </div>
+      <p className="text-[11px] text-zinc-500 text-right">บางวัน {baht(p.per_day)} / วัน</p>
+    </div>
+  );
 }

@@ -33,8 +33,9 @@ function Entrance({ x, y, len, dir }: NonNullable<BoothLayout["entrance"]>) {
 }
 
 export default function BoothMap({
-  layout, stateOf, onToggle, onBookedClick, typeOrder, label, logoOf,
+  layout, stateOf, onToggle, onBookedClick, typeOrder, label, logoOf, onHover,
 }: {
+  onHover?: (tableId: string | null, rect: DOMRect | null) => void; // ชี้เมาส์/โฟกัส/แตะโต๊ะ → แสดงรายละเอียด
   layout: BoothLayout;
   stateOf: (tableId: string) => TableState;
   onToggle?: (tableId: string) => void;
@@ -93,6 +94,10 @@ export default function BoothMap({
             tabIndex={0}
             aria-label={label ? label(t.id) : t.id}
             aria-pressed={st === "selected"}
+            onPointerEnter={(e) => { if (e.pointerType === "mouse") onHover?.(t.id, e.currentTarget.getBoundingClientRect()); }}
+            onPointerLeave={(e) => { if (e.pointerType === "mouse") onHover?.(null, null); }}
+            onFocus={(e) => onHover?.(t.id, e.currentTarget.getBoundingClientRect())}
+            onBlur={() => onHover?.(null, null)}
             onClick={() => (st !== "booked" ? onToggle?.(t.id) : onBookedClick?.(t.id))}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
