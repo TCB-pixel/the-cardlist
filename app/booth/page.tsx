@@ -1,6 +1,6 @@
 "use client";
 import { goLogin } from "@/lib/auth-next";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useModal } from "@/lib/use-modal";
 import BrandText from "@/components/BrandText";
 import Link from "next/link";
@@ -699,23 +699,42 @@ function vendorError(v: VendorForm): string | null {
 
 // การ์ดรายละเอียดโต๊ะ: ชี้เมาส์ / แตะ / โฟกัสที่โต๊ะบนผัง — แสดงเหนือโต๊ะ (ถ้าที่ด้านบนไม่พอแสดงด้านล่าง)
 const CARD_W = 248;
+// กล่องการ์ดลอย: วัดความสูงจริงก่อนแสดง แล้ววางเหนือโต๊ะถ้าพื้นที่พอ ไม่พอวางใต้โต๊ะ
+// และไม่ให้ล้นขอบจอ (เผื่อแถบเมนูด้านล่าง 72px)
+function FloatingCard({ rect, children }: { rect: DOMRect; children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+  useLayoutEffect(() => {
+    const h = ref.current?.offsetHeight ?? 0;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const left = Math.min(Math.max(rect.left + rect.width / 2 - CARD_W / 2, 8), vw - CARD_W - 8);
+    const aboveTop = rect.top - 8 - h;
+    let top = aboveTop >= 8 ? aboveTop : rect.bottom + 8;
+    if (top + h > vh - 72) top = Math.max(8, vh - 72 - h);
+    setPos({ left, top });
+  }, [rect]);
+  return (
+    <div
+      ref={ref}
+      role="tooltip"
+      className="fixed z-[60] pointer-events-none bg-white border border-zinc-200 rounded-2xl shadow-lg p-3"
+      style={{ left: pos?.left ?? 0, top: pos?.top ?? 0, width: CARD_W, visibility: pos ? "visible" : "hidden" }}
+    >
+      {children}
+    </div>
+  );
+}
 function TableCard({ id, rect, p, days, status, shop }: {
   id: string; rect: DOMRect; p: TypePricing; days: number;
   status: "free" | "selected" | "booked"; shop: string | null;
 }) {
-  const left = Math.min(Math.max(rect.left + rect.width / 2 - CARD_W / 2, 8), window.innerWidth - CARD_W - 8);
-  const above = rect.top > (p.photo ? 400 : 220);
   const chip = status === "selected"
     ? { text: "ที่คุณเลือก", cls: "bg-zinc-900 text-white" }
     : status === "free"
       ? { text: "ว่าง", cls: "bg-green-50 text-green-700" }
       : { text: "ไม่ว่าง", cls: "bg-zinc-100 text-zinc-600" };
   return (
-    <div
-      role="tooltip"
-      className="fixed z-[60] pointer-events-none bg-white border border-zinc-200 rounded-2xl shadow-lg p-3"
-      style={{ left, top: above ? rect.top - 8 : rect.bottom + 8, width: CARD_W, transform: above ? "translateY(-100%)" : undefined }}
-    >
+    <FloatingCard rect={rect}>
       {p.photo && (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={p.photo} alt={`ตัวอย่างโต๊ะ ${p.label}`} className="w-full aspect-[4/3] object-contain rounded-xl mb-2 bg-[#FBF8F2]" />
@@ -738,20 +757,14 @@ function TableCard({ id, rect, p, days, status, shop }: {
         <span className="text-sm font-semibold text-zinc-900">{baht(p.full)}</span>
       </div>
       <p className="text-[11px] text-zinc-500 text-right">บางวัน {baht(p.per_day)} / วัน</p>
-    </div>
+    </FloatingCard>
   );
 }
 
 // การ์ดพื้นที่พิเศษ (บูธ Sponsor): ภาพ ขนาด อุปกรณ์ หมายเหตุ — ไม่ได้จองผ่านเว็บ จึงให้ติดต่อทีมงานแทนราคา
 function ZoneCard({ rect, z }: { rect: DOMRect; z: BoothZone }) {
-  const left = Math.min(Math.max(rect.left + rect.width / 2 - CARD_W / 2, 8), window.innerWidth - CARD_W - 8);
-  const above = rect.top > (z.photo ? 420 : 240);
   return (
-    <div
-      role="tooltip"
-      className="fixed z-[60] pointer-events-none bg-white border border-zinc-200 rounded-2xl shadow-lg p-3"
-      style={{ left, top: above ? rect.top - 8 : rect.bottom + 8, width: CARD_W, transform: above ? "translateY(-100%)" : undefined }}
-    >
+    <FloatingCard rect={rect}>
       {z.photo && (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={z.photo} alt={`ตัวอย่าง${z.label}`} className="w-full aspect-[4/3] object-contain rounded-xl mb-2 bg-[#FBF8F2]" />
@@ -774,6 +787,6 @@ function ZoneCard({ rect, z }: { rect: DOMRect; z: BoothZone }) {
         <span className="text-sm font-semibold text-zinc-900">ติดต่อ <span className="font-cardlist font-normal tracking-wide">THE CARDLIST</span></span>
       </div>
       <p className="text-[11px] text-zinc-500 text-right">ทาง Inbox เพจ The Cardlist</p>
-    </div>
+    </FloatingCard>
   );
 }
