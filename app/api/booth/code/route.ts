@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   }
 
   const r = await validateDiscount({
-    code: String(body.code ?? ""), scope: "tables", userId: user.id,
+    code: String(body.code ?? ""), scope: "tables", userId: user.id, eventId: ev.id,
     subtotal: q.subtotal, itemCount: q.lines.length,
   });
   if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 });

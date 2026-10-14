@@ -46,7 +46,7 @@ export async function POST(req: Request) {
   const codeIn = String(body.code ?? "").trim();
   if (codeIn) {
     if (!q.isFull) return NextResponse.json({ error: "โค้ดส่วนลดใช้ได้เมื่อจองครบทุกวันเท่านั้น" }, { status: 400 });
-    const r = await validateDiscount({ code: codeIn, scope: "tables", userId: user.id, subtotal: q.subtotal, itemCount: q.lines.length });
+    const r = await validateDiscount({ code: codeIn, scope: "tables", userId: user.id, eventId: ev.id, subtotal: q.subtotal, itemCount: q.lines.length });
     if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 });
     discount = { id: r.id, code: r.code, amount: r.amount };
   }

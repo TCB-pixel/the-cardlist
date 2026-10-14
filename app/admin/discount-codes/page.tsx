@@ -8,16 +8,17 @@ type Code = {
   id: string; code: string; type: "percent" | "fixed"; value: number; applies_to: "all" | "tables" | "shop";
   min_items: number | null; min_amount: number | null; starts_at: string | null; expires_at: string | null;
   max_uses: number | null; per_user_limit: number | null; used_count: number; active: boolean; note: string | null;
+  event_id: string | null;
 };
 type Form = {
   id?: string; code: string; type: "percent" | "fixed"; value: string; applies_to: "all" | "tables" | "shop";
   min_items: string; min_amount: string; starts_at: string; expires_at: string;
-  max_uses: string; per_user_limit: string; active: boolean; note: string;
+  max_uses: string; per_user_limit: string; active: boolean; note: string; event_id: string;
 };
 
 const EMPTY: Form = {
   code: "", type: "percent", value: "", applies_to: "all", min_items: "", min_amount: "",
-  starts_at: "", expires_at: "", max_uses: "", per_user_limit: "", active: true, note: "",
+  starts_at: "", expires_at: "", max_uses: "", per_user_limit: "", active: true, note: "", event_id: "",
 };
 const APPLIES: Record<string, string> = { all: "ทุกอย่าง", tables: "จองโต๊ะ", shop: "ร้านค้า" };
 const inputCls = "w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-400";
@@ -33,6 +34,7 @@ export default function DiscountCodesPage() {
   const [form, setForm] = useState<Form | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
+  const [events, setEvents] = useState<{ id: string; title: string; date: string | null }[]>([]);
 
   const authed = useCallback(async (input: string, init?: RequestInit) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -48,6 +50,14 @@ export default function DiscountCodesPage() {
     if (res.ok) setCodes(j.codes ?? []);
   }, [authed]);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    supabase.from("events").select("id, title, date").order("date", { ascending: false }).limit(30)
+      .then(({ data }) => setEvents((data as any[]) ?? []));
+  }, [supabase]);
+  const eventName = (id: string | null) => {
+    const e = events.find((x) => x.id === id);
+    return e ? `${e.title}${e.date ? ` (${new Date(e.date).toLocaleDateString("th-TH", { day: "numeric", month: "short" })})` : ""}` : "งานที่กำหนด";
+  };
 
   function edit(c: Code | null) {
     setMsg(null);
@@ -57,7 +67,7 @@ export default function DiscountCodesPage() {
       min_items: c.min_items?.toString() ?? "", min_amount: c.min_amount?.toString() ?? "",
       starts_at: isoToLocal(c.starts_at), expires_at: isoToLocal(c.expires_at),
       max_uses: c.max_uses?.toString() ?? "", per_user_limit: c.per_user_limit?.toString() ?? "",
-      active: c.active, note: c.note ?? "",
+      active: c.active, note: c.note ?? "", event_id: c.event_id ?? "",
     });
   }
 
@@ -69,6 +79,7 @@ export default function DiscountCodesPage() {
         method: "POST",
         body: JSON.stringify({
           ...form, starts_at: localToIso(form.starts_at), expires_at: localToIso(form.expires_at),
+          event_id: form.applies_to === "shop" ? null : form.event_id || null,
         }),
       });
       const j = await res.json();
@@ -121,7 +132,7 @@ export default function DiscountCodesPage() {
                 <span className={`ml-2 text-[10px] px-2 py-0.5 rounded font-sans ${c.active ? "bg-green-50 text-green-700" : "bg-zinc-100 text-zinc-500"}`}>{c.active ? "ใช้งานอยู่" : "ปิด"}</span>
               </p>
               <p className="text-[11px] text-zinc-500 mt-0.5">
-                ใช้กับ{APPLIES[c.applies_to]} · ใช้ไปแล้ว {c.used_count}{c.max_uses ? `/${c.max_uses}` : ""} ครั้ง
+                ใช้กับ{APPLIES[c.applies_to]}{c.event_id ? ` · เฉพาะงาน ${eventName(c.event_id)}` : ""} · ใช้ไปแล้ว {c.used_count}{c.max_uses ? `/${c.max_uses}` : ""} ครั้ง
                 {c.per_user_limit ? ` · คนละ ${c.per_user_limit} ครั้ง` : ""}
                 {c.min_items ? ` · ขั้นต่ำ ${c.min_items} รายการ` : ""}{c.min_amount ? ` · ขั้นต่ำ ฿${Number(c.min_amount).toLocaleString()}` : ""}
                 {c.expires_at ? ` · หมดอายุ ${new Date(c.expires_at).toLocaleDateString("th-TH")}` : ""}
@@ -152,6 +163,13 @@ export default function DiscountCodesPage() {
             <div><label className={labelCls}>ใช้กับ</label>
               <select className={inputCls} value={form.applies_to} onChange={(e) => setForm({ ...form, applies_to: e.target.value as Form["applies_to"] })}>
                 <option value="all">ทุกอย่าง</option><option value="tables">การจองโต๊ะ</option><option value="shop">ร้านค้า</option>
+              </select></div>
+            <div><label className={labelCls}>ใช้ได้กับงาน</label>
+              <select className={inputCls} value={form.event_id} disabled={form.applies_to === "shop"} onChange={(e) => setForm({ ...form, event_id: e.target.value })}>
+                <option value="">ทุกงาน</option>
+                {events.map((e) => (
+                  <option key={e.id} value={e.id}>{e.title}{e.date ? ` · ${new Date(e.date).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" })}` : ""}</option>
+                ))}
               </select></div>
             <div><label className={labelCls}>ขั้นต่ำ (จำนวนโต๊ะ/รายการ)</label><input type="number" min={0} className={inputCls} value={form.min_items} onChange={(e) => setForm({ ...form, min_items: e.target.value })} /></div>
             <div><label className={labelCls}>ขั้นต่ำ (ยอดเงิน ฿)</label><input type="number" min={0} className={inputCls} value={form.min_amount} onChange={(e) => setForm({ ...form, min_amount: e.target.value })} /></div>

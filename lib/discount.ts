@@ -14,6 +14,7 @@ export async function validateDiscount(opts: {
   code: string;
   scope: DiscountScope;
   userId: string | null;
+  eventId?: string | null; // งานที่กำลังจอง — โค้ดที่ผูกงานไว้ใช้ได้เฉพาะงานนั้น
   subtotal: number;
   itemCount: number;
 }): Promise<DiscountResult> {
@@ -30,6 +31,7 @@ export async function validateDiscount(opts: {
   if (c.applies_to !== "all" && c.applies_to !== opts.scope) {
     return { ok: false, error: opts.scope === "tables" ? "โค้ดนี้ใช้กับการจองโต๊ะไม่ได้" : "โค้ดนี้ใช้กับร้านค้าไม่ได้" };
   }
+  if (c.event_id && c.event_id !== opts.eventId) return { ok: false, error: "โค้ดนี้ใช้ได้เฉพาะงานที่กำหนด ใช้กับงานนี้ไม่ได้" };
   if (c.min_items && opts.itemCount < c.min_items) {
     return { ok: false, error: `โค้ดนี้ใช้ได้เมื่อจอง ${c.min_items} รายการขึ้นไป` };
   }

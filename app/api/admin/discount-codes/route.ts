@@ -49,10 +49,14 @@ export async function POST(req: Request) {
   if (startsAt === undefined || expiresAt === undefined) return NextResponse.json({ error: "วันที่ไม่ถูกต้อง" }, { status: 400 });
   if (startsAt && expiresAt && startsAt >= expiresAt) return NextResponse.json({ error: "วันหมดอายุต้องหลังวันเริ่มใช้" }, { status: 400 });
 
+  const eventId = body.event_id ? String(body.event_id) : null;
+  if (eventId && !/^[0-9a-f-]{36}$/i.test(eventId)) return NextResponse.json({ error: "งานที่เลือกไม่ถูกต้อง" }, { status: 400 });
+  if (eventId && applies === "shop") return NextResponse.json({ error: "โค้ดร้านค้าผูกกับงานไม่ได้ ให้เลือก \"ทุกงาน\"" }, { status: 400 });
+
   const row = {
     code, type, value, applies_to: applies,
     min_items: minItems, min_amount: minAmount, max_uses: maxUses, per_user_limit: perUser,
-    starts_at: startsAt, expires_at: expiresAt,
+    starts_at: startsAt, expires_at: expiresAt, event_id: eventId,
     active: body.active !== false, note: String(body.note ?? "").trim() || null,
   };
 
