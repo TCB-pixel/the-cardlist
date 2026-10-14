@@ -25,14 +25,14 @@ html :focus-visible { outline: 2px solid #18181b !important; outline-offset: 2px
 
 /* หน้ารอโหลด (components/LogoLoader.tsx) */
 .cl-loader {
-  min-height: 70vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
-  opacity: 0; animation: cl-show .2s ease-out .3s forwards;
+  min-height: 55vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  opacity: 0; animation: cl-show .2s ease-out .15s forwards;
 }
 .cl-loader-mark { position: relative; width: 112px; height: 112px; }
 .cl-loader-ring { position: absolute; inset: 0; animation: cl-spin 1.4s linear infinite; }
 .cl-loader-logo {
   position: absolute; left: 33px; top: 25.5px; width: 46px; height: auto;
-  animation: cl-pop .7s cubic-bezier(.2,.9,.3,1.2) .3s both, cl-breathe 2.2s ease-in-out 1s infinite;
+  animation: cl-pop .7s cubic-bezier(.2,.9,.3,1.2) .15s both, cl-breathe 2.2s ease-in-out .85s infinite;
 }
 .cl-loader-text { font-size: 13px; color: #71717a; }
 .cl-loader-text span { animation: cl-blink 1.2s ease-in-out infinite; }

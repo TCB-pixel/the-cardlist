@@ -7,6 +7,7 @@ import BrandText from "@/components/BrandText";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 import BottomNav from "@/components/BottomNav";
+import LogoLoader from "@/components/LogoLoader";
 import TopBar from "@/components/TopBar";
 import FacebookFollowCard from "@/components/FacebookFollowCard";
 import { TableType, TABLE_TYPES, TABLE_TYPE_LABEL } from "@/lib/tradingTables";
@@ -281,9 +282,7 @@ export default function EventsPage() {
         <div className="px-4 py-4 space-y-3">
           <FacebookFollowCard />
           {loading ? (
-            <div className="flex items-center justify-center py-20">
-              <div className="w-8 h-8 border-2 border-zinc-200 border-t-zinc-900 rounded-full animate-spin" />
-            </div>
+            <LogoLoader />
           ) : loadError ? (
             <div className="text-center py-16 px-6" role="alert">
               <p className="text-sm font-semibold text-zinc-700">โหลดรายการอีเวนต์ไม่สำเร็จ</p>

@@ -5,6 +5,7 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { useModal } from "@/lib/use-modal";
 import Image from "next/image";
 import BottomNav from "@/components/BottomNav";
+import LogoLoader from "@/components/LogoLoader";
 import TopBar from "@/components/TopBar";
 import { createClient } from "@/lib/supabase";
 import { SHIPPING_FEE } from "@/lib/order-email";
@@ -417,18 +418,7 @@ export default function ShopPage() {
       {/* Product Grid */}
       <main className="px-4 pt-2 pb-4">
         {loading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="card overflow-hidden animate-pulse">
-                <div className="aspect-[3/4] bg-zinc-100" />
-                <div className="p-2.5 space-y-1.5">
-                  <div className="h-3 bg-zinc-100 rounded w-3/4" />
-                  <div className="h-2 bg-zinc-100 rounded w-1/2" />
-                  <div className="h-4 bg-zinc-100 rounded w-1/3 mt-2" />
-                </div>
-              </div>
-            ))}
-          </div>
+          <LogoLoader />
         ) : loadError && products.length === 0 ? (
           <div className="text-center py-16" role="alert">
             <p className="text-sm font-semibold text-zinc-700">โหลดรายการสินค้าไม่สำเร็จ</p>

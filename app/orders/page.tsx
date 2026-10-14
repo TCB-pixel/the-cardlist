@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import BottomNav from "@/components/BottomNav";
+import LogoLoader from "@/components/LogoLoader";
 import TopBar from "@/components/TopBar";
 import { createClient } from "@/lib/supabase";
 
@@ -59,7 +60,7 @@ export default function MyOrdersPage() {
         <h1 className="text-base font-bold text-zinc-900 mb-3">ประวัติการสั่งซื้อ</h1>
 
         {loading ? (
-          <p className="text-sm text-zinc-500 py-10 text-center">กำลังโหลด...</p>
+          <LogoLoader />
         ) : needLogin ? (
           <div className="text-center py-16">
             <p className="text-sm text-zinc-500 mb-3">กรุณาเข้าสู่ระบบเพื่อดูคำสั่งซื้อ</p>

@@ -6,6 +6,7 @@ import BrandText from "@/components/BrandText";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 import BottomNav from "@/components/BottomNav";
+import LogoLoader from "@/components/LogoLoader";
 import TopBar from "@/components/TopBar";
 import BoothMap, { TableState } from "@/components/BoothMap";
 import type { BoothLayout, BoothZone } from "@/lib/booth-layout";
@@ -361,7 +362,7 @@ export default function BoothPage() {
       <TopBar title="จองโต๊ะ Vendor" />
 
       <div className="px-4 py-4 space-y-4 lg:max-w-3xl lg:mx-auto">
-        {events === null && <p className="text-center text-sm text-zinc-500 py-16">กำลังโหลด...</p>}
+        {events === null && <LogoLoader />}
         {eventsError && (
           <div className="bg-white border border-zinc-100 rounded-2xl p-8 text-center" role="alert">
             <p className="text-sm font-semibold text-zinc-700">โหลดข้อมูลงานไม่สำเร็จ</p>

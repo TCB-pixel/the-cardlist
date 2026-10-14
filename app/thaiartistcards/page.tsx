@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useModal } from "@/lib/use-modal";
 import { createClient } from "@/lib/supabase";
 import BottomNav from "@/components/BottomNav";
+import LogoLoader from "@/components/LogoLoader";
 import TopBar from "@/components/TopBar";
 import type { Artist, ArtistCard, ArtistCategory } from "@/lib/types";
 
@@ -301,7 +302,7 @@ export default function ThaiArtistCardsPage() {
 
       <div className="px-4">
         {loading ? (
-          <p className="text-center text-xs text-zinc-500 py-16">กำลังโหลด...</p>
+          <LogoLoader />
         ) : filtered.length === 0 ? (
           <div className="card px-4 py-12 text-center">
             <p className="text-2xl mb-2">🎨</p>

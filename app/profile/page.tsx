@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase";
 import type { Profile, Booking, Event } from "@/lib/types";
 import { getTier, getNextTier, TIER_LABEL, TIER_COLOR } from "@/lib/tiers";
 import BottomNav from "@/components/BottomNav";
+import LogoLoader from "@/components/LogoLoader";
 import FacebookFollowCard from "@/components/FacebookFollowCard";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -89,24 +90,8 @@ function formatOrderItems(items: Order["order_items"]) {
 
 function ProfileSkeleton() {
   return (
-    <div className="min-h-screen bg-zinc-50 pb-20 animate-pulse">
-      <div className="h-12 bg-white border-b border-zinc-100" />
-      <div className="bg-white px-5 py-5 border-b border-zinc-100">
-        <div className="flex items-center gap-4 mb-5">
-          <div className="w-14 h-14 rounded-2xl bg-zinc-100 flex-shrink-0" />
-          <div className="flex-1 space-y-2">
-            <div className="h-4 bg-zinc-100 rounded w-1/2" />
-            <div className="h-3 bg-zinc-100 rounded w-1/3" />
-          </div>
-        </div>
-        <div className="grid grid-cols-4 gap-2 mb-5">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="bg-zinc-100 rounded-xl h-14" />
-          ))}
-        </div>
-        <div className="h-2 bg-zinc-100 rounded-full mb-3" />
-        <div className="h-2 bg-zinc-100 rounded-full" />
-      </div>
+    <div className="min-h-screen bg-zinc-50 pb-20">
+      <LogoLoader />
     </div>
   );
 }

@@ -7,6 +7,7 @@ import BrandText from "@/components/BrandText";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 import BottomNav from "@/components/BottomNav";
+import LogoLoader from "@/components/LogoLoader";
 import TopBar from "@/components/TopBar";
 import FacebookFollowCard from "@/components/FacebookFollowCard";
 
@@ -148,9 +149,7 @@ export default function EventDetailPage() {
     return (
       <div className="min-h-screen bg-zinc-50 pb-20">
         <TopBar title="อีเวนต์" showBack />
-        <div className="flex items-center justify-center py-24">
-          <div className="w-8 h-8 border-2 border-zinc-200 border-t-zinc-900 rounded-full animate-spin" />
-        </div>
+        <LogoLoader />
         <BottomNav />
       </div>
     );
