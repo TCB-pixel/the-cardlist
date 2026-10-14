@@ -107,13 +107,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "จำนวนโต๊ะสูงสุดต่อครั้งไม่ถูกต้อง" }, { status: 400 });
     }
 
+    // รายละเอียดที่ตั้งตรงในฐานข้อมูล (features / photo / photo_tables) ไม่มีในฟอร์มแอดมิน → เก็บของเดิมไว้ ไม่ให้หายตอนกดบันทึก
+    const { data: curPricing } = body.id ? await adminDb.from("booth_events").select("pricing").eq("id", body.id).maybeSingle() : { data: null };
+    const prev = ((curPricing as any)?.pricing ?? {}) as Record<string, any>;
     const pricing: Record<string, unknown> = {};
     for (const [type, v] of Object.entries<any>(body.pricing ?? {})) {
       const full = Number(v?.full), perDay = Number(v?.per_day);
       if (!/^[A-Z]{1,3}$/.test(type) || !Number.isFinite(full) || full <= 0 || !Number.isFinite(perDay) || perDay <= 0) {
         return NextResponse.json({ error: `ราคาของโต๊ะ ${type} ไม่ถูกต้อง` }, { status: 400 });
       }
-      pricing[type] = { label: String(v.label ?? `โต๊ะ ${type}`).slice(0, 40), size: String(v.size ?? "").slice(0, 40), full: Math.round(full), per_day: Math.round(perDay) };
+      pricing[type] = { label: String(v.label ?? `โต๊ะ ${type}`).slice(0, 40), size: String(v.size ?? "").slice(0, 40), full: Math.round(full), per_day: Math.round(perDay),
+        ...(prev[type]?.features ? { features: prev[type].features } : {}),
+        ...(prev[type]?.photo ? { photo: prev[type].photo } : {}),
+        ...(prev[type]?.photo_tables ? { photo_tables: prev[type].photo_tables } : {}),
+      };
     }
 
     const partialOpen = body.partial_open_at ? new Date(body.partial_open_at) : null;

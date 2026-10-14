@@ -14,7 +14,8 @@ import type { BoothLayout, BoothZone } from "@/lib/booth-layout";
 import { PRODUCT_TYPES } from "@/lib/booth-vendor";
 
 // features / photo: รายละเอียดที่แสดงตอนชี้เมาส์บนโต๊ะ (ตั้งใน pricing ของงาน ไม่ต้องแก้โค้ด)
-type TypePricing = { label: string; size: string; full: number; per_day: number; features?: string[]; photo?: string | null };
+// photo_tables: รูปเฉพาะโต๊ะบางตัว (เช่นโต๊ะ S เลขคี่/คู่ที่เสริมโต๊ะคนละฝั่ง) — ไม่มีก็ใช้ photo
+type TypePricing = { label: string; size: string; full: number; per_day: number; features?: string[]; photo?: string | null; photo_tables?: Record<string, string> };
 type EventData = {
   id: string; title: string; location: string | null; days: string[];
   partial_open_at: string | null; hold_minutes: number; max_tables: number;
@@ -752,9 +753,9 @@ function TableCard({ id, rect, p, days, status, shop }: {
       : { text: "ไม่ว่าง", cls: "bg-zinc-100 text-zinc-600" };
   return (
     <FloatingCard rect={rect}>
-      {p.photo && (
+      {(p.photo_tables?.[id] ?? p.photo) && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={p.photo} alt={`ตัวอย่างโต๊ะ ${p.label}`} className="w-full aspect-[4/3] object-contain rounded-xl mb-2 bg-[#FBF8F2]" />
+        <img src={p.photo_tables?.[id] ?? p.photo ?? ""} alt={`ตัวอย่างโต๊ะ ${p.label}`} className="w-full aspect-[4/3] object-contain rounded-xl mb-2 bg-[#FBF8F2]" />
       )}
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm font-semibold text-zinc-900">พื้นที่ {id}</p>
