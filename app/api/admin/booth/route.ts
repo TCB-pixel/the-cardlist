@@ -79,6 +79,29 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, refundNeeded: b.status === "paid" || b.status === "needs_refund" });
   }
 
+  // รายการที่ทีมงานจองให้ (ค้างชำระ) → ได้รับเงินแล้ว
+  if (body.action === "markPaid") {
+    const { data: b } = await adminDb.from("booth_bookings")
+      .select("id, status, user_id, discount_code_id, discount_amount, note").eq("id", String(body.bookingId ?? "")).maybeSingle();
+    if (!b) return NextResponse.json({ error: "ไม่พบรายการจอง" }, { status: 404 });
+    if (b.status !== "unpaid") return NextResponse.json({ error: "บันทึกรับเงินได้เฉพาะรายการที่ค้างชำระ" }, { status: 400 });
+    const method = String(body.method ?? "").trim().slice(0, 60) || "ชำระนอกระบบ";
+    const stamp = new Date();
+    const { error } = await adminDb.from("booth_bookings").update({
+      status: "paid", paid_at: stamp.toISOString(), payment_id: `manual:${method}`,
+      note: `${b.note ? b.note + " · " : ""}รับเงินแล้ว ${stamp.toLocaleDateString("th-TH", { timeZone: "Asia/Bangkok" })} (${method})`,
+    }).eq("id", b.id).eq("status", "unpaid");
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    if (b.discount_code_id) {
+      await adminDb.from("discount_redemptions").insert({
+        code_id: b.discount_code_id, user_id: b.user_id, booking_id: b.id, scope: "tables", amount: b.discount_amount,
+      });
+      const { count } = await adminDb.from("discount_redemptions").select("id", { count: "exact", head: true }).eq("code_id", b.discount_code_id);
+      await adminDb.from("discount_codes").update({ used_count: count ?? 0 }).eq("id", b.discount_code_id);
+    }
+    return NextResponse.json({ ok: true });
+  }
+
   if (body.action === "resendStaff") {
     const r = await notifyBoothStaff(adminDb, String(body.bookingId ?? ""));
     return NextResponse.json(r, { status: r.ok ? 200 : 400 });

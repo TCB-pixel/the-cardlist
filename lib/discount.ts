@@ -45,9 +45,11 @@ export async function validateDiscount(opts: {
     let q1 = adminDb.from("discount_redemptions").select("id", { count: "exact", head: true }).eq("code_id", c.id);
     let q2 = adminDb.from("booth_bookings").select("id", { count: "exact", head: true })
       .eq("discount_code_id", c.id).eq("status", "hold").gt("hold_expires_at", nowIso);
-    if (userId) { q1 = q1.eq("user_id", userId); q2 = q2.eq("user_id", userId); }
-    const [{ count: a }, { count: b }] = await Promise.all([q1, q2]);
-    return (a ?? 0) + (b ?? 0);
+    let q3 = adminDb.from("booth_bookings").select("id", { count: "exact", head: true })
+      .eq("discount_code_id", c.id).eq("status", "unpaid");
+    if (userId) { q1 = q1.eq("user_id", userId); q2 = q2.eq("user_id", userId); q3 = q3.eq("user_id", userId); }
+    const [{ count: a }, { count: b }, { count: d }] = await Promise.all([q1, q2, q3]);
+    return (a ?? 0) + (b ?? 0) + (d ?? 0);
   };
   if (c.max_uses && (await countUsed()) >= c.max_uses) return { ok: false, error: "โค้ดนี้ถูกใช้ครบจำนวนแล้ว" };
   if (c.per_user_limit) {

@@ -15,7 +15,7 @@ type EventRow = {
 type Booking = {
   id: string; status: string; days: string[]; tables: string[]; total: number; subtotal: number;
   discount_code: string | null; discount_amount: number; shop_name: string | null;
-  contact_name: string | null; phone: string | null; created_at: string; hold_expires_at: string;
+  contact_name: string | null; phone: string | null; created_at: string; hold_expires_at: string; note?: string | null;
   line_notified_at: string | null; line_notify_error: string | null;
   staff_notified_at: string | null; staff_notify_error: string | null;
   vendor_info: { logo_url?: string | null; line_id?: string | null; social_url?: string | null; product_types?: string[]; product_detail?: string | null } | null;
@@ -23,7 +23,8 @@ type Booking = {
 };
 
 const STATUS: Record<string, { text: string; cls: string }> = {
-  hold: { text: "รอชำระ", cls: "bg-amber-50 text-amber-700" },
+  hold: { text: "กำลังชำระออนไลน์", cls: "bg-amber-50 text-amber-700" },
+  unpaid: { text: "ค้างชำระ (ทีมงานจองให้)", cls: "bg-orange-100 text-orange-800" },
   paid: { text: "ชำระแล้ว", cls: "bg-green-50 text-green-700" },
   expired: { text: "หมดเวลา", cls: "bg-zinc-100 text-zinc-500" },
   cancelled: { text: "ยกเลิก", cls: "bg-zinc-100 text-zinc-500" },
@@ -149,6 +150,18 @@ export default function AdminBoothPage() {
     const j = await res.json();
     alert(res.ok ? "ส่งแจ้งเตือนทีมงานแล้ว" : "ส่งไม่สำเร็จ: " + (j.error ?? "ไม่ทราบสาเหตุ"));
     if (bookingsFor) loadBookings(bookingsFor);
+  }
+
+  async function markPaid(b: Booking) {
+    const method = window.prompt(`บันทึกว่า ${b.shop_name} ชำระแล้ว ${baht(b.total)}
+
+ช่องทางที่รับเงิน (เช่น โอนธนาคาร, เงินสด):`, "โอนธนาคาร");
+    if (method === null) return;
+    const res = await authed("/api/admin/booth", { method: "POST", body: JSON.stringify({ action: "markPaid", bookingId: b.id, method }) });
+    const j = await res.json();
+    if (!res.ok) return alert(j.error ?? "บันทึกไม่สำเร็จ");
+    if (bookingsFor) loadBookings(bookingsFor);
+    load();
   }
 
   async function cancelBooking(b: Booking) {
@@ -293,6 +306,7 @@ export default function AdminBoothPage() {
                     <p className="text-[10px] text-zinc-400">
                       {b.rules_accepted_at ? `ยอมรับกฎระเบียบ v${b.rules_version} เมื่อ ${new Date(b.rules_accepted_at).toLocaleString("th-TH")}` : "ไม่มีกฎระเบียบในตอนจอง"}
                     </p>
+                    {b.note && <p className={`text-[11px] ${b.status === "unpaid" ? "text-orange-700 font-semibold" : "text-zinc-500"}`}>📝 {b.note}</p>}
                     <p className="text-[11px] text-zinc-500">ยอด {baht(b.total)}{b.discount_code ? ` · โค้ด ${b.discount_code} (-${baht(b.discount_amount)})` : ""} · {new Date(b.created_at).toLocaleString("th-TH")}</p>
                   </div>
                   <div className="flex flex-col items-end gap-1.5">
@@ -307,6 +321,9 @@ export default function AdminBoothPage() {
                       </p>
                     )}
                     <div className="flex gap-2">
+                      {canEdit && b.status === "unpaid" && (
+                        <button onClick={() => markPaid(b)} className="text-[11px] font-semibold text-white bg-green-600 rounded-lg px-3 py-1.5">บันทึกว่าชำระแล้ว</button>
+                      )}
                       {canEdit && b.status === "paid" && (
                         <button onClick={() => resendStaff(b)} className="text-[11px] text-zinc-600 border border-zinc-200 rounded-lg px-3 py-1.5">แจ้งทีมงานซ้ำ</button>
                       )}
