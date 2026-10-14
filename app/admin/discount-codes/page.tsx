@@ -34,7 +34,7 @@ export default function DiscountCodesPage() {
   const [form, setForm] = useState<Form | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
-  const [events, setEvents] = useState<{ id: string; title: string; date: string | null }[]>([]);
+  const [events, setEvents] = useState<{ id: string; title: string; days: string[] }[]>([]);
 
   const authed = useCallback(async (input: string, init?: RequestInit) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -51,12 +51,11 @@ export default function DiscountCodesPage() {
   }, [authed]);
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
-    supabase.from("events").select("id, title, date").order("date", { ascending: false }).limit(30)
-      .then(({ data }) => setEvents((data as any[]) ?? []));
-  }, [supabase]);
+    fetch("/api/booth/event").then((r) => r.json()).then((j) => setEvents(j.events ?? [])).catch(() => {});
+  }, []);
   const eventName = (id: string | null) => {
     const e = events.find((x) => x.id === id);
-    return e ? `${e.title}${e.date ? ` (${new Date(e.date).toLocaleDateString("th-TH", { day: "numeric", month: "short" })})` : ""}` : "งานที่กำหนด";
+    return e ? `${e.title}${e.days?.[0] ? ` (${new Date(e.days[0]).toLocaleDateString("th-TH", { day: "numeric", month: "short" })})` : ""}` : "งานที่กำหนด (ปิดรับจองแล้ว)";
   };
 
   function edit(c: Code | null) {
@@ -167,8 +166,9 @@ export default function DiscountCodesPage() {
             <div><label className={labelCls}>ใช้ได้กับงาน</label>
               <select className={inputCls} value={form.event_id} disabled={form.applies_to === "shop"} onChange={(e) => setForm({ ...form, event_id: e.target.value })}>
                 <option value="">ทุกงาน</option>
+                {form.event_id && !events.some((e) => e.id === form.event_id) && <option value={form.event_id}>งานที่ปิดรับจองแล้ว</option>}
                 {events.map((e) => (
-                  <option key={e.id} value={e.id}>{e.title}{e.date ? ` · ${new Date(e.date).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" })}` : ""}</option>
+                  <option key={e.id} value={e.id}>{e.title}{e.days?.[0] ? ` · ${new Date(e.days[0]).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" })}` : ""}</option>
                 ))}
               </select></div>
             <div><label className={labelCls}>ขั้นต่ำ (จำนวนโต๊ะ/รายการ)</label><input type="number" min={0} className={inputCls} value={form.min_items} onChange={(e) => setForm({ ...form, min_items: e.target.value })} /></div>

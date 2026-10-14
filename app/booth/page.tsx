@@ -46,7 +46,7 @@ const STATUS: Record<string, { text: string; cls: string }> = {
 
 export default function BoothPage() {
   const supabase = useMemo(() => createClient(), []);
-  const [events, setEvents] = useState<{ id: string; title: string; location: string | null; days: string[] }[] | null>(null);
+  const [events, setEvents] = useState<{ id: string; title: string; location: string | null; days: string[]; image_url?: string | null }[] | null>(null);
   const [eventId, setEventId] = useState<string | null>(null);
   const [data, setData] = useState<{
     event: EventData; booked: Record<string, string[]>; partialOpen: boolean;
@@ -387,9 +387,15 @@ export default function BoothPage() {
         {events && events.length > 1 && !eventId && (
           <div className="space-y-2">
             {events.map((e) => (
-              <button key={e.id} onClick={() => pickEvent(e.id)} className="w-full text-left bg-white border border-zinc-100 rounded-2xl p-4">
-                <p className="text-sm font-semibold text-zinc-900"><BrandText text={e.title} /></p>
-                <p className="text-xs text-zinc-500 mt-0.5">{e.location} · {e.days.map(dayLabel).join(", ")}</p>
+              <button key={e.id} onClick={() => pickEvent(e.id)} className="w-full text-left bg-white border border-zinc-100 rounded-2xl overflow-hidden">
+                {e.image_url && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={e.image_url} alt={e.title} className="w-full aspect-[16/9] object-cover bg-zinc-100" loading="lazy" />
+                )}
+                <div className="p-4">
+                  <p className="text-sm font-semibold text-zinc-900"><BrandText text={e.title} /></p>
+                  <p className="text-xs text-zinc-500 mt-0.5">{e.location} · {e.days.map(dayLabel).join(", ")}</p>
+                </div>
               </button>
             ))}
           </div>

@@ -12,8 +12,16 @@ export async function GET(req: Request) {
       .select("id, title, location, days")
       .eq("active", true)
       .order("created_at", { ascending: false });
+    // แบนเนอร์: ใช้รูปของหน้าอีเวนต์ที่ชื่อตรงกัน
+    const titles = (data ?? []).map((e: any) => e.title);
+    const { data: pub } = titles.length
+      ? await adminDb.from("events").select("title, image_url").in("title", titles)
+      : { data: [] as any[] };
+    const img = new Map((pub ?? []).filter((p: any) => p.image_url).map((p: any) => [p.title, p.image_url as string]));
     return NextResponse.json({
-      events: (data ?? []).map((e: any) => ({ ...e, days: (e.days as string[]).map((d) => String(d).slice(0, 10)) })),
+      events: (data ?? []).map((e: any) => ({
+        ...e, days: (e.days as string[]).map((d) => String(d).slice(0, 10)), image_url: img.get(e.title) ?? null,
+      })),
     });
   }
 
