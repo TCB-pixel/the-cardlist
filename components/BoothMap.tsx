@@ -140,6 +140,19 @@ export default function BoothMap({
           </g>
         );
       })}
+
+      {/* ลายน้ำโซน: อยู่บนสุดแต่โปร่งและไม่รับการกด */}
+      {layout.marks?.map((m, i) => {
+        const size = m.h * 0.5;
+        return (
+          <text key={`m${i}`} x={m.x + m.w / 2} y={m.y + m.h / 2 + size * 0.36} textAnchor="middle" fontSize={size}
+            textLength={m.w * 0.9} lengthAdjust="spacingAndGlyphs"
+            fontWeight={800} fill={m.color ?? "#18181b"} opacity={0.13}
+            style={{ pointerEvents: "none", fontFamily: "inherit" }} aria-hidden="true">
+            {m.text}
+          </text>
+        );
+      })}
     </svg>
   );
 }

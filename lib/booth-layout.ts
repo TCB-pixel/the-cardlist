@@ -17,7 +17,10 @@ export type BoothLayout = {
   entrance?: { x: number; y: number; len: number; dir: "right" | "left" | "up" | "down" };
   // พื้นที่พิเศษที่ไม่ได้จองผ่านเว็บ (เช่นบูธ Sponsor): ชี้/แตะแล้วแสดงรายละเอียด ไม่มีราคา
   zones?: BoothZone[];
+  // ลายน้ำบอกโซน (เช่น "SASOM ZONE") วางทับกลุ่มโต๊ะ — แสดงอย่างเดียว ไม่บังการกดเลือกโต๊ะ
+  marks?: BoothMark[];
 };
+export type BoothMark = { text: string; x: number; y: number; w: number; h: number; color?: string };
 export type BoothZone = {
   id: string; label: string; x: number; y: number; w: number; h: number;
   size: string; features: string[]; photo?: string | null; note?: string | null;
