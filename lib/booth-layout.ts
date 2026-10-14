@@ -15,6 +15,12 @@ export type BoothLayout = {
   texts: BoothText[];
   // ทางเข้างาน (ตั้งแยกจากไฟล์ผัง): จุดเริ่มลูกศร ความยาว และทิศที่ชี้
   entrance?: { x: number; y: number; len: number; dir: "right" | "left" | "up" | "down" };
+  // พื้นที่พิเศษที่ไม่ได้จองผ่านเว็บ (เช่นบูธ Sponsor): ชี้/แตะแล้วแสดงรายละเอียด ไม่มีราคา
+  zones?: BoothZone[];
+};
+export type BoothZone = {
+  id: string; label: string; x: number; y: number; w: number; h: number;
+  size: string; features: string[]; photo?: string | null; note?: string | null;
 };
 
 const TABLE_LABEL = /^[A-Z]{1,3}\d{1,3}$/;

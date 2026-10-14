@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase";
 import BottomNav from "@/components/BottomNav";
 import TopBar from "@/components/TopBar";
 import BoothMap, { TableState } from "@/components/BoothMap";
-import type { BoothLayout } from "@/lib/booth-layout";
+import type { BoothLayout, BoothZone } from "@/lib/booth-layout";
 import { PRODUCT_TYPES } from "@/lib/booth-vendor";
 
 // features / photo: รายละเอียดที่แสดงตอนชี้เมาส์บนโต๊ะ (ตั้งใน pricing ของงาน ไม่ต้องแก้โค้ด)
@@ -470,6 +470,9 @@ export default function BoothPage() {
                 />
                 </div>
               </div>
+              {hover && ev.layout.zones?.some((z) => z.id === hover.id) && (
+                <ZoneCard rect={hover.rect} z={ev.layout.zones.find((z) => z.id === hover.id)!} />
+              )}
               {hover && ev.pricing[typeOf(hover.id)] && (
                 <TableCard
                   id={hover.id}
@@ -735,6 +738,42 @@ function TableCard({ id, rect, p, days, status, shop }: {
         <span className="text-sm font-semibold text-zinc-900">{baht(p.full)}</span>
       </div>
       <p className="text-[11px] text-zinc-500 text-right">บางวัน {baht(p.per_day)} / วัน</p>
+    </div>
+  );
+}
+
+// การ์ดพื้นที่พิเศษ (บูธ Sponsor): ภาพ ขนาด อุปกรณ์ หมายเหตุ — ไม่ได้จองผ่านเว็บ จึงให้ติดต่อทีมงานแทนราคา
+function ZoneCard({ rect, z }: { rect: DOMRect; z: BoothZone }) {
+  const left = Math.min(Math.max(rect.left + rect.width / 2 - CARD_W / 2, 8), window.innerWidth - CARD_W - 8);
+  const above = rect.top > (z.photo ? 420 : 240);
+  return (
+    <div
+      role="tooltip"
+      className="fixed z-[60] pointer-events-none bg-white border border-zinc-200 rounded-2xl shadow-lg p-3"
+      style={{ left, top: above ? rect.top - 8 : rect.bottom + 8, width: CARD_W, transform: above ? "translateY(-100%)" : undefined }}
+    >
+      {z.photo && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={z.photo} alt={`ตัวอย่าง${z.label}`} className="w-full aspect-[4/3] object-contain rounded-xl mb-2 bg-[#FBF8F2]" />
+      )}
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-semibold text-zinc-900">{z.label}</p>
+        <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-800">Sponsor</span>
+      </div>
+      <p className="text-[11px] text-zinc-500 mt-0.5">พื้นที่ {z.size}</p>
+      {z.features.length > 0 && (
+        <ul className="mt-2 space-y-0.5">
+          {z.features.map((f) => (
+            <li key={f} className="text-xs text-zinc-700 flex gap-1.5"><span className="text-[#A8823F]" aria-hidden="true">•</span>{f}</li>
+          ))}
+        </ul>
+      )}
+      {z.note && <p className="text-[11px] text-zinc-600 bg-zinc-50 rounded-lg px-2.5 py-1.5 mt-2">{z.note}</p>}
+      <div className="mt-2 pt-2 border-t border-zinc-100 flex items-baseline justify-between gap-2">
+        <span className="text-[11px] text-zinc-500">ราคา</span>
+        <span className="text-sm font-semibold text-zinc-900">ติดต่อ <span className="font-cardlist font-normal tracking-wide">THE CARDLIST</span></span>
+      </div>
+      <p className="text-[11px] text-zinc-500 text-right">ทาง Inbox เพจ The Cardlist</p>
     </div>
   );
 }

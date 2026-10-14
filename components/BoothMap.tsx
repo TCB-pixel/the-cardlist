@@ -59,6 +59,9 @@ export default function BoothMap({
         .bm-t.booked text{fill:#a1a1aa}
         .bm-t.selected rect{fill:#18181b;stroke:#18181b}
         .bm-t.selected text{fill:#fff;font-weight:600}
+        .bm-z{cursor:help;outline:none}
+        .bm-z rect{fill:transparent;stroke:transparent;stroke-width:2}
+        .bm-z:hover rect,.bm-z:focus rect{fill:rgba(201,169,110,.18);stroke:#C9A96E}
         .bm-entr-arrow{animation:bm-nudge 1.6s ease-in-out infinite}
         @keyframes bm-nudge{0%,100%{transform:translateX(0)}50%{transform:translateX(5px)}}
         @media (prefers-reduced-motion: reduce){.bm-entr-arrow{animation:none}}
@@ -81,6 +84,24 @@ export default function BoothMap({
       ))}
 
       {layout.entrance && <Entrance {...layout.entrance} />}
+
+      {/* พื้นที่พิเศษ (บูธ Sponsor ฯลฯ): ชั้นโปร่งใสวางทับผัง ไว้ชี้/แตะดูรายละเอียด */}
+      {layout.zones?.map((z) => (
+        <g
+          key={z.id}
+          className="bm-z"
+          tabIndex={0}
+          role="img"
+          aria-label={`${z.label} ขนาด ${z.size}`}
+          onPointerEnter={(e) => { if (e.pointerType === "mouse") onHover?.(z.id, e.currentTarget.getBoundingClientRect()); }}
+          onPointerLeave={(e) => { if (e.pointerType === "mouse") onHover?.(null, null); }}
+          onFocus={(e) => onHover?.(z.id, e.currentTarget.getBoundingClientRect())}
+          onBlur={() => onHover?.(null, null)}
+          onClick={(e) => onHover?.(z.id, e.currentTarget.getBoundingClientRect())}
+        >
+          <rect x={z.x} y={z.y} width={z.w} height={z.h} />
+        </g>
+      ))}
 
       {layout.tables.map((t) => {
         const st = stateOf(t.id);
