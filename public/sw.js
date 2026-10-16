@@ -1,4 +1,4 @@
-const CACHE = "cardlist-v1";
+const CACHE = "cardlist-v2";
 const PRECACHE = ["/", "/shop", "/events", "/news", "/offline"];
 
 self.addEventListener("install", (e) => {
