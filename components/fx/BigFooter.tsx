@@ -23,7 +23,10 @@ export default function BigFooter() {
         </div>
       </div>
       <p className="fx-bigname font-cardlist" aria-hidden="true">THE CARDLIST</p>
-      <p className="text-[10px] text-zinc-400 text-center">© {new Date().getFullYear()} The Cardlist · Bangkok</p>
+      <p className="text-[10px] text-zinc-400 text-center">
+        © {new Date().getFullYear()} The Cardlist · Bangkok ·{" "}
+        <Link href="/privacy" className="underline">{L("นโยบายความเป็นส่วนตัว", "Privacy")}</Link>
+      </p>
     </footer>
   );
 }

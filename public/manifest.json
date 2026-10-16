@@ -1,7 +1,8 @@
 {
+  "id": "/",
   "name": "The Cardlist",
   "short_name": "Cardlist",
-  "description": "One-stop platform สำหรับวงการ Trading Card Game ในไทย",
+  "description": "แพลตฟอร์มสำหรับคนเล่นการ์ดเกมในไทย — ซื้อการ์ด ติดตามอีเวนต์ และจองโต๊ะร้านค้าในงาน The Cardlist",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
@@ -33,17 +34,10 @@
       "purpose": "maskable"
     }
   ],
-  "screenshots": [
-    {
-      "src": "/icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "form_factor": "narrow"
-    }
-  ],
   "categories": [
     "shopping",
     "entertainment"
   ],
-  "lang": "th"
+  "lang": "th",
+  "scope": "/"
 }

@@ -613,6 +613,8 @@ export default function ProfilePage() {
               { label: "Collection Tracker",   href: "/profile/collection" },
               { label: "Deck Builder",          href: "/profile/decks" },
               { label: L("สิทธิประโยชน์สมาชิก", "Member benefits"),  href: "/profile/benefits" },
+              { label: L("นโยบายความเป็นส่วนตัว", "Privacy policy"),  href: "/privacy" },
+              { label: L("ลบบัญชี", "Delete account"),             href: "/account/delete" },
             ].map((item) => (
               <Link
                 key={item.label}
