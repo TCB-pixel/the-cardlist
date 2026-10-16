@@ -11,6 +11,7 @@ import LogoLoader from "@/components/LogoLoader";
 import TopBar from "@/components/TopBar";
 import FacebookFollowCard from "@/components/FacebookFollowCard";
 import { TableType, TABLE_TYPES, TABLE_TYPE_LABEL } from "@/lib/tradingTables";
+import { useLang } from "@/lib/i18n";
 
 type EventType = "meetup" | "tournament" | "sale";
 
@@ -46,6 +47,7 @@ const TCG_COLOR: Record<string, string> = {
 };
 
 const TABS = ["อีเวนต์", "จองโต๊ะ", "จองโต๊ะเทรด"];
+const TAB_EN: Record<string, string> = { "อีเวนต์": "Events", "จองโต๊ะ": "Book a table", "จองโต๊ะเทรด": "Trading tables" };
 
 type TradingSlot = { start: string; end: string };
 type TradingBooking = {
@@ -67,14 +69,15 @@ type TradingData = {
   myBookings: TradingBooking[];
 };
 
-function formatThaiDate(dateStr: string) {
+function formatThaiDate(dateStr: string, locale: string) {
   const d = new Date(dateStr);
-  return d.toLocaleDateString("th-TH", { day: "numeric", month: "short" });
+  return d.toLocaleDateString(locale, { day: "numeric", month: "short" });
 }
 
 export default function EventsPage() {
   const router = useRouter();
   const supabase = createClient();
+  const { L, locale } = useLang();
   const [activeTab, setActiveTab] = useState("อีเวนต์");
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -161,10 +164,10 @@ export default function EventsPage() {
         body: JSON.stringify({ eventId: ev.id }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "ลงทะเบียนไม่สำเร็จ");
+      if (!res.ok) throw new Error(data.error || L("ลงทะเบียนไม่สำเร็จ", "Registration failed"));
       setRegistrations((prev) => ({ ...prev, [ev.id]: data.qrCode }));
     } catch (e: any) {
-      setRegisterError(e?.message ?? "ลงทะเบียนไม่สำเร็จ");
+      setRegisterError(e?.message ?? L("ลงทะเบียนไม่สำเร็จ", "Registration failed"));
       setRegisterErrorId(ev.id);
     } finally {
       setRegisteringId("");
@@ -178,15 +181,15 @@ export default function EventsPage() {
     try {
       const res = await authedFetch(`/api/trading-tables?event_id=${tradingEventId}`);
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "โหลดข้อมูลไม่สำเร็จ");
+      if (!res.ok) throw new Error(data.error || L("โหลดข้อมูลไม่สำเร็จ", "Couldn't load data"));
       setTradingData(data);
       setSelectedDate((prev) => prev || (data.event?.days?.[0] ?? ""));
     } catch (e: any) {
-      setTradingError(e?.message ?? "โหลดข้อมูลไม่สำเร็จ");
+      setTradingError(e?.message ?? L("โหลดข้อมูลไม่สำเร็จ", "Couldn't load data"));
     } finally {
       setTradingLoading(false);
     }
-  }, [tradingEventId, authedFetch]);
+  }, [tradingEventId, authedFetch, L]);
 
   useEffect(() => {
     if (activeTab === "จองโต๊ะเทรด" && tradingEventId) loadTradingData();
@@ -197,7 +200,7 @@ export default function EventsPage() {
       goLogin();
       return;
     }
-    if (!window.confirm(`ยืนยันจองโต๊ะ ${TABLE_TYPE_LABEL[selectedType]} วันที่ ${formatThaiDate(selectedDate)} เวลา ${slot.start}-${slot.end} น.?`)) return;
+    if (!window.confirm(L(`ยืนยันจองโต๊ะ ${TABLE_TYPE_LABEL[selectedType]} วันที่ ${formatThaiDate(selectedDate, locale)} เวลา ${slot.start}-${slot.end} น.?`, `Book a ${TABLE_TYPE_LABEL[selectedType]} table on ${formatThaiDate(selectedDate, locale)}, ${slot.start}–${slot.end}?`))) return;
 
     setBookingBusy(slot.start);
     setTradingError("");
@@ -207,17 +210,17 @@ export default function EventsPage() {
         body: JSON.stringify({ event_id: tradingEventId, table_type: selectedType, date: selectedDate, slot_start: slot.start }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "จองไม่สำเร็จ");
+      if (!res.ok) throw new Error(data.error || L("จองไม่สำเร็จ", "Booking failed"));
       await loadTradingData();
     } catch (e: any) {
-      setTradingError(e?.message ?? "จองไม่สำเร็จ");
+      setTradingError(e?.message ?? L("จองไม่สำเร็จ", "Booking failed"));
     } finally {
       setBookingBusy("");
     }
   }
 
   async function cancelTradingBooking(id: string) {
-    if (!window.confirm("ยกเลิกการจองรอบนี้?")) return;
+    if (!window.confirm(L("ยกเลิกการจองรอบนี้?", "Cancel this booking?"))) return;
     setBookingBusy(id);
     setTradingError("");
     try {
@@ -226,10 +229,10 @@ export default function EventsPage() {
         body: JSON.stringify({ id }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "ยกเลิกไม่สำเร็จ");
+      if (!res.ok) throw new Error(data.error || L("ยกเลิกไม่สำเร็จ", "Couldn't cancel"));
       await loadTradingData();
     } catch (e: any) {
-      setTradingError(e?.message ?? "ยกเลิกไม่สำเร็จ");
+      setTradingError(e?.message ?? L("ยกเลิกไม่สำเร็จ", "Couldn't cancel"));
     } finally {
       setBookingBusy("");
     }
@@ -238,7 +241,7 @@ export default function EventsPage() {
   function formatDate(date: string, dateEnd: string | null) {
     const d = new Date(date);
     const day = d.getDate();
-    const month = d.toLocaleDateString("th-TH", { month: "short" });
+    const month = d.toLocaleDateString(locale, { month: "short" });
     const year = d.getFullYear();
     if (dateEnd) {
       const de = new Date(dateEnd);
@@ -251,7 +254,7 @@ export default function EventsPage() {
     const d = new Date(date);
     return {
       day: d.getDate().toString(),
-      month: d.toLocaleDateString("th-TH", { month: "short" }).toUpperCase(),
+      month: d.toLocaleDateString(locale, { month: "short" }).toUpperCase(),
     };
   }
 
@@ -267,7 +270,7 @@ export default function EventsPage() {
           {TABS.map((t) => (
             <button key={t} onClick={() => setActiveTab(t)}
               className={`flex-1 text-xs py-3 tracking-wide border-b-2 transition-colors ${activeTab === t ? "border-zinc-900 text-zinc-900 font-semibold" : "border-transparent text-zinc-500"}`}>
-              {t}
+              {L(t, TAB_EN[t])}
             </button>
           ))}
         </div>
@@ -285,16 +288,16 @@ export default function EventsPage() {
             <LogoLoader />
           ) : loadError ? (
             <div className="text-center py-16 px-6" role="alert">
-              <p className="text-sm font-semibold text-zinc-700">โหลดรายการอีเวนต์ไม่สำเร็จ</p>
-              <p className="text-xs text-zinc-500 mt-1">ตรวจอินเทอร์เน็ตแล้วลองใหม่อีกครั้ง</p>
-              <button onClick={() => setReloadKey((k) => k + 1)} className="mt-4 text-xs font-semibold border border-zinc-200 rounded-xl px-5 py-2.5 text-zinc-700">ลองใหม่</button>
+              <p className="text-sm font-semibold text-zinc-700">{L("โหลดรายการอีเวนต์ไม่สำเร็จ", "Couldn't load events")}</p>
+              <p className="text-xs text-zinc-500 mt-1">{L("ตรวจอินเทอร์เน็ตแล้วลองใหม่อีกครั้ง", "Check your connection and try again.")}</p>
+              <button onClick={() => setReloadKey((k) => k + 1)} className="mt-4 text-xs font-semibold border border-zinc-200 rounded-xl px-5 py-2.5 text-zinc-700">{L("ลองใหม่", "Try again")}</button>
             </div>
           ) : events.length === 0 ? (
             <div className="text-center py-16 px-6">
               <p className="text-3xl mb-3">🗓️</p>
-              <p className="text-sm font-semibold text-zinc-700">กำลังเตรียมงานครั้งถัดไป</p>
-              <p className="text-xs text-zinc-500 mt-1">กดไลค์เพจด้านบนเพื่อรับแจ้งวันและสถานที่ก่อนใคร</p>
-              <Link href="/news" className="inline-block mt-4 text-xs font-semibold border border-zinc-200 rounded-xl px-5 py-2 text-zinc-700">ดูข่าวสารงานที่ผ่านมา</Link>
+              <p className="text-sm font-semibold text-zinc-700">{L("กำลังเตรียมงานครั้งถัดไป", "Our next event is on the way")}</p>
+              <p className="text-xs text-zinc-500 mt-1">{L("กดไลค์เพจด้านบนเพื่อรับแจ้งวันและสถานที่ก่อนใคร", "Like our page above to hear the date and venue first.")}</p>
+              <Link href="/news" className="inline-block mt-4 text-xs font-semibold border border-zinc-200 rounded-xl px-5 py-2 text-zinc-700">{L("ดูข่าวสารงานที่ผ่านมา", "See news from past events")}</Link>
             </div>
           ) : (
             events.map((ev) => {
@@ -318,7 +321,7 @@ export default function EventsPage() {
                       {/* Event type badge — เข้าฟรีทั้งหมด */}
                       {ev.event_type !== "tournament" && (
                         <div className="absolute top-3 right-3">
-                          <span className="text-[10px] bg-green-500/90 text-white px-2 py-0.5 rounded-full font-semibold backdrop-blur-sm">เข้าฟรี</span>
+                          <span className="text-[10px] bg-green-500/90 text-white px-2 py-0.5 rounded-full font-semibold backdrop-blur-sm">{L("เข้าฟรี", "Free entry")}</span>
                         </div>
                       )}
                     </div>
@@ -340,7 +343,7 @@ export default function EventsPage() {
                             </span>
                           </div>
                           <p className="text-sm font-semibold text-zinc-900 leading-snug"><BrandText text={ev.title} /></p>
-                          <p className="text-[11px] text-zinc-500 mt-1">{ev.location} · {ev.time?.slice(0, 5)} น.</p>
+                          <p className="text-[11px] text-zinc-500 mt-1">{ev.location} · {ev.time?.slice(0, 5)}{L(" น.", "")}</p>
                         </div>
                       </div>
                     )}
@@ -356,7 +359,7 @@ export default function EventsPage() {
                         </div>
                         <p className="text-sm font-semibold text-zinc-900 leading-snug"><BrandText text={ev.title} /></p>
                         <p className="text-[11px] text-zinc-500 mt-1">
-                          📍 {ev.location} · 📅 {formatDate(ev.date, ev.date_end)} · 🕐 {ev.time?.slice(0, 5)} น.
+                          📍 {ev.location} · 📅 {formatDate(ev.date, ev.date_end)} · 🕐 {ev.time?.slice(0, 5)}{L(" น.", "")}
                         </p>
                       </div>
                     )}
@@ -370,7 +373,7 @@ export default function EventsPage() {
                       <div className="mb-3">
                         <div className="flex justify-between mb-1.5">
                           <span className="text-[11px] text-zinc-500">
-                            ที่นั่ง {full ? "เต็มแล้ว" : `คงเหลือ ${ev.max_slots - ev.booked_slots}`} / {ev.max_slots}
+                            {L("ที่นั่ง", "Seats")} {full ? L("เต็มแล้ว", "Full") : L(`คงเหลือ ${ev.max_slots - ev.booked_slots}`, `${ev.max_slots - ev.booked_slots} left`)} / {ev.max_slots}
                           </span>
                         </div>
                         <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden">
@@ -384,7 +387,7 @@ export default function EventsPage() {
                     {!isTournament && (
                       <div className="mb-3">
                         <div className="bg-green-50 rounded-xl px-3 py-2 text-center">
-                          <p className="text-xs font-bold text-green-600">เข้างานฟรี ไม่มีค่าใช้จ่าย</p>
+                          <p className="text-xs font-bold text-green-600">{L("เข้างานฟรี ไม่มีค่าใช้จ่าย", "Free entry, no charge")}</p>
                         </div>
                       </div>
                     )}
@@ -393,11 +396,11 @@ export default function EventsPage() {
                     {!isTournament && ev.lucky_draw_enabled && (ev.lucky_draw_prizes ?? []).length > 0 && (
                       <div className="mb-3 rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 px-3 py-2.5">
                         <p className="text-[11px] font-bold text-amber-900 mb-1.5">
-                          🎁 ลงทะเบียนแล้วลุ้นรับ
+                          🎁 {L("ลงทะเบียนแล้วลุ้นรับ", "Register for a chance to win")}
                         </p>
                         {ev.lucky_draw_image_url && (
                           <div className="relative w-full aspect-[16/10] rounded-lg overflow-hidden mb-2 bg-white">
-                            <Image src={ev.lucky_draw_image_url} alt="รางวัลที่ลุ้นได้"
+                            <Image src={ev.lucky_draw_image_url} alt={L("รางวัลที่ลุ้นได้", "Prizes up for grabs")}
                               fill className="object-contain" sizes="(max-width: 768px) 100vw, 400px" />
                           </div>
                         )}
@@ -410,7 +413,7 @@ export default function EventsPage() {
                           ))}
                         </ul>
                         {ev.require_fb_follow && (
-                          <p className="text-[11px] text-amber-700/80 mt-1.5">ต้องกดติดตามเพจ Facebook ด้วย</p>
+                          <p className="text-[11px] text-amber-700/80 mt-1.5">{L("ต้องกดติดตามเพจ Facebook ด้วย", "You must also follow our Facebook page")}</p>
                         )}
                       </div>
                     )}
@@ -421,7 +424,7 @@ export default function EventsPage() {
                         onClick={() => { setTradingEventId(ev.id); setActiveTab("จองโต๊ะเทรด"); }}
                         className="w-full mb-2 text-center text-xs font-semibold py-2.5 rounded-xl border border-zinc-200 text-zinc-700 active:bg-zinc-50 transition-colors"
                       >
-                        🃏 จองโต๊ะเทรดในงานนี้
+                        🃏 {L("จองโต๊ะเทรดในงานนี้", "Book a trading table at this event")}
                       </button>
                     )}
 
@@ -430,22 +433,22 @@ export default function EventsPage() {
                       <div className="bg-zinc-50 rounded-xl px-3 py-2.5 border border-zinc-100">
                         <div className="flex items-center justify-between gap-2">
                           <div className="min-w-0">
-                            <p className="text-xs font-semibold text-green-600">✓ ลงทะเบียนแล้ว</p>
+                            <p className="text-xs font-semibold text-green-600">✓ {L("ลงทะเบียนแล้ว", "Registered")}</p>
                             <p className="text-[11px] text-zinc-500 font-mono truncate">{registrations[ev.id]}</p>
                           </div>
                           <Link href="/profile" className="flex-shrink-0 text-[11px] font-semibold text-zinc-900 border border-zinc-200 rounded-lg px-2.5 py-1.5 active:bg-zinc-100">
-                            ดู QR →
+                            {L("ดู QR →", "View QR →")}
                           </Link>
                         </div>
                       </div>
                     ) : full ? (
                       <div className="w-full text-center text-xs font-semibold py-2.5 rounded-xl bg-zinc-100 text-zinc-500">
-                        ที่นั่งเต็ม
+                        {L("ที่นั่งเต็ม", "Fully booked")}
                       </div>
                     ) : isTournament ? (
                       <Link href={`/events/${ev.id}`}
                         className="block w-full text-center text-xs font-semibold py-2.5 rounded-xl bg-zinc-900 text-white active:opacity-70 transition-opacity">
-                        ดูรายละเอียด →
+                        {L("ดูรายละเอียด →", "View details →")}
                       </Link>
                     ) : (
                       <button
@@ -453,7 +456,7 @@ export default function EventsPage() {
                         disabled={registeringId === ev.id}
                         className="block w-full text-center text-xs font-semibold py-2.5 rounded-xl bg-zinc-900 text-white active:opacity-70 transition-opacity disabled:opacity-50"
                       >
-                        {registeringId === ev.id ? "กำลังลงทะเบียน..." : "ลงทะเบียน →"}
+                        {registeringId === ev.id ? L("กำลังลงทะเบียน...", "Registering…") : L("ลงทะเบียน →", "Register →")}
                       </button>
                     )}
                     {registerError && registerErrorId === ev.id && (
@@ -471,17 +474,17 @@ export default function EventsPage() {
       {activeTab === "จองโต๊ะ" && (
         <div className="px-4 pt-4">
           <Link href="/booth" className="block bg-zinc-900 text-white rounded-2xl px-4 py-4">
-            <p className="text-sm font-semibold">จองโต๊ะ Vendor ในงานอีเวนต์</p>
-            <p className="text-[11px] text-zinc-300 mt-1">เลือกโต๊ะจากผังงานจริงแล้วชำระเงินได้เลย · จองครบทุกวันใช้โค้ดส่วนลดได้ →</p>
+            <p className="text-sm font-semibold">{L("จองโต๊ะ Vendor ในงานอีเวนต์", "Book a Vendor table at our events")}</p>
+            <p className="text-[11px] text-zinc-300 mt-1">{L("เลือกโต๊ะจากผังงานจริงแล้วชำระเงินได้เลย · จองครบทุกวันใช้โค้ดส่วนลดได้ →", "Pick a table on the real floor plan and pay right away · Book every day to use a discount code →")}</p>
           </Link>
         </div>
       )}
       {activeTab === "จองโต๊ะ" && (
         <div className="px-4 py-4">
           <div className="card p-5">
-            <h3 className="text-sm font-semibold text-zinc-900 mb-1">จองโต๊ะเล่นการ์ดที่ร้าน</h3>
+            <h3 className="text-sm font-semibold text-zinc-900 mb-1">{L("จองโต๊ะเล่นการ์ดที่ร้าน", "Book a play table at the store")}</h3>
             <p className="text-xs text-zinc-600 leading-relaxed">
-              ตอนนี้ยังไม่เปิดให้จองโต๊ะเล่นที่ร้านผ่านเว็บไซต์ ต้องการจองโต๊ะหรือสอบถามเวลาว่าง ติดต่อทีมงานได้ที่ Inbox เพจ The Cardlist
+              {L("ตอนนี้ยังไม่เปิดให้จองโต๊ะเล่นที่ร้านผ่านเว็บไซต์ ต้องการจองโต๊ะหรือสอบถามเวลาว่าง ติดต่อทีมงานได้ที่ Inbox เพจ The Cardlist", "In-store table booking isn't available online yet. To book a table or check availability, message the team via The Cardlist page inbox.")}
             </p>
           </div>
         </div>
@@ -491,7 +494,7 @@ export default function EventsPage() {
         <div className="px-4 py-4 space-y-4">
           {tradingEvents.length === 0 ? (
             <div className="card px-5 py-10 text-center">
-              <p className="text-sm text-zinc-500">ยังไม่มีอีเวนต์ที่เปิดให้จองโต๊ะเทรด</p>
+              <p className="text-sm text-zinc-500">{L("ยังไม่มีอีเวนต์ที่เปิดให้จองโต๊ะเทรด", "No events open for trading table booking yet")}</p>
             </div>
           ) : (
             <>
@@ -511,8 +514,8 @@ export default function EventsPage() {
               {!loggedIn && (
                 <div className="card px-4 py-3 bg-amber-50 border-amber-100">
                   <p className="text-[11px] text-amber-700">
-                    กรุณา <button type="button" onClick={goLogin} className="font-semibold underline">เข้าสู่ระบบ</button> หรือ{" "}
-                    <button type="button" onClick={() => { window.location.href = "/register?next=" + encodeURIComponent(currentPath()); }} className="font-semibold underline">สมัครสมาชิก</button> ก่อนจองโต๊ะเทรด
+                    {L("กรุณา", "Please")} <button type="button" onClick={goLogin} className="font-semibold underline">{L("เข้าสู่ระบบ", "log in")}</button> {L("หรือ", "or")}{" "}
+                    <button type="button" onClick={() => { window.location.href = "/register?next=" + encodeURIComponent(currentPath()); }} className="font-semibold underline">{L("สมัครสมาชิก", "sign up")}</button> {L("ก่อนจองโต๊ะเทรด", "before booking a trading table")}
                   </p>
                 </div>
               )}
@@ -525,7 +528,7 @@ export default function EventsPage() {
 
               {!tradingLoading && !tradingData && tradingError ? (
                 <div className="text-center py-10">
-                  <button onClick={() => loadTradingData()} className="text-xs font-semibold border border-zinc-200 rounded-xl px-5 py-2.5 text-zinc-700">ลองใหม่</button>
+                  <button onClick={() => loadTradingData()} className="text-xs font-semibold border border-zinc-200 rounded-xl px-5 py-2.5 text-zinc-700">{L("ลองใหม่", "Try again")}</button>
                 </div>
               ) : tradingLoading || !tradingData ? (
                 <div className="flex items-center justify-center py-20">
@@ -534,17 +537,17 @@ export default function EventsPage() {
               ) : (
                 <>
                   <div className="card p-4">
-                    <h3 className="text-sm font-semibold text-zinc-900 mb-0.5">จองพื้นที่เทรด — <BrandText text={tradingData.event.title} /></h3>
-                    <p className="text-[11px] text-zinc-500 mb-4">รอบละ 45 นาที เริ่ม 10:00 น. · เว้น 60 นาทีระหว่างรอบของคุณ</p>
+                    <h3 className="text-sm font-semibold text-zinc-900 mb-0.5">{L("จองพื้นที่เทรด", "Book a trading spot")} — <BrandText text={tradingData.event.title} /></h3>
+                    <p className="text-[11px] text-zinc-500 mb-4">{L("รอบละ 45 นาที เริ่ม 10:00 น. · เว้น 60 นาทีระหว่างรอบของคุณ", "45-minute slots from 10:00 · 60-minute gap between your slots")}</p>
 
                     {/* เลือกวันที่ */}
                     <div className="mb-3">
-                      <label className="text-[11px] font-semibold text-zinc-600 tracking-wide mb-1.5 block">วันที่</label>
+                      <label className="text-[11px] font-semibold text-zinc-600 tracking-wide mb-1.5 block">{L("วันที่", "Date")}</label>
                       <div className="flex gap-2">
                         {tradingData.event.days.map((d) => (
                           <button key={d} onClick={() => setSelectedDate(d)}
                             className={`text-xs px-3 py-2 rounded-xl border font-semibold ${selectedDate === d ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 text-zinc-600 bg-white"}`}>
-                            {formatThaiDate(d)}
+                            {formatThaiDate(d, locale)}
                           </button>
                         ))}
                       </div>
@@ -552,12 +555,12 @@ export default function EventsPage() {
 
                     {/* เลือกประเภทโต๊ะ */}
                     <div className="mb-4">
-                      <label className="text-[11px] font-semibold text-zinc-600 tracking-wide mb-1.5 block">ประเภทโต๊ะ</label>
+                      <label className="text-[11px] font-semibold text-zinc-600 tracking-wide mb-1.5 block">{L("ประเภทโต๊ะ", "Table type")}</label>
                       <div className="flex gap-2 flex-wrap">
                         {TABLE_TYPES.map((t) => (
                           <button key={t} onClick={() => setSelectedType(t)}
                             className={`text-xs px-3 py-2 rounded-xl border font-semibold ${selectedType === t ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 text-zinc-600 bg-white"}`}>
-                            {TABLE_TYPE_LABEL[t]} <span className="opacity-60">({tradingData.capacity[t]} โต๊ะ)</span>
+                            {TABLE_TYPE_LABEL[t]} <span className="opacity-60">({tradingData.capacity[t]} {L("โต๊ะ", "tables")})</span>
                           </button>
                         ))}
                       </div>
@@ -586,7 +589,7 @@ export default function EventsPage() {
                             >
                               <p className="text-[11px] font-semibold">{s.start}</p>
                               <p className="text-[10px] mt-0.5">
-                                {bookingBusy === s.start ? "..." : isPast ? "ผ่านไปแล้ว" : full ? "เต็ม" : `ว่าง ${remaining}/${capacity}`}
+                                {bookingBusy === s.start ? "..." : isPast ? L("ผ่านไปแล้ว", "Passed") : full ? L("เต็ม", "Full") : L(`ว่าง ${remaining}/${capacity}`, `${remaining}/${capacity} free`)}
                               </p>
                             </button>
                           );
@@ -598,7 +601,7 @@ export default function EventsPage() {
                   {/* การจองของฉัน */}
                   {loggedIn && tradingData.myBookings.length > 0 && (
                     <div className="card p-4">
-                      <h3 className="text-sm font-semibold text-zinc-900 mb-3">การจองของฉัน</h3>
+                      <h3 className="text-sm font-semibold text-zinc-900 mb-3">{L("การจองของฉัน", "My bookings")}</h3>
                       <div className="space-y-2">
                         {tradingData.myBookings
                           .slice()
@@ -609,10 +612,10 @@ export default function EventsPage() {
                               <div key={b.id} className="flex items-center justify-between bg-zinc-50 rounded-xl px-3 py-2.5">
                                 <div>
                                   <p className="text-xs font-semibold text-zinc-900">
-                                    {TABLE_TYPE_LABEL[b.table_type]} · โต๊ะ {b.table_number}
+                                    {TABLE_TYPE_LABEL[b.table_type]} · {L("โต๊ะ", "Table")} {b.table_number}
                                   </p>
                                   <p className="text-[11px] text-zinc-500 mt-0.5">
-                                    {formatThaiDate(b.booking_date)} · {b.slot_start.slice(0, 5)}-{b.slot_end.slice(0, 5)} น.
+                                    {formatThaiDate(b.booking_date, locale)} · {b.slot_start.slice(0, 5)}-{b.slot_end.slice(0, 5)}{L(" น.", "")}
                                   </p>
                                 </div>
                                 {!isPast && (
@@ -621,7 +624,7 @@ export default function EventsPage() {
                                     disabled={bookingBusy === b.id}
                                     className="text-[11px] text-red-600 border border-red-100 rounded-lg px-2.5 py-1 active:bg-red-50 disabled:opacity-50"
                                   >
-                                    {bookingBusy === b.id ? "..." : "ยกเลิก"}
+                                    {bookingBusy === b.id ? "..." : L("ยกเลิก", "Cancel")}
                                   </button>
                                 )}
                               </div>

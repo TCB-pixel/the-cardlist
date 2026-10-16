@@ -5,9 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import BottomNav from "@/components/BottomNav";
+import LangToggle from "@/components/LangToggle";
+import { useLang } from "@/lib/i18n";
 
 export default function EditProfilePage() {
   const router = useRouter();
+  const { L } = useLang();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [userId, setUserId] = useState("");
@@ -62,24 +65,24 @@ export default function EditProfilePage() {
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { setError("รูปภาพต้องไม่เกิน 2MB"); return; }
+    if (file.size > 2 * 1024 * 1024) { setError(L("รูปภาพต้องไม่เกิน 2MB", "Image must be 2MB or smaller")); return; }
     setAvatarFile(file);
     setAvatarPreview(URL.createObjectURL(file));
     setError("");
   }
 
   async function handleSave() {
-    if (!displayName.trim()) { setError("กรุณากรอกชื่อที่แสดง"); return; }
-    if (!username.trim()) { setError("กรุณากรอก Username"); return; }
+    if (!displayName.trim()) { setError(L("กรุณากรอกชื่อที่แสดง", "Please enter a display name")); return; }
+    if (!username.trim()) { setError(L("กรุณากรอก Username", "Please enter a username")); return; }
     // เก็บเบอร์เป็นตัวเลขล้วน ให้ค้นหน้าร้านเจอแน่นอน
     const emailTrim = receiptEmail.trim().toLowerCase();
     if (emailTrim && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim)) {
-      setError("อีเมลไม่ถูกต้อง — ตรวจสอบรูปแบบอีกครั้ง เช่น name@gmail.com");
+      setError(L("อีเมลไม่ถูกต้อง — ตรวจสอบรูปแบบอีกครั้ง เช่น name@gmail.com", "Invalid email — please check the format, e.g. name@gmail.com"));
       return;
     }
     const phoneDigits = phone.replace(/\D/g, "");
     if (phoneDigits && !/^0\d{8,9}$/.test(phoneDigits)) {
-      setError("เบอร์โทรไม่ถูกต้อง — กรอกเป็นตัวเลข 9-10 หลัก ขึ้นต้นด้วย 0");
+      setError(L("เบอร์โทรไม่ถูกต้อง — กรอกเป็นตัวเลข 9-10 หลัก ขึ้นต้นด้วย 0", "Invalid phone number — enter 9-10 digits starting with 0"));
       return;
     }
     setSaving(true);
@@ -121,7 +124,7 @@ export default function EditProfilePage() {
       setSuccess(true);
       setTimeout(() => router.push("/profile"), 1200);
     } catch (err: any) {
-      setError(err?.message ?? "บันทึกไม่สำเร็จ");
+      setError(err?.message ?? L("บันทึกไม่สำเร็จ", "Couldn't save"));
     } finally {
       setSaving(false);
     }
@@ -146,15 +149,18 @@ export default function EditProfilePage() {
                 <path d="M12 5l-5 5 5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </Link>
-            <span className="text-sm font-semibold text-zinc-900">แก้ไขโปรไฟล์</span>
+            <span className="text-sm font-semibold text-zinc-900">{L("แก้ไขโปรไฟล์", "Edit profile")}</span>
           </div>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="text-xs font-semibold text-zinc-900 disabled:opacity-40"
-          >
-            {saving ? "กำลังบันทึก..." : "บันทึก"}
-          </button>
+          <div className="flex items-center gap-2">
+            <LangToggle />
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="text-xs font-semibold text-zinc-900 disabled:opacity-40"
+            >
+              {saving ? L("กำลังบันทึก...", "Saving...") : L("บันทึก", "Save")}
+            </button>
+          </div>
         </div>
       </header>
 
@@ -182,22 +188,22 @@ export default function EditProfilePage() {
             </div>
           </button>
           <button onClick={() => fileRef.current?.click()} className="text-xs font-medium text-zinc-500 underline underline-offset-2">
-            เปลี่ยนรูปโปรไฟล์
+            {L("เปลี่ยนรูปโปรไฟล์", "Change profile photo")}
           </button>
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-          <p className="text-[11px] text-zinc-500">PNG, JPG ขนาดไม่เกิน 2MB</p>
+          <p className="text-[11px] text-zinc-500">{L("PNG, JPG ขนาดไม่เกิน 2MB", "PNG or JPG, up to 2MB")}</p>
         </div>
 
         {/* Form */}
         <div className="card px-5 py-5 space-y-4">
           <div>
             <label className="text-[11px] font-semibold text-zinc-500 tracking-wide block mb-1.5">
-              ชื่อที่แสดง
+              {L("ชื่อที่แสดง", "Display name")}
             </label>
             <input
               type="text"
               className="input"
-              placeholder="ชื่อ-นามสกุล หรือ ชื่อเล่น"
+              placeholder={L("ชื่อ-นามสกุล หรือ ชื่อเล่น", "Full name or nickname")}
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               maxLength={50}
@@ -218,46 +224,46 @@ export default function EditProfilePage() {
                 maxLength={30}
               />
             </div>
-            <p className="text-[11px] text-zinc-500 mt-1">ตัวอักษรภาษาอังกฤษ ตัวเลข และ _ เท่านั้น</p>
+            <p className="text-[11px] text-zinc-500 mt-1">{L("ตัวอักษรภาษาอังกฤษ ตัวเลข และ _ เท่านั้น", "English letters, numbers and _ only")}</p>
           </div>
 
           {/* ── ชื่อ-นามสกุลจริง ── */}
           <div className="pt-4 border-t border-zinc-100">
             <label className="text-[11px] font-semibold text-zinc-500 tracking-wide block mb-1.5">
-              ชื่อ-นามสกุล
+              {L("ชื่อ-นามสกุล", "Full name")}
             </label>
             <div className="grid grid-cols-2 gap-2">
-              <input type="text" className="input" placeholder="ชื่อจริง"
+              <input type="text" className="input" placeholder={L("ชื่อจริง", "First name")}
                 value={firstName} onChange={(e) => setFirstName(e.target.value)} maxLength={60} />
-              <input type="text" className="input" placeholder="นามสกุล"
+              <input type="text" className="input" placeholder={L("นามสกุล", "Last name")}
                 value={lastName} onChange={(e) => setLastName(e.target.value)} maxLength={60} />
             </div>
-            <p className="text-[11px] text-zinc-500 mt-1">ใช้สำหรับยืนยันตัวตนตอนรับสิทธิ์และรับสินค้า</p>
+            <p className="text-[11px] text-zinc-500 mt-1">{L("ใช้สำหรับยืนยันตัวตนตอนรับสิทธิ์และรับสินค้า", "Used to verify your identity when claiming rewards and picking up orders")}</p>
           </div>
 
           {/* ── เบอร์โทร ── */}
           <div>
             <label className="text-[11px] font-semibold text-zinc-500 tracking-wide block mb-1.5">
-              เบอร์โทรศัพท์
+              {L("เบอร์โทรศัพท์", "Phone number")}
             </label>
             <input type="tel" inputMode="numeric" className="input" placeholder="08x-xxx-xxxx"
               value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={20} />
             <p className="text-[11px] text-zinc-500 mt-1">
-              พนักงานใช้ค้นหาคุณตอนบันทึกรอบเล่น เผื่อกรณีเปิด QR ไม่ได้
+              {L("พนักงานใช้ค้นหาคุณตอนบันทึกรอบเล่น เผื่อกรณีเปิด QR ไม่ได้", "Staff use this to find you when logging play sessions, in case your QR won't open")}
             </p>
           </div>
 
           {/* ── อีเมลรับใบเสร็จ ── */}
           <div>
             <label className="text-[11px] font-semibold text-zinc-500 tracking-wide block mb-1.5">
-              อีเมลรับใบเสร็จ / ยืนยันคำสั่งซื้อ
+              {L("อีเมลรับใบเสร็จ / ยืนยันคำสั่งซื้อ", "Email for receipts / order confirmations")}
             </label>
             <input type="email" inputMode="email" className="input" placeholder="name@gmail.com"
               value={receiptEmail} onChange={(e) => setReceiptEmail(e.target.value)} maxLength={120} />
             <p className="text-[11px] text-zinc-500 mt-1">
               {/^line_[a-z0-9]+@thecardlist\.com$/i.test(authEmail)
-                ? "บัญชีที่ล็อกอินด้วย LINE ไม่มีอีเมลจริง — กรอกอีเมลของคุณเพื่อรับใบเสร็จทางอีเมลด้วย (ไม่บังคับ)"
-                : "ถ้าไม่กรอก เราจะส่งไปที่อีเมลที่ใช้สมัคร"}
+                ? L("บัญชีที่ล็อกอินด้วย LINE ไม่มีอีเมลจริง — กรอกอีเมลของคุณเพื่อรับใบเสร็จทางอีเมลด้วย (ไม่บังคับ)", "LINE accounts don't have a real email — add yours to get receipts by email too (optional)")
+                : L("ถ้าไม่กรอก เราจะส่งไปที่อีเมลที่ใช้สมัคร", "If left blank, we'll send to the email you signed up with")}
             </p>
           </div>
         </div>
@@ -266,9 +272,9 @@ export default function EditProfilePage() {
         <Link href="/profile/address"
           className="card px-5 py-4 flex items-center justify-between mt-4 active:bg-zinc-50 transition-colors">
           <div>
-            <p className="text-sm text-zinc-900">ที่อยู่จัดส่ง</p>
+            <p className="text-sm text-zinc-900">{L("ที่อยู่จัดส่ง", "Shipping address")}</p>
             <p className="text-[11px] text-zinc-500 mt-0.5">
-              {addressCount > 0 ? `บันทึกไว้ ${addressCount} ที่อยู่` : "ยังไม่ได้เพิ่มที่อยู่"}
+              {addressCount > 0 ? L(`บันทึกไว้ ${addressCount} ที่อยู่`, `${addressCount} saved ${addressCount === 1 ? "address" : "addresses"}`) : L("ยังไม่ได้เพิ่มที่อยู่", "No addresses added yet")}
             </p>
           </div>
           <svg width="18" height="18" viewBox="0 0 20 20" fill="none" className="text-zinc-300">
@@ -288,7 +294,7 @@ export default function EditProfilePage() {
               <circle cx="7" cy="7" r="6" fill="#16a34a"/>
               <path d="M4 7l2 2 4-4" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-            <p className="text-[11px] text-green-700 font-medium">บันทึกสำเร็จ กำลังกลับหน้าโปรไฟล์...</p>
+            <p className="text-[11px] text-green-700 font-medium">{L("บันทึกสำเร็จ กำลังกลับหน้าโปรไฟล์...", "Saved! Returning to your profile...")}</p>
           </div>
         )}
 
@@ -298,7 +304,7 @@ export default function EditProfilePage() {
           disabled={saving}
           className="btn-primary w-full py-3.5 text-sm disabled:opacity-40"
         >
-          {saving ? "กำลังบันทึก..." : "บันทึกการเปลี่ยนแปลง"}
+          {saving ? L("กำลังบันทึก...", "Saving...") : L("บันทึกการเปลี่ยนแปลง", "Save changes")}
         </button>
       </div>
 

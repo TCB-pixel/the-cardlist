@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import BottomNav from "@/components/BottomNav";
+import LangToggle from "@/components/LangToggle";
+import { useLang } from "@/lib/i18n";
 
 type DeckCard = { card_name: string; quantity: number; card_number?: string };
 type Deck = {
@@ -29,6 +31,7 @@ const EMPTY_DECK = { name: "", tcg: "One Piece", format: "Standard", description
 
 export default function DecksPage() {
   const router = useRouter();
+  const { L } = useLang();
   const [userId, setUserId] = useState("");
   const [decks, setDecks] = useState<Deck[]>([]);
   const [loading, setLoading] = useState(true);
@@ -104,7 +107,7 @@ export default function DecksPage() {
   }
 
   async function handleSave() {
-    if (!deck.name.trim()) { setError("กรุณากรอกชื่อเด็ค"); return; }
+    if (!deck.name.trim()) { setError(L("กรุณากรอกชื่อเด็ค", "Please enter a deck name")); return; }
     setSaving(true);
     setError("");
     try {
@@ -118,7 +121,7 @@ export default function DecksPage() {
       await loadDecks(userId);
       setView("list");
     } catch (err: any) {
-      setError(err?.message ?? "บันทึกไม่สำเร็จ");
+      setError(err?.message ?? L("บันทึกไม่สำเร็จ", "Couldn't save"));
     } finally {
       setSaving(false);
     }
@@ -160,16 +163,19 @@ export default function DecksPage() {
               </button>
             )}
             <span className="text-sm font-semibold text-zinc-900">
-              {view === "list" ? "Deck Builder" : editId ? "แก้ไขเด็ค" : "สร้างเด็คใหม่"}
+              {view === "list" ? "Deck Builder" : editId ? L("แก้ไขเด็ค", "Edit deck") : L("สร้างเด็คใหม่", "New deck")}
             </span>
           </div>
-          {view === "list" ? (
-            <button onClick={openNew} className="text-xs font-semibold text-zinc-900">+ สร้างเด็ค</button>
-          ) : (
-            <button onClick={handleSave} disabled={saving} className="text-xs font-semibold text-zinc-900 disabled:opacity-40">
-              {saving ? "กำลังบันทึก..." : "บันทึก"}
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            <LangToggle />
+            {view === "list" ? (
+              <button onClick={openNew} className="text-xs font-semibold text-zinc-900">{L("+ สร้างเด็ค", "+ New deck")}</button>
+            ) : (
+              <button onClick={handleSave} disabled={saving} className="text-xs font-semibold text-zinc-900 disabled:opacity-40">
+                {saving ? L("กำลังบันทึก...", "Saving...") : L("บันทึก", "Save")}
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
@@ -178,9 +184,9 @@ export default function DecksPage() {
         <div className="px-4 py-4 space-y-3">
           {decks.length === 0 && (
             <div className="card px-5 py-10 text-center">
-              <p className="text-sm text-zinc-500 mb-1">ยังไม่มีเด็ค</p>
-              <p className="text-[11px] text-zinc-500 mb-4">สร้างเด็คแรกของคุณได้เลย</p>
-              <button onClick={openNew} className="btn-primary px-6 py-2.5">สร้างเด็ค</button>
+              <p className="text-sm text-zinc-500 mb-1">{L("ยังไม่มีเด็ค", "No decks yet")}</p>
+              <p className="text-[11px] text-zinc-500 mb-4">{L("สร้างเด็คแรกของคุณได้เลย", "Build your first deck now")}</p>
+              <button onClick={openNew} className="btn-primary px-6 py-2.5">{L("สร้างเด็ค", "Create deck")}</button>
             </div>
           )}
           {decks.map((d) => {
@@ -190,13 +196,13 @@ export default function DecksPage() {
                 <div className="flex items-start justify-between mb-2">
                   <div>
                     <p className="text-sm font-semibold text-zinc-900">{d.name}</p>
-                    <p className="text-[11px] text-zinc-500 mt-0.5">{d.tcg} · {d.format} · {total} ใบ</p>
+                    <p className="text-[11px] text-zinc-500 mt-0.5">{d.tcg} · {d.format} · {total} {L("ใบ", "cards")}</p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <button onClick={() => openEdit(d)} className="text-[11px] text-zinc-500 underline">แก้ไข</button>
+                    <button onClick={() => openEdit(d)} className="text-[11px] text-zinc-500 underline">{L("แก้ไข", "Edit")}</button>
                     <button onClick={() => handleDelete(d.id)} disabled={deleting === d.id}
                       className="text-[11px] text-red-400 underline disabled:opacity-40">
-                      {deleting === d.id ? "..." : "ลบ"}
+                      {deleting === d.id ? "..." : L("ลบ", "Delete")}
                     </button>
                   </div>
                 </div>
@@ -210,7 +216,7 @@ export default function DecksPage() {
                       </div>
                     ))}
                     {d.cards.length > 4 && (
-                      <p className="text-[11px] text-zinc-500">+{d.cards.length - 4} รายการอื่นๆ</p>
+                      <p className="text-[11px] text-zinc-500">+{d.cards.length - 4} {L("รายการอื่นๆ", "more")}</p>
                     )}
                   </div>
                 )}
@@ -225,7 +231,7 @@ export default function DecksPage() {
         <div className="px-4 py-4 space-y-4">
           {/* Deck Info */}
           <div className="card px-4 py-4 space-y-3">
-            <input className="input" placeholder="ชื่อเด็ค *" value={deck.name}
+            <input className="input" placeholder={L("ชื่อเด็ค *", "Deck name *")} value={deck.name}
               onChange={(e) => setDeck({ ...deck, name: e.target.value })} />
             {/* TCG */}
             <div>
@@ -251,17 +257,17 @@ export default function DecksPage() {
                 ))}
               </div>
             </div>
-            <input className="input" placeholder="คำอธิบายเด็ค (ไม่บังคับ)" value={deck.description}
+            <input className="input" placeholder={L("คำอธิบายเด็ค (ไม่บังคับ)", "Deck description (optional)")} value={deck.description}
               onChange={(e) => setDeck({ ...deck, description: e.target.value })} />
           </div>
 
           {/* Add Card */}
           <div className="card px-4 py-4">
             <p className="text-xs font-semibold text-zinc-900 mb-3">
-              เพิ่มการ์ด <span className="text-zinc-500 font-normal">({totalCards} ใบ)</span>
+              {L("เพิ่มการ์ด", "Add cards")} <span className="text-zinc-500 font-normal">({totalCards} {L("ใบ", "cards")})</span>
             </p>
             <div className="flex gap-2 mb-2">
-              <input className="input flex-1" placeholder="ชื่อการ์ด" value={newCard.card_name}
+              <input className="input flex-1" placeholder={L("ชื่อการ์ด", "Card name")} value={newCard.card_name}
                 onChange={(e) => setNewCard({ ...newCard, card_name: e.target.value })}
                 onKeyDown={(e) => e.key === "Enter" && addCard()} />
               <div className="flex items-center border border-zinc-100 bg-zinc-50 rounded-xl px-2 gap-1">
@@ -273,7 +279,7 @@ export default function DecksPage() {
               </div>
               <button onClick={addCard} className="btn-primary px-3 py-2">+</button>
             </div>
-            <input className="input text-xs" placeholder="เลขการ์ด เช่น OP01-001 (ไม่บังคับ)" value={newCard.card_number}
+            <input className="input text-xs" placeholder={L("เลขการ์ด เช่น OP01-001 (ไม่บังคับ)", "Card number, e.g. OP01-001 (optional)")} value={newCard.card_number}
               onChange={(e) => setNewCard({ ...newCard, card_number: e.target.value })} />
           </div>
 
@@ -308,7 +314,7 @@ export default function DecksPage() {
           )}
 
           <button onClick={handleSave} disabled={saving} className="btn-primary w-full py-3.5 text-sm disabled:opacity-40">
-            {saving ? "กำลังบันทึก..." : editId ? "บันทึกการแก้ไข" : "สร้างเด็ค"}
+            {saving ? L("กำลังบันทึก...", "Saving...") : editId ? L("บันทึกการแก้ไข", "Save changes") : L("สร้างเด็ค", "Create deck")}
           </button>
         </div>
       )}
