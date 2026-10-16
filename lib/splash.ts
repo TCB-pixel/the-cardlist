@@ -1,7 +1,8 @@
 // แอนิเมชันเปิดแอป: พื้นขาว ชิ้นส่วนโลโก้ C (แดง/เหลือง/น้ำเงิน) บินเข้ามาประกอบกัน
 // แล้วโลโก้พุ่งเข้าหาหน้าจอจนทะลุ เผยหน้าเว็บ
-// - เล่นเฉพาะตอนเปิดจากไอคอนบนหน้าจอโฮม (PWA standalone) ครั้งแรกของ session
-// - ทดสอบบนเบราว์เซอร์: เติม ?splash=1 ท้าย URL
+// - เล่นครั้งแรกของ session ทั้งบนเว็บและแอป (ไม่เล่นในหน้า /admin)
+// - ชิ้นส่วนแต่ละสีเลื่อนเข้าตรง ๆ จากฝั่งของตัวเอง ไม่หมุน ไม่เด้งเลย → ไม่ชนกัน
+// - ดูซ้ำ: เติม ?splash=1 ท้าย URL
 // - แตะหน้าจอเพื่อข้ามได้, ผู้ใช้ที่ตั้ง "ลดการเคลื่อนไหว" จะเห็นแค่โลโก้ค่อย ๆ จางหาย
 // สคริปต์นี้รันทันทีตอน parse <body> (ก่อน React) เพื่อไม่ให้หน้าเว็บโผล่ก่อนแอนิเมชัน
 
@@ -9,15 +10,15 @@ const CSS = `
 #cl-splash{position:fixed;inset:0;z-index:2147483000;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;-webkit-tap-highlight-color:transparent}
 #cl-splash .cls-logo{position:relative;width:min(30vw,132px);aspect-ratio:519/685;transform-origin:72% 50%}
 #cl-splash .cls-logo img{position:absolute;inset:0;width:100%;height:100%;opacity:0;user-select:none;-webkit-user-drag:none}
-#cl-splash.go .cls-r{animation:cls-r .7s cubic-bezier(.2,.9,.25,1.12) .05s both}
-#cl-splash.go .cls-y{animation:cls-y .7s cubic-bezier(.2,.9,.25,1.12) .17s both}
-#cl-splash.go .cls-b{animation:cls-b .7s cubic-bezier(.2,.9,.25,1.12) .29s both}
-#cl-splash.go .cls-f{animation:cls-show .12s linear .98s both}
-#cl-splash.go .cls-logo{animation:cls-rush .62s cubic-bezier(.6,0,.9,.35) 1.05s both}
-#cl-splash.go{animation:cls-out .32s ease-in 1.42s both}
-@keyframes cls-r{from{opacity:0;transform:translate(70%,-150%) rotate(-28deg) scale(.6)}to{opacity:1;transform:none}}
-@keyframes cls-y{from{opacity:0;transform:translate(-180%,15%) rotate(22deg) scale(.6)}to{opacity:1;transform:none}}
-@keyframes cls-b{from{opacity:0;transform:translate(90%,160%) rotate(26deg) scale(.6)}to{opacity:1;transform:none}}
+#cl-splash.go .cls-r{animation:cls-r .55s cubic-bezier(.16,1,.3,1) .05s both}
+#cl-splash.go .cls-y{animation:cls-y .55s cubic-bezier(.16,1,.3,1) .2s both}
+#cl-splash.go .cls-b{animation:cls-b .55s cubic-bezier(.16,1,.3,1) .35s both}
+#cl-splash.go .cls-f{animation:cls-show .12s linear 1s both}
+#cl-splash.go .cls-logo{animation:cls-rush .62s cubic-bezier(.6,0,.9,.35) 1.15s both}
+#cl-splash.go{animation:cls-out .32s ease-in 1.52s both}
+@keyframes cls-r{from{opacity:0;transform:translate(45%,-110%)}to{opacity:1;transform:none}}
+@keyframes cls-y{from{opacity:0;transform:translate(-130%,0)}to{opacity:1;transform:none}}
+@keyframes cls-b{from{opacity:0;transform:translate(45%,110%)}to{opacity:1;transform:none}}
 @keyframes cls-show{from{opacity:0}to{opacity:1}}
 @keyframes cls-rush{0%{transform:scale(1)}22%{transform:scale(.88)}100%{transform:scale(18);opacity:.0}}
 @keyframes cls-out{from{opacity:1}to{opacity:0;visibility:hidden}}
@@ -31,10 +32,7 @@ function splash() {
   try {
     const params = new URLSearchParams(location.search);
     const forced = params.get("splash") === "1";
-    const standalone =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      (navigator as unknown as { standalone?: boolean }).standalone === true;
-    if (!forced && (!standalone || sessionStorage.getItem("cl-splash"))) return;
+    if (!forced && (sessionStorage.getItem("cl-splash") || location.pathname.startsWith("/admin"))) return;
     sessionStorage.setItem("cl-splash", "1");
 
     const root = document.createElement("div");
@@ -55,7 +53,7 @@ function splash() {
     };
     const start = () => {
       root.classList.add("go");
-      setTimeout(remove, 1900);
+      setTimeout(remove, 2000);
     };
     parts.forEach((p) => {
       const [k, name] = p.split(":");
