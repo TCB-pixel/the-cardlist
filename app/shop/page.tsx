@@ -4,6 +4,7 @@ import { formatReleaseDate, formatCloseAt, isPreorderClosed, depositOf, payableO
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useModal } from "@/lib/use-modal";
 import Image from "next/image";
+import GlareCard from "@/components/fx/GlareCard";
 import BottomNav from "@/components/BottomNav";
 import LogoLoader from "@/components/LogoLoader";
 import TopBar from "@/components/TopBar";
@@ -434,7 +435,7 @@ export default function ShopPage() {
             {filtered.map((p) => {
               const lot = lotteries[p.id];
               return (
-              <div key={p.id} className="card overflow-hidden">
+              <GlareCard key={p.id} className="card overflow-hidden">
                 {/* Product Image */}
                 <div className="relative">
                   {badgeOf(p) && (
@@ -527,7 +528,7 @@ export default function ShopPage() {
                     </button>
                   )}
                 </div>
-              </div>
+              </GlareCard>
               );
             })}
           </div>

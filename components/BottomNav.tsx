@@ -76,16 +76,20 @@ const NAV = [
   },
 ];
 
+// แถบเมนูล่างแบบลอย (แรงบันดาลใจ: Floating Dock บน 21st.dev) — เมนูที่อยู่ขยายไอคอนและมีพื้นทึบ
 export default function BottomNav() {
   const pathname = usePathname();
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-zinc-100 flex items-center justify-around h-16">
+    <nav className="fixed bottom-3 left-3 right-3 z-50 mx-auto max-w-md rounded-2xl bg-white/90 backdrop-blur-md border border-zinc-200/80 shadow-[0_10px_30px_-12px_rgba(0,0,0,.35)] flex items-center justify-around h-16 px-1"
+      style={{ marginBottom: "env(safe-area-inset-bottom)" }}>
       {NAV.map((item) => {
         const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
         return (
           <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined}
-            className={`flex flex-1 min-w-0 flex-col items-center gap-1 px-0.5 py-1 transition-colors ${active ? "text-zinc-900" : "text-zinc-500"}`}>
-            {item.icon(active)}
+            className={`group flex flex-1 min-w-0 flex-col items-center gap-0.5 px-0.5 py-1 transition-colors ${active ? "text-zinc-900" : "text-zinc-500"}`}>
+            <span className={`flex items-center justify-center w-9 h-8 rounded-xl transition-all duration-200 ${active ? "bg-zinc-900 text-white scale-110 -translate-y-0.5" : "group-hover:bg-zinc-100 group-active:scale-90"}`}>
+              {item.icon(active)}
+            </span>
             <span className={`text-[10px] tracking-tight whitespace-nowrap ${active ? "font-semibold" : "font-normal"}`}>{item.label}</span>
           </Link>
         );

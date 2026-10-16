@@ -7,6 +7,11 @@ import BottomNav from "@/components/BottomNav";
 import HeroBanner from "@/components/HeroBanner";
 import { Banner, DEFAULT_HOME_BANNERS } from "@/lib/banners";
 import { createClient } from "@/lib/supabase";
+import FlipCountdown from "@/components/fx/FlipCountdown";
+import LogoMarquee from "@/components/fx/LogoMarquee";
+import StatsStrip from "@/components/fx/NumberTicker";
+import CardFan from "@/components/fx/CardFan";
+import BigFooter from "@/components/fx/BigFooter";
 
 const TCG_GAMES = [
   { key: "onepiece",    label: "One Piece",   color: "#E24B4A" },
@@ -163,6 +168,12 @@ export default function HomePage() {
       {/* Hero Banner */}
       <HeroBanner banners={banners} intervalMs={4000} />
 
+      <StatsStrip items={[
+        { value: 10000, suffix: "+", label: "ผู้เข้าร่วมงาน" },
+        { value: 500, suffix: "+", label: "นักแข่งขัน" },
+        { value: 48, label: "บูธ Vendor ต่องาน" },
+      ]} />
+
       {/* Quick links */}
       <section className="px-4 py-4">
         <div className="grid grid-cols-4 gap-2">
@@ -197,6 +208,9 @@ export default function HomePage() {
             <h2 className="text-xs font-semibold text-zinc-900 tracking-wide">สินค้ามาใหม่</h2>
             <Link href="/shop" className="text-[11px] text-zinc-500">ดูทั้งหมด →</Link>
           </div>
+          {productsLoaded && products.length > 0 ? (
+            <CardFan items={products} />
+          ) : (
           <div className="flex gap-2 overflow-x-auto px-4 pb-1 snap-x">
             {!productsLoaded
               ? [0, 1, 2].map((i) => (
@@ -219,6 +233,14 @@ export default function HomePage() {
                   </Link>
                 ))}
           </div>
+          )}
+        </section>
+      )}
+
+      {/* นับถอยหลังสู่งานถัดไป */}
+      {events[0] && (
+        <section className="px-4 mb-4">
+          <FlipCountdown to={`${events[0].date}T10:00:00+07:00`} title={events[0].title} sub={events[0].location} href={`/events/${events[0].id}`} />
         </section>
       )}
 
@@ -274,6 +296,8 @@ export default function HomePage() {
         </div>
       </section>
 
+      <LogoMarquee />
+
       {/* News */}
       <section className="px-4 mb-4">
         <div className="flex items-center justify-between mb-3">
@@ -316,6 +340,7 @@ export default function HomePage() {
         </div>
       </section>
 
+      <BigFooter />
       <BottomNav />
     </div>
   );

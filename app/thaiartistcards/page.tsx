@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useMemo } from "react";
+import GlareCard from "@/components/fx/GlareCard";
 import { useModal } from "@/lib/use-modal";
 import { createClient } from "@/lib/supabase";
 import BottomNav from "@/components/BottomNav";
@@ -45,7 +46,8 @@ function CardTile({ card, artist, category, onClick }: {
   onClick: () => void;
 }) {
   return (
-    <button onClick={onClick} className="card overflow-hidden text-left active:opacity-80 transition-opacity">
+    <GlareCard className="card overflow-hidden">
+    <button onClick={onClick} className="block w-full text-left active:opacity-80 transition-opacity">
       <div className="aspect-[3/4] bg-zinc-100 relative">
         {card.image_url ? (
           // ใช้ <img> แทน next/image เพราะรูปมาจาก Supabase Storage หลายโดเมน/ขนาดไม่แน่นอน
@@ -74,6 +76,7 @@ function CardTile({ card, artist, category, onClick }: {
         </div>
       </div>
     </button>
+    </GlareCard>
   );
 }
 
