@@ -1,5 +1,6 @@
 "use client";
 import type { BoothLayout } from "@/lib/booth-layout";
+import { useLang } from "@/lib/i18n";
 
 // วาดผังโต๊ะจากข้อมูลที่แปลงจากไฟล์ SVG — ใช้ทั้งหน้าจองของ Vendor และหน้าแอดมิน
 export type TableState = "free" | "booked" | "selected";
@@ -18,16 +19,17 @@ function Entrance({ x, y, len, dir }: NonNullable<BoothLayout["entrance"]>) {
   const horizontal = dir === "right" || dir === "left";
   const cx = horizontal ? x + (dir === "right" ? len / 2 : -len / 2) : x;
   const cy = horizontal ? y : y + (dir === "down" ? len / 2 : -len / 2);
+  const { L, lang } = useLang();
   return (
-    <g role="img" aria-label="ทางเข้างาน">
+    <g role="img" aria-label={L("ทางเข้างาน", "Entrance")}>
       <g transform={`translate(${x} ${y}) rotate(${ROT[dir]})`}>
         <g className="bm-entr-arrow">
           <rect x={0} y={-4} width={len - head + 2} height={8} rx={4} fill="#C9A96E" />
           <polygon points={`${len - head},-12 ${len},0 ${len - head},12`} fill="#A8823F" />
         </g>
       </g>
-      <text x={cx} y={cy - 15} textAnchor="middle" fontSize={12} fontWeight={700} fill="#8A6A2F" style={{ fontFamily: "inherit" }}>ทางเข้า</text>
-      <text x={cx} y={cy + 24} textAnchor="middle" fontSize={7.5} letterSpacing={2} fill="#8A6A2F" style={{ fontFamily: "inherit" }}>ENTRANCE</text>
+      <text x={cx} y={cy - 15} textAnchor="middle" fontSize={12} fontWeight={700} fill="#8A6A2F" style={{ fontFamily: "inherit" }}>{L("ทางเข้า", "Entrance")}</text>
+      {lang !== "en" && <text x={cx} y={cy + 24} textAnchor="middle" fontSize={7.5} letterSpacing={2} fill="#8A6A2F" style={{ fontFamily: "inherit" }}>ENTRANCE</text>}
     </g>
   );
 }
@@ -45,9 +47,10 @@ export default function BoothMap({
   logoOf?: (tableId: string) => { url: string; name: string } | null; // โลโก้ร้านที่ชำระแล้ว วางทับโต๊ะ
 }) {
   const [x, y, w, h] = layout.viewBox;
+  const { L } = useLang();
 
   return (
-    <svg viewBox={`${x} ${y} ${w} ${h}`} width="100%" role="group" aria-label="ผังโต๊ะงาน แตะหรือกด Enter ที่โต๊ะเพื่อเลือก" style={{ display: "block" }}>
+    <svg viewBox={`${x} ${y} ${w} ${h}`} width="100%" role="group" aria-label={L("ผังโต๊ะงาน แตะหรือกด Enter ที่โต๊ะเพื่อเลือก", "Table map. Tap or press Enter on a table to select it")} style={{ display: "block" }}>
       <style>{`
         .bm-t{cursor:pointer;outline:none}
         .bm-t rect{fill:#fff;stroke:#a1a1aa;stroke-width:1}
@@ -92,7 +95,7 @@ export default function BoothMap({
           className="bm-z"
           tabIndex={0}
           role="img"
-          aria-label={`${z.label} ขนาด ${z.size}`}
+          aria-label={L(`${z.label} ขนาด ${z.size}`, `${z.label}, size ${z.size}`)}
           onPointerEnter={(e) => { if (e.pointerType === "mouse") onHover?.(z.id, e.currentTarget.getBoundingClientRect()); }}
           onPointerLeave={(e) => { if (e.pointerType === "mouse") onHover?.(null, null); }}
           onFocus={(e) => onHover?.(z.id, e.currentTarget.getBoundingClientRect())}
