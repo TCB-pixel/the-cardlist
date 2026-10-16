@@ -32,7 +32,7 @@ function splash() {
   try {
     const params = new URLSearchParams(location.search);
     const forced = params.get("splash") === "1";
-    if (!forced && (sessionStorage.getItem("cl-splash") || location.pathname.startsWith("/admin"))) return;
+    if (!forced && (sessionStorage.getItem("cl-splash") || location.pathname.startsWith("/admin") || location.pathname.startsWith("/passport"))) return;
     sessionStorage.setItem("cl-splash", "1");
 
     const root = document.createElement("div");

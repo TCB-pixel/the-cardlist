@@ -1,0 +1,41 @@
+/* CARDLIST PASSPORT — ธีมอีเวนต์ night + event-gold (brand guide) · เคารพ prefers-reduced-motion */
+.pp { --night: #141414; --gold: #a88c4a; --hi: #e9d29a; --mut: #a1a1aa; background: var(--night); color: #e4e4e7; min-height: 100dvh; }
+.pp-foil { position: relative; overflow: hidden; }
+.pp-foil::before { content: ""; position: absolute; inset: 0; pointer-events: none; mix-blend-mode: color-dodge; opacity: .5;
+  background: linear-gradient(115deg, transparent 20%, #ff6fd8 35%, #7afcff 45%, #fff59d 55%, transparent 70%); background-size: 250% 250%;
+  animation: pp-foil 6s ease-in-out infinite; }
+@keyframes pp-foil { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+.pp-slam { animation: pp-slam .55s cubic-bezier(.2, 1.6, .4, 1) both; }
+@keyframes pp-slam { 0% { transform: scale(2.6) rotate(-30deg); opacity: 0; filter: blur(6px); } 100% { transform: scale(1) rotate(-9deg); opacity: 1; filter: blur(0); } }
+.pp-shake { animation: pp-shake .25s .45s; }
+@keyframes pp-shake { 25% { transform: translate(3px, -2px); } 50% { transform: translate(-3px, 2px); } 75% { transform: translate(2px, 1px); } }
+.pp-spin { transform-origin: 100px 100px; animation: pp-spin 18s linear infinite; }
+@keyframes pp-spin { to { transform: rotate(360deg); } }
+.pp-pop { animation: pp-pop .7s cubic-bezier(.2, 1.5, .4, 1) both; }
+@keyframes pp-pop { from { transform: scale(.2) rotate(-12deg); opacity: 0; } }
+.pp-sweep { position: relative; overflow: hidden; }
+.pp-sweep::after { content: ""; position: absolute; top: 0; bottom: 0; width: 60px; left: -80px; transform: skewX(-20deg);
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .95), transparent); animation: pp-sweep .9s ease-in-out .7s forwards; }
+@keyframes pp-sweep { to { left: 120%; } }
+.pp-burst { animation: pp-burst .8s ease-out .3s both; }
+@keyframes pp-burst { 0% { transform: scale(.4); opacity: 1; } 100% { transform: scale(1.8); opacity: 0; } }
+.pp-shine { position: absolute; inset: 0; border-radius: inherit; padding: 1.5px; pointer-events: none;
+  background: conic-gradient(from var(--pp-a), transparent 0 70%, var(--hi) 80%, transparent 90%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
+  animation: pp-rot 3s linear infinite; }
+@property --pp-a { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+@keyframes pp-rot { to { --pp-a: 360deg; } }
+.pp-drain { transform-origin: left; animation: pp-drain linear forwards; }
+@keyframes pp-drain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+.pp-flipin { animation: pp-flipin .8s cubic-bezier(.3, 1.4, .5, 1) both; }
+@keyframes pp-flipin { from { transform: rotateY(180deg) scale(.8); } }
+.pp-glow { animation: pp-glow .8s ease-in-out 2; }
+@keyframes pp-glow { 50% { box-shadow: 0 0 60px 18px var(--tc); } }
+.pp-rays { background: repeating-conic-gradient(from 0deg, var(--tc) 0 6deg, transparent 6deg 20deg);
+  -webkit-mask: radial-gradient(circle, #000 0, transparent 65%); mask: radial-gradient(circle, #000 0, transparent 65%); animation: pp-spin2 12s linear infinite; }
+@keyframes pp-spin2 { to { transform: rotate(360deg); } }
+.pp-lid { transition: transform .45s, opacity .45s; }
+.pp-open .pp-lid { transform: translate(40px, -60px) rotate(-25deg); opacity: 0; }
+.pp-fade { animation: pp-fade .25s both; }
+@keyframes pp-fade { from { opacity: 0; transform: translateY(8px); } }
+@media (prefers-reduced-motion: reduce) { .pp *, .pp *::before, .pp *::after { animation: none !important; transition: none !important; } }

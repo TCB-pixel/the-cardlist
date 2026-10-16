@@ -48,6 +48,15 @@ const NAV: NavGroup[] = [
     ],
   },
   {
+    group: "Passport",
+    items: [
+      { href: "/admin/passport/redeem", label: "บูธ: ขาย / แลกของ", permission: "passport:redeem",
+        icon: <><rect x="4" y="2.5" width="12" height="15" rx="2" stroke="currentColor" strokeWidth="1.3" fill="none"/><circle cx="10" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.3" fill="none"/><line x1="7" y1="14" x2="13" y2="14" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></> },
+      { href: "/admin/passport", label: "ภาพรวม Passport", permission: "passport:view",
+        icon: <><path d="M4 16V9M8 16V5M12 16v-4M16 16V7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></> },
+    ],
+  },
+  {
     group: "เนื้อหา",
     items: [
       { href: "/admin/news", label: "ข่าวสาร & บทความ", permission: "news:view",

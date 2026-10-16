@@ -11,7 +11,8 @@ export type Permission =
   | "play:view" | "play:scan" | "play:manage"
   | "staff:view" | "staff:create" | "staff:edit" | "staff:delete"
   | "chatbot:view" | "chatbot:edit"
-  | "booth:view" | "booth:edit";
+  | "booth:view" | "booth:edit"
+  | "passport:view" | "passport:redeem" | "passport:manage";
 
 const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
   owner: [
@@ -26,6 +27,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
     "staff:view", "staff:create", "staff:edit", "staff:delete",
     "chatbot:view", "chatbot:edit",
     "booth:view", "booth:edit",
+    "passport:view", "passport:redeem", "passport:manage",
   ],
   head_staff: [
     "dashboard:view",
@@ -38,6 +40,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
     "play:view", "play:scan", "play:manage",
     "staff:view", "staff:create", "staff:edit",
     "chatbot:view", "chatbot:edit",
+    "passport:view", "passport:redeem", "passport:manage",
     // head_staff ลบ staff ไม่ได้, สร้าง/แก้ได้แค่ staff (ไม่ใช่ owner/head_staff)
   ],
   staff: [
@@ -54,6 +57,8 @@ const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
     // staff ดูแชทได้ แต่แก้ข้อมูลร้าน/อนุมัติคำตอบไม่ได้
     "chatbot:view",
     "booth:view",
+    // staff หน้าบูธขาย Passport และยืนยันแลกของได้ แต่แก้จำนวนรางวัล/จุดสแกนไม่ได้
+    "passport:view", "passport:redeem",
   ],
 };
 
