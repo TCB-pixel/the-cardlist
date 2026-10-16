@@ -1,9 +1,11 @@
 "use client";
 import { useEffect } from "react";
+import { useLang } from "@/lib/i18n";
 
 // ฉากฉลองเต็มจอเมื่อใช้โค้ดพิเศษสำเร็จ — ข้อความมาจากเซิร์ฟเวอร์ (ชื่อโค้ดไม่ฝังอยู่ในหน้าเว็บ)
 // แตะที่ไหนก็ได้เพื่อปิด · ปิดเองหลัง 4.2 วินาที · ผู้ที่ตั้งค่าลดการเคลื่อนไหวจะเห็นแบบนิ่ง
 export default function CodeCelebration({ text, sub, onDone }: { text: string; sub?: string; onDone: () => void }) {
+  const { L } = useLang();
   useEffect(() => {
     const t = setTimeout(onDone, 4200);
     const k = (e: KeyboardEvent) => { if (e.key === "Escape") onDone(); };
@@ -77,7 +79,7 @@ export default function CodeCelebration({ text, sub, onDone }: { text: string; s
         )}
         {sub && <p className="cc-sub">{sub}</p>}
       </div>
-      <p className="cc-hint">แตะเพื่อปิด</p>
+      <p className="cc-hint">{L("แตะเพื่อปิด", "Tap to close")}</p>
     </div>
   );
 }

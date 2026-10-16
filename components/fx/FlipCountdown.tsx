@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import BrandText from "@/components/BrandText";
+import { useLang } from "@/lib/i18n";
 
 // นับถอยหลังแบบป้ายพลิก (แรงบันดาลใจ: Flip Countdown บน 21st.dev) — วัน / ชม. / นาที / วินาที
 function parts(ms: number) {
@@ -24,6 +25,7 @@ function Unit({ value, label }: { value: number; label: string }) {
 }
 
 export default function FlipCountdown({ to, title, sub, href }: { to: string; title: string; sub?: string; href?: string }) {
+  const { L } = useLang();
   const target = new Date(to).getTime();
   const [now, setNow] = useState<number | null>(null);
   useEffect(() => {
@@ -35,17 +37,17 @@ export default function FlipCountdown({ to, title, sub, href }: { to: string; ti
   const p = parts(now === null ? 0 : target - now);
   const body = (
     <div className="card px-4 py-4">
-      <p className="text-[10px] font-semibold tracking-widest text-zinc-500">นับถอยหลังสู่งาน</p>
+      <p className="text-[10px] font-semibold tracking-widest text-zinc-500">{L("นับถอยหลังสู่งาน", "Countdown to the event")}</p>
       <p className="text-sm font-semibold text-zinc-900 mt-0.5 leading-snug"><BrandText text={title} /></p>
       {sub && <p className="text-[11px] text-zinc-500">{sub}</p>}
       <div className="flex items-start justify-between mt-3" aria-live="off">
-        <Unit value={p.d} label="วัน" />
+        <Unit value={p.d} label={L("วัน", "Days")} />
         <span className="fx-flip-colon">:</span>
-        <Unit value={p.h} label="ชม." />
+        <Unit value={p.h} label={L("ชม.", "Hrs")} />
         <span className="fx-flip-colon">:</span>
-        <Unit value={p.m} label="นาที" />
+        <Unit value={p.m} label={L("นาที", "Min")} />
         <span className="fx-flip-colon">:</span>
-        <Unit value={p.s} label="วินาที" />
+        <Unit value={p.s} label={L("วินาที", "Sec")} />
       </div>
     </div>
   );

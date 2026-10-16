@@ -5,7 +5,9 @@ import Link from "next/link";
 import BrandText from "@/components/BrandText";
 import BottomNav from "@/components/BottomNav";
 import HeroBanner from "@/components/HeroBanner";
-import { Banner, DEFAULT_HOME_BANNERS } from "@/lib/banners";
+import { Banner, DEFAULT_HOME_BANNERS, DEFAULT_HOME_BANNERS_EN } from "@/lib/banners";
+import { useLang } from "@/lib/i18n";
+import LangToggle from "@/components/LangToggle";
 import { createClient } from "@/lib/supabase";
 import FlipCountdown from "@/components/fx/FlipCountdown";
 import LogoMarquee from "@/components/fx/LogoMarquee";
@@ -21,14 +23,17 @@ const TCG_GAMES = [
 ];
 
 const QUICK_LINKS = [
-  { href: "/shop?category=preorder", label: "Pre-order", icon: "📦" },
-  { href: "/shop?category=single",   label: "Singles",   icon: "🃏" },
-  { href: "/events",                 label: "อีเวนต์",   icon: "🏆" },
-  { href: "/news",                   label: "ข่าวสาร",   icon: "📰" },
+  { href: "/shop?category=preorder", label: "Pre-order", en: "Pre-order", icon: "📦" },
+  { href: "/shop?category=single",   label: "Singles",   en: "Singles",   icon: "🃏" },
+  { href: "/events",                 label: "อีเวนต์",   en: "Events", icon: "🏆" },
+  { href: "/news",                   label: "ข่าวสาร",   en: "News",   icon: "📰" },
 ];
 
 export default function HomePage() {
-  const [banners, setBanners] = useState<Banner[]>(DEFAULT_HOME_BANNERS);
+  const { L, lang, locale } = useLang();
+  // null = ยังไม่มีแบนเนอร์จากหลังบ้าน → ใช้แบนเนอร์สำรองตามภาษา
+  const [dbBanners, setBanners] = useState<Banner[] | null>(null);
+  const banners = dbBanners ?? (lang === "en" ? DEFAULT_HOME_BANNERS_EN : DEFAULT_HOME_BANNERS);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [events, setEvents] = useState<any[]>([]);
@@ -52,7 +57,7 @@ export default function HomePage() {
           .select("display_name, username")
           .eq("id", user.id)
           .single();
-        setDisplayName(profile?.display_name ?? profile?.username ?? "บัญชีของฉัน");
+        setDisplayName(profile?.display_name ?? profile?.username ?? "");
       }
     }
 
@@ -143,18 +148,19 @@ export default function HomePage() {
         <div className="flex items-center justify-between px-4 h-12">
           <Image src="/images/logo-long.jpg" alt="The Cardlist" width={130} height={42} className="h-7 w-auto object-contain" />
           <div className="flex items-center gap-2">
+            <LangToggle />
             {isLoggedIn ? (
               <Link href="/profile"
                 className="flex items-center gap-2 text-[11px] border border-zinc-200 rounded-xl px-3 py-1.5 text-zinc-700">
                 <div className="w-4 h-4 bg-zinc-900 rounded-full flex items-center justify-center text-white text-[10px] font-bold">
                   {displayName[0]?.toUpperCase() ?? "U"}
                 </div>
-                <span className="max-w-[80px] truncate">{displayName}</span>
+                <span className="max-w-[80px] truncate">{displayName || L("บัญชีของฉัน", "My account")}</span>
               </Link>
             ) : (
               <>
                 <Link href="/login"    className="text-[11px] border border-zinc-200 rounded-xl px-3 py-1.5 text-zinc-700">Log in</Link>
-                <Link href="/register" className="btn-primary py-1.5">สมัคร</Link>
+                <Link href="/register" className="btn-primary py-1.5">{L("สมัคร", "Sign up")}</Link>
               </>
             )}
           </div>
@@ -162,16 +168,16 @@ export default function HomePage() {
       </header>
 
       <p className="px-4 pt-3 text-xs text-zinc-600 leading-relaxed">
-        แพลตฟอร์มสำหรับคนเล่นการ์ดเกมในไทย — ซื้อการ์ดและอุปกรณ์ ติดตามอีเวนต์ และจองโต๊ะร้านค้าในงาน
+        {L("แพลตฟอร์มสำหรับคนเล่นการ์ดเกมในไทย — ซื้อการ์ดและอุปกรณ์ ติดตามอีเวนต์ และจองโต๊ะร้านค้าในงาน", "The platform for card game players in Thailand — buy cards and accessories, follow events, and book vendor tables.")}
       </p>
 
       {/* Hero Banner */}
       <HeroBanner banners={banners} intervalMs={4000} />
 
       <StatsStrip items={[
-        { value: 10000, suffix: "+", label: "ผู้เข้าร่วมงาน" },
-        { value: 500, suffix: "+", label: "นักแข่งขัน" },
-        { value: 48, label: "บูธ Vendor ต่องาน" },
+        { value: 10000, suffix: "+", label: L("ผู้เข้าร่วมงาน", "Attendees") },
+        { value: 500, suffix: "+", label: L("นักแข่งขัน", "Players") },
+        { value: 48, label: L("บูธ Vendor ต่องาน", "Vendor booths per event") },
       ]} />
 
       {/* Quick links */}
@@ -180,7 +186,7 @@ export default function HomePage() {
           {QUICK_LINKS.map((q) => (
             <Link key={q.href} href={q.href} className="card flex flex-col items-center gap-1 py-3 px-1 active:bg-zinc-50">
               <span className="text-lg">{q.icon}</span>
-              <span className="text-[11px] text-zinc-600 font-medium text-center">{q.label}</span>
+              <span className="text-[11px] text-zinc-600 font-medium text-center">{lang === "en" ? q.en : q.label}</span>
             </Link>
           ))}
         </div>
@@ -189,7 +195,7 @@ export default function HomePage() {
       {/* TCG Games */}
       <section className="px-4 mb-4">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xs font-semibold text-zinc-900 tracking-wide">เกมที่มีจำหน่าย</h2>
+          <h2 className="text-xs font-semibold text-zinc-900 tracking-wide">{L("เกมที่มีจำหน่าย", "Games we carry")}</h2>
         </div>
         <div className="grid grid-cols-2 gap-2">
           {TCG_GAMES.map((g) => (
@@ -205,8 +211,8 @@ export default function HomePage() {
       {(!productsLoaded || products.length > 0) && (
         <section className="mb-4">
           <div className="flex items-center justify-between mb-3 px-4">
-            <h2 className="text-xs font-semibold text-zinc-900 tracking-wide">สินค้ามาใหม่</h2>
-            <Link href="/shop" className="text-[11px] text-zinc-500">ดูทั้งหมด →</Link>
+            <h2 className="text-xs font-semibold text-zinc-900 tracking-wide">{L("สินค้ามาใหม่", "New arrivals")}</h2>
+            <Link href="/shop" className="text-[11px] text-zinc-500">{L("ดูทั้งหมด", "See all")} →</Link>
           </div>
           {productsLoaded && products.length > 0 ? (
             <CardFan items={products} />
@@ -247,8 +253,8 @@ export default function HomePage() {
       {/* Upcoming Events */}
       <section className="px-4 mb-4">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xs font-semibold text-zinc-900 tracking-wide">อีเวนต์ที่กำลังมา</h2>
-          <Link href="/events" className="text-[11px] text-zinc-500">ดูทั้งหมด →</Link>
+          <h2 className="text-xs font-semibold text-zinc-900 tracking-wide">{L("อีเวนต์ที่กำลังมา", "Upcoming events")}</h2>
+          <Link href="/events" className="text-[11px] text-zinc-500">{L("ดูทั้งหมด", "See all")} →</Link>
         </div>
         <div className="space-y-2">
           {!eventsLoaded ? (
@@ -258,14 +264,14 @@ export default function HomePage() {
             </div>
           ) : events.length === 0 ? (
             <div className="card px-4 py-5 text-center">
-              <p className="text-xs text-zinc-500">กำลังเตรียมงานครั้งถัดไป</p>
-              <p className="text-[11px] text-zinc-500 mt-1">ติดตามข่าวสารเพื่อไม่พลาดวันและสถานที่จัดงาน</p>
-              <Link href="/news" className="inline-block mt-3 text-[11px] font-semibold border border-zinc-200 rounded-xl px-4 py-1.5 text-zinc-700">ดูข่าวสารงานที่ผ่านมา</Link>
+              <p className="text-xs text-zinc-500">{L("กำลังเตรียมงานครั้งถัดไป", "Our next event is in the works")}</p>
+              <p className="text-[11px] text-zinc-500 mt-1">{L("ติดตามข่าวสารเพื่อไม่พลาดวันและสถานที่จัดงาน", "Follow the news so you don't miss the date and venue")}</p>
+              <Link href="/news" className="inline-block mt-3 text-[11px] font-semibold border border-zinc-200 rounded-xl px-4 py-1.5 text-zinc-700">{L("ดูข่าวสารงานที่ผ่านมา", "See past event news")}</Link>
             </div>
           ) : events.map((ev) => {
             const d = new Date(ev.date);
             const day = d.getDate().toString();
-            const month = d.toLocaleDateString("th-TH", { month: "short" }).toUpperCase();
+            const month = d.toLocaleDateString(locale, { month: "short" }).toUpperCase();
             const isMeetup = ev.event_type !== "tournament";
             const pct = ev.max_slots > 0 ? Math.round((ev.booked_slots / ev.max_slots) * 100) : 0;
             return (
@@ -279,11 +285,11 @@ export default function HomePage() {
                   <p className="text-[11px] text-zinc-500 mt-0.5">{ev.location}</p>
                   {isMeetup ? (
                     <div className="flex gap-1 mt-2">
-                      <span className="text-[10px] bg-green-50 text-green-600 px-1.5 py-0.5 rounded font-semibold">เข้าฟรี</span>
+                      <span className="text-[10px] bg-green-50 text-green-600 px-1.5 py-0.5 rounded font-semibold">{L("เข้าฟรี", "Free entry")}</span>
                     </div>
                   ) : ev.max_slots > 0 ? (
                     <div className="mt-2">
-                      <span className="text-[10px] text-zinc-500">ที่นั่งคงเหลือ {ev.max_slots - ev.booked_slots} / {ev.max_slots}</span>
+                      <span className="text-[10px] text-zinc-500">{L("ที่นั่งคงเหลือ", "Seats left")} {ev.max_slots - ev.booked_slots} / {ev.max_slots}</span>
                       <div className="h-1 bg-zinc-100 rounded-full overflow-hidden mt-1">
                         <div className="h-full bg-zinc-900 rounded-full" style={{ width: `${pct}%` }} />
                       </div>
@@ -301,8 +307,8 @@ export default function HomePage() {
       {/* News */}
       <section className="px-4 mb-4">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xs font-semibold text-zinc-900 tracking-wide">ข่าวสารล่าสุด</h2>
-          <Link href="/news" className="text-[11px] text-zinc-500">ดูทั้งหมด →</Link>
+          <h2 className="text-xs font-semibold text-zinc-900 tracking-wide">{L("ข่าวสารล่าสุด", "Latest news")}</h2>
+          <Link href="/news" className="text-[11px] text-zinc-500">{L("ดูทั้งหมด", "See all")} →</Link>
         </div>
         <div className="space-y-2">
           {!newsLoaded ? (
@@ -314,7 +320,7 @@ export default function HomePage() {
             ))
           ) : news.length === 0 ? (
             <div className="card px-4 py-6 text-center">
-              <p className="text-xs text-zinc-500">ยังไม่มีข่าวสาร</p>
+              <p className="text-xs text-zinc-500">{L("ยังไม่มีข่าวสาร", "No news yet")}</p>
             </div>
           ) : news.map((n) => (
             <Link key={n.slug} href={`/news/${n.slug}`} className="card px-4 py-3 flex gap-3 items-center active:bg-zinc-50 block">
@@ -329,7 +335,7 @@ export default function HomePage() {
                 <p className="text-[10px] font-semibold tracking-widest text-zinc-500 mb-0.5">{n.tag?.toUpperCase()}</p>
                 <p className="text-xs font-medium text-zinc-900 leading-snug line-clamp-2"><BrandText text={n.title} /></p>
                 <p className="text-[11px] text-zinc-500 mt-1">
-                  {n.published_at ? new Date(n.published_at).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" }) : ""}
+                  {n.published_at ? new Date(n.published_at).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" }) : ""}
                 </p>
               </div>
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="text-zinc-300 flex-shrink-0">
