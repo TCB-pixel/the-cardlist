@@ -1,6 +1,8 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
+import LangToggle from "@/components/LangToggle";
+import { useLang } from "@/lib/i18n";
 
 interface TopBarProps {
   title?: string;
@@ -9,13 +11,14 @@ interface TopBarProps {
 }
 
 export default function TopBar({ title, showBack, rightSlot }: TopBarProps) {
+  const { L } = useLang();
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-zinc-100">
       <div className="flex items-center justify-between px-4 h-12">
         <div className="flex items-center gap-2">
           {showBack && (
             <button
-              aria-label="ย้อนกลับ"
+              aria-label={L("ย้อนกลับ", "Back")}
               // เข้ามาจากลิงก์ภายนอก (เช่น LINE) จะไม่มีหน้าก่อนหน้าในเว็บ → กลับหน้าแรกแทนการออกจากเว็บ
               onClick={() => (window.history.length > 1 && document.referrer.startsWith(window.location.origin) ? window.history.back() : (window.location.href = "/"))}
               className="-ml-2 mr-1 w-10 h-10 flex items-center justify-center text-zinc-600">
@@ -39,7 +42,7 @@ export default function TopBar({ title, showBack, rightSlot }: TopBarProps) {
             </Link>
           )}
         </div>
-        <div className="flex items-center gap-2">{rightSlot}</div>
+        <div className="flex items-center gap-2"><LangToggle />{rightSlot}</div>
       </div>
     </header>
   );

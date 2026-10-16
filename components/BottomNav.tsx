@@ -1,11 +1,13 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useLang } from "@/lib/i18n";
 
 const NAV = [
   {
     href: "/",
     label: "หน้าแรก",
+    labelEn: "Home",
     icon: (active: boolean) => (
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
         <path d="M3 9.5L10 3l7 6.5V17a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" stroke="currentColor" strokeWidth={active ? "1.6" : "1.3"} fill="none" strokeLinejoin="round"/>
@@ -79,6 +81,7 @@ const NAV = [
 // แถบเมนูล่างแบบลอย (แรงบันดาลใจ: Floating Dock บน 21st.dev) — เมนูที่อยู่ขยายไอคอนและมีพื้นทึบ
 export default function BottomNav() {
   const pathname = usePathname();
+  const { lang } = useLang();
   return (
     <nav className="fixed bottom-3 left-3 right-3 z-50 mx-auto max-w-md rounded-2xl bg-white/90 backdrop-blur-md border border-zinc-200/80 shadow-[0_10px_30px_-12px_rgba(0,0,0,.35)] flex items-center justify-around h-16 px-1"
       style={{ marginBottom: "env(safe-area-inset-bottom)" }}>
@@ -90,7 +93,7 @@ export default function BottomNav() {
             <span className={`flex items-center justify-center w-9 h-8 rounded-xl transition-all duration-200 ${active ? "bg-zinc-900 text-white scale-110 -translate-y-0.5" : "group-hover:bg-zinc-100 group-active:scale-90"}`}>
               {item.icon(active)}
             </span>
-            <span className={`text-[10px] tracking-tight whitespace-nowrap ${active ? "font-semibold" : "font-normal"}`}>{item.label}</span>
+            <span className={`text-[10px] tracking-tight whitespace-nowrap ${active ? "font-semibold" : "font-normal"}`}>{lang === "en" && "labelEn" in item ? item.labelEn : item.label}</span>
           </Link>
         );
       })}
