@@ -6,6 +6,7 @@ import BottomNav from "@/components/BottomNav";
 import TopBar from "@/components/TopBar";
 import { newsCover } from "@/lib/news-cover";
 import BrandText from "@/components/BrandText";
+import { useLang } from "@/lib/i18n";
 
 type NewsPost = {
   id: string;
@@ -27,12 +28,13 @@ const TAG_COLOR: Record<string, string> = {
   "DECK GUIDE": "bg-green-50 text-green-700",
 };
 
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" });
+function formatDate(dateStr: string, locale: string) {
+  return new Date(dateStr).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" });
 }
 
 export default function NewsPage() {
   const supabase = createClient();
+  const { L, locale } = useLang();
   const [activeTag, setActiveTag] = useState("ทั้งหมด");
   const [news, setNews] = useState<NewsPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,14 +62,14 @@ export default function NewsPage() {
 
   return (
     <div className="min-h-screen bg-zinc-50 pb-20">
-      <TopBar title="ข่าวสาร & บทความ" />
+      <TopBar title={L("ข่าวสาร & บทความ", "News & Articles")} />
 
       {/* Tag filters */}
       <div className="flex gap-2 overflow-x-auto scrollbar-hide px-4 py-3 bg-white border-b border-zinc-100">
         {TAGS.map((tag) => (
           <button key={tag} onClick={() => setActiveTag(tag)}
             className={`flex-shrink-0 text-[11px] px-3 py-1.5 rounded-full border tracking-wide transition-colors ${activeTag === tag ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 text-zinc-500 bg-white"}`}>
-            {tag}
+            {tag === "ทั้งหมด" ? L("ทั้งหมด", "All") : tag}
           </button>
         ))}
       </div>
@@ -79,15 +81,15 @@ export default function NewsPage() {
           </div>
         ) : loadError ? (
           <div className="text-center py-16" role="alert">
-            <p className="text-sm font-semibold text-zinc-700">โหลดข่าวสารไม่สำเร็จ</p>
-            <p className="text-xs text-zinc-500 mt-1">ตรวจอินเทอร์เน็ตแล้วลองใหม่อีกครั้ง</p>
-            <button onClick={() => setReloadKey((k) => k + 1)} className="mt-4 text-xs font-semibold border border-zinc-200 rounded-xl px-5 py-2.5 text-zinc-700">ลองใหม่</button>
+            <p className="text-sm font-semibold text-zinc-700">{L("โหลดข่าวสารไม่สำเร็จ", "Couldn't load news")}</p>
+            <p className="text-xs text-zinc-500 mt-1">{L("ตรวจอินเทอร์เน็ตแล้วลองใหม่อีกครั้ง", "Check your connection and try again.")}</p>
+            <button onClick={() => setReloadKey((k) => k + 1)} className="mt-4 text-xs font-semibold border border-zinc-200 rounded-xl px-5 py-2.5 text-zinc-700">{L("ลองใหม่", "Try again")}</button>
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-16">
-            <p className="text-sm text-zinc-500">{activeTag === "ทั้งหมด" ? "ยังไม่มีข่าวสาร" : "ยังไม่มีข่าวในหมวดนี้"}</p>
+            <p className="text-sm text-zinc-500">{activeTag === "ทั้งหมด" ? L("ยังไม่มีข่าวสาร", "No news yet") : L("ยังไม่มีข่าวในหมวดนี้", "No news in this category yet")}</p>
             {activeTag !== "ทั้งหมด" && (
-              <button onClick={() => setActiveTag("ทั้งหมด")} className="mt-3 text-xs font-semibold border border-zinc-200 rounded-xl px-5 py-2.5 text-zinc-700">ดูข่าวทั้งหมด</button>
+              <button onClick={() => setActiveTag("ทั้งหมด")} className="mt-3 text-xs font-semibold border border-zinc-200 rounded-xl px-5 py-2.5 text-zinc-700">{L("ดูข่าวทั้งหมด", "See all news")}</button>
             )}
           </div>
         ) : (
@@ -111,7 +113,7 @@ export default function NewsPage() {
                 </div>
                 <div className="p-4">
                   <p className="text-xs text-zinc-500 leading-relaxed">{featured.excerpt}</p>
-                  <p className="text-[11px] text-zinc-500 mt-2">{formatDate(featured.published_at)}</p>
+                  <p className="text-[11px] text-zinc-500 mt-2">{formatDate(featured.published_at, locale)}</p>
                 </div>
               </Link>
             )}
@@ -130,7 +132,7 @@ export default function NewsPage() {
                 <div className="flex-1 min-w-0">
                   <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded tracking-widest ${TAG_COLOR[n.tag] ?? "bg-zinc-100 text-zinc-600"}`}>{n.tag}</span>
                   <p className="text-xs font-semibold text-zinc-900 leading-snug mt-1.5 line-clamp-2"><BrandText text={n.title} /></p>
-                  <p className="text-[11px] text-zinc-500 mt-1">{formatDate(n.published_at)}</p>
+                  <p className="text-[11px] text-zinc-500 mt-1">{formatDate(n.published_at, locale)}</p>
                 </div>
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="text-zinc-300 flex-shrink-0 mt-1">
                   <path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -139,7 +141,7 @@ export default function NewsPage() {
             ))}
 
             {filtered.length === 0 && (
-              <p className="text-center text-sm text-zinc-500 py-12">ไม่พบบทความในหมวดนี้</p>
+              <p className="text-center text-sm text-zinc-500 py-12">{L("ไม่พบบทความในหมวดนี้", "No articles in this category")}</p>
             )}
           </>
         )}

@@ -10,6 +10,7 @@ import BottomNav from "@/components/BottomNav";
 import LogoLoader from "@/components/LogoLoader";
 import TopBar from "@/components/TopBar";
 import FacebookFollowCard from "@/components/FacebookFollowCard";
+import { useLang } from "@/lib/i18n";
 
 type EventType = "meetup" | "tournament" | "sale";
 
@@ -43,10 +44,10 @@ const TCG_COLOR: Record<string, string> = {
   "Other": "#888",
 };
 
-function formatDate(date: string, dateEnd: string | null) {
+function formatDate(date: string, dateEnd: string | null, locale: string) {
   const d = new Date(date);
   const day = d.getDate();
-  const month = d.toLocaleDateString("th-TH", { month: "long" });
+  const month = d.toLocaleDateString(locale, { month: "long" });
   const year = d.getFullYear();
   if (dateEnd) {
     const de = new Date(dateEnd);
@@ -60,6 +61,7 @@ export default function EventDetailPage() {
   const router = useRouter();
   const supabase = createClient();
   const eventId = params?.id as string;
+  const { L, locale } = useLang();
 
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
@@ -133,13 +135,13 @@ export default function EventDetailPage() {
       if (!res.ok) {
         // server ปฏิเสธเพราะยังไม่ได้กดลิงก์เพจ — ดึงการ์ดฟอลเพจกลับมาแสดง
         if (data.reason === "fb_follow_required") setFbClicked(false);
-        throw new Error(data.error || "ลงทะเบียนไม่สำเร็จ");
+        throw new Error(data.error || L("ลงทะเบียนไม่สำเร็จ", "Registration failed"));
       }
       setQrCode(data.qrCode);
       if (data.alreadyRegistered) setAlreadyRegistered(true);
       else setRegistered(true);
     } catch (e: any) {
-      setRegisterError(e?.message ?? "ลงทะเบียนไม่สำเร็จ");
+      setRegisterError(e?.message ?? L("ลงทะเบียนไม่สำเร็จ", "Registration failed"));
     } finally {
       setRegistering(false);
     }
@@ -148,7 +150,7 @@ export default function EventDetailPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-zinc-50 pb-20">
-        <TopBar title="อีเวนต์" showBack />
+        <TopBar title={L("อีเวนต์", "Event")} showBack />
         <LogoLoader />
         <BottomNav />
       </div>
@@ -158,10 +160,10 @@ export default function EventDetailPage() {
   if (notFound || !event) {
     return (
       <div className="min-h-screen bg-zinc-50 pb-20">
-        <TopBar title="อีเวนต์" showBack />
+        <TopBar title={L("อีเวนต์", "Event")} showBack />
         <div className="text-center py-24 px-6">
-          <p className="text-sm text-zinc-500 mb-4">ไม่พบอีเวนต์นี้</p>
-          <Link href="/events" className="btn-primary inline-block px-6 py-2.5">กลับไปหน้าอีเวนต์</Link>
+          <p className="text-sm text-zinc-500 mb-4">{L("ไม่พบอีเวนต์นี้", "Event not found")}</p>
+          <Link href="/events" className="btn-primary inline-block px-6 py-2.5">{L("กลับไปหน้าอีเวนต์", "Back to events")}</Link>
         </div>
         <BottomNav />
       </div>
@@ -176,7 +178,7 @@ export default function EventDetailPage() {
 
   return (
     <div className="min-h-screen bg-zinc-50 pb-20">
-      <TopBar title="รายละเอียดอีเวนต์" showBack />
+      <TopBar title={L("รายละเอียดอีเวนต์", "Event details")} showBack />
 
       {/* Banner */}
       {event.image_url && (
@@ -196,8 +198,8 @@ export default function EventDetailPage() {
           <h1 className="text-lg font-bold text-zinc-900 leading-snug mb-3"><BrandText text={event.title} /></h1>
 
           <div className="space-y-1.5 mb-4">
-            <p className="text-xs text-zinc-500">📅 {formatDate(event.date, event.date_end)}</p>
-            <p className="text-xs text-zinc-500">🕐 {event.time?.slice(0, 5)} น.</p>
+            <p className="text-xs text-zinc-500">📅 {formatDate(event.date, event.date_end, locale)}</p>
+            <p className="text-xs text-zinc-500">🕐 {event.time?.slice(0, 5)}{L(" น.", "")}</p>
             <p className="text-xs text-zinc-500">📍 {event.location}</p>
           </div>
 
@@ -206,13 +208,13 @@ export default function EventDetailPage() {
           )}
 
           <div className="bg-green-50 rounded-xl px-3 py-2.5 text-center mb-2">
-            <p className="text-xs font-bold text-green-600">เข้างานฟรี ไม่มีค่าใช้จ่าย</p>
+            <p className="text-xs font-bold text-green-600">{L("เข้างานฟรี ไม่มีค่าใช้จ่าย", "Free entry, no charge")}</p>
           </div>
 
           {event.trading_tables_enabled && (
             <Link href="/events"
               className="block w-full text-center text-xs font-semibold py-2.5 rounded-xl border border-zinc-200 text-zinc-700 active:bg-zinc-50 transition-colors">
-              🃏 จองโต๊ะเทรดในงานนี้ — ไปที่แท็บ &quot;จองโต๊ะเทรด&quot;
+              🃏 {L("จองโต๊ะเทรดในงานนี้ — ไปที่แท็บ \"จองโต๊ะเทรด\"", "Book a trading table at this event — go to the \"Trading tables\" tab")}
             </Link>
           )}
         </div>
@@ -223,14 +225,14 @@ export default function EventDetailPage() {
             <div className="flex items-center gap-2 mb-3">
               <span className="text-xl" aria-hidden="true">🎁</span>
               <div>
-                <h2 className="text-sm font-bold text-amber-900">ลงทะเบียนแล้วลุ้นรับ</h2>
-                <p className="text-[11px] text-amber-700/70">ลงทะเบียนฟรี ไม่มีค่าใช้จ่าย</p>
+                <h2 className="text-sm font-bold text-amber-900">{L("ลงทะเบียนแล้วลุ้นรับ", "Register for a chance to win")}</h2>
+                <p className="text-[11px] text-amber-700/70">{L("ลงทะเบียนฟรี ไม่มีค่าใช้จ่าย", "Free to register, no charge")}</p>
               </div>
             </div>
 
             {event.lucky_draw_image_url && (
               <div className="relative w-full aspect-[16/10] rounded-xl overflow-hidden mb-3 bg-white">
-                <Image src={event.lucky_draw_image_url} alt="รางวัลที่ลุ้นได้"
+                <Image src={event.lucky_draw_image_url} alt={L("รางวัลที่ลุ้นได้", "Prizes up for grabs")}
                   fill className="object-contain" sizes="100vw" />
               </div>
             )}
@@ -246,8 +248,7 @@ export default function EventDetailPage() {
 
             {event.require_fb_follow && (
               <p className="text-[11px] text-amber-800 mt-3 leading-relaxed">
-                <span className="font-semibold">เงื่อนไข:</span> ต้องกดติดตามเพจ Facebook ของร้าน
-                และทีมงานจะตรวจสอบอีกครั้งหน้างานตอนสแกน QR
+                <span className="font-semibold">{L("เงื่อนไข:", "Condition:")}</span> {L("ต้องกดติดตามเพจ Facebook ของร้าน และทีมงานจะตรวจสอบอีกครั้งหน้างานตอนสแกน QR", "You must follow our Facebook page. Staff will check again when scanning your QR at the event.")}
               </p>
             )}
           </div>
@@ -256,18 +257,18 @@ export default function EventDetailPage() {
         {/* ── ลงทะเบียนเข้างาน (เฉพาะงาน meet up / general — tournament ใช้ระบบที่นั่งแยก) ── */}
         {!isTournament && (
           <div className="bg-white rounded-2xl border border-zinc-100 p-4">
-            <h2 className="text-sm font-semibold text-zinc-900 mb-1">ลงทะเบียนเข้าร่วมงาน</h2>
-            <p className="text-[11px] text-zinc-500 mb-4">รับ QR Code สำหรับสแกนเข้างานและใช้สิทธิ์หน้างาน</p>
+            <h2 className="text-sm font-semibold text-zinc-900 mb-1">{L("ลงทะเบียนเข้าร่วมงาน", "Register for this event")}</h2>
+            <p className="text-[11px] text-zinc-500 mb-4">{L("รับ QR Code สำหรับสแกนเข้างานและใช้สิทธิ์หน้างาน", "Get a QR code to check in and claim your perks at the event")}</p>
 
             {done ? (
               <div className="bg-zinc-50 rounded-2xl p-4 text-center border border-zinc-100">
                 <div className="text-2xl mb-2">✓</div>
                 <p className="text-sm font-semibold text-zinc-900">
-                  {alreadyRegistered && !registered ? "คุณลงทะเบียนงานนี้ไว้แล้ว" : "ลงทะเบียนสำเร็จ!"}
+                  {alreadyRegistered && !registered ? L("คุณลงทะเบียนงานนี้ไว้แล้ว", "You're already registered for this event") : L("ลงทะเบียนสำเร็จ!", "You're registered!")}
                 </p>
                 <p className="text-[11px] text-zinc-500 mt-1 font-mono">{qrCode}</p>
                 <Link href="/profile" className="mt-4 inline-block text-xs font-semibold text-zinc-900 border border-zinc-200 rounded-xl px-5 py-2.5 active:bg-zinc-50">
-                  ดู QR Code ที่โปรไฟล์ →
+                  {L("ดู QR Code ที่โปรไฟล์ →", "View QR code in your profile →")}
                 </Link>
               </div>
             ) : (
@@ -279,13 +280,13 @@ export default function EventDetailPage() {
                 )}
                 {!loggedIn && (
                   <p className="text-[11px] text-amber-600 mb-3">
-                    กรุณา <button type="button" onClick={goLogin} className="font-semibold underline">เข้าสู่ระบบ</button> ก่อนลงทะเบียน
+                    {L("กรุณา", "Please")} <button type="button" onClick={goLogin} className="font-semibold underline">{L("เข้าสู่ระบบ", "log in")}</button> {L("ก่อนลงทะเบียน", "before registering")}
                   </p>
                 )}
                 {loggedIn && needsFollow && (
                   <div className="mb-3 space-y-2">
                     <p className="text-[11px] text-amber-600 leading-relaxed">
-                      งานนี้ต้องกดติดตามเพจ Facebook ก่อนจึงจะลงทะเบียนได้
+                      {L("งานนี้ต้องกดติดตามเพจ Facebook ก่อนจึงจะลงทะเบียนได้", "Follow our Facebook page first to register for this event")}
                     </p>
                     <FacebookFollowCard onClicked={() => setFbClicked(true)} />
                   </div>
@@ -297,10 +298,10 @@ export default function EventDetailPage() {
                   className="w-full py-3 text-sm font-semibold rounded-xl bg-zinc-900 text-white disabled:opacity-50"
                 >
                   {registering
-                    ? "กำลังลงทะเบียน..."
+                    ? L("กำลังลงทะเบียน...", "Registering…")
                     : loggedIn && needsFollow
-                      ? "กดติดตามเพจก่อนลงทะเบียน"
-                      : "ลงทะเบียนเข้าร่วมงาน"}
+                      ? L("กดติดตามเพจก่อนลงทะเบียน", "Follow the page to register")
+                      : L("ลงทะเบียนเข้าร่วมงาน", "Register for this event")}
                 </button>
               </>
             )}
@@ -309,7 +310,7 @@ export default function EventDetailPage() {
 
         {isTournament && (
           <div className="bg-white rounded-2xl border border-zinc-100 p-4 text-center">
-            <p className="text-xs text-zinc-500">งานนี้เป็นทัวร์นาเมนต์ กรุณาติดต่อสตาฟหน้าร้านเพื่อลงทะเบียนที่นั่ง</p>
+            <p className="text-xs text-zinc-500">{L("งานนี้เป็นทัวร์นาเมนต์ กรุณาติดต่อสตาฟหน้าร้านเพื่อลงทะเบียนที่นั่ง", "This is a Tournament. Please contact in-store staff to register for a seat.")}</p>
           </div>
         )}
       </div>

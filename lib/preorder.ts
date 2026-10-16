@@ -12,22 +12,22 @@ export type PreorderFields = {
 
 const baht = (n: number) => `฿${n.toLocaleString("th-TH")}`;
 
-export function formatReleaseDate(d: string | null | undefined, withYear = true): string {
+export function formatReleaseDate(d: string | null | undefined, withYear = true, locale: string = "th-TH"): string {
   if (!d) return "";
   const dt = new Date(`${d}T00:00:00+07:00`);
   if (isNaN(dt.getTime())) return "";
-  return dt.toLocaleDateString("th-TH", {
+  return dt.toLocaleDateString(locale, {
     day: "numeric", month: "short", ...(withYear ? { year: "numeric" } : {}), timeZone: "Asia/Bangkok",
   });
 }
 
-export function formatCloseAt(iso: string | null | undefined): string {
+export function formatCloseAt(iso: string | null | undefined, locale: string = "th-TH"): string {
   if (!iso) return "";
   const dt = new Date(iso);
   if (isNaN(dt.getTime())) return "";
-  const date = dt.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Bangkok" });
-  const time = dt.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Bangkok" });
-  return `${date} ${time} น.`;
+  const date = dt.toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Bangkok" });
+  const time = dt.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Bangkok" });
+  return locale === "th-TH" ? `${date} ${time} น.` : `${date} ${time}`;
 }
 
 export function isPreorderClosed(p: { is_preorder?: boolean | null; preorder_close_at?: string | null }, now = Date.now()): boolean {

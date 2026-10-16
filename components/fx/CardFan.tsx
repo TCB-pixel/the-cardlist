@@ -1,11 +1,13 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import { useLang } from "@/lib/i18n";
 
 // การ์ดกางเป็นพัด แตะ/ปัดเพื่อเลื่อนใบเด่น (แรงบันดาลใจ: Card Fan Carousel บน 21st.dev)
 type Item = { id: string; name: string; price: number; image_url: string | null };
 
 export default function CardFan({ items, href = "/shop" }: { items: Item[]; href?: string }) {
+  const { L } = useLang();
   const [i, setI] = useState(0);
   const [x0, setX0] = useState<number | null>(null);
   const n = items.length;
@@ -36,8 +38,8 @@ export default function CardFan({ items, href = "/shop" }: { items: Item[]; href
           </div>
         );
       })}
-      <button type="button" aria-label="ใบก่อนหน้า" onClick={() => go(-1)} className="fx-fan-btn left-1">‹</button>
-      <button type="button" aria-label="ใบถัดไป" onClick={() => go(1)} className="fx-fan-btn right-1">›</button>
+      <button type="button" aria-label={L("ใบก่อนหน้า", "Previous card")} onClick={() => go(-1)} className="fx-fan-btn left-1">‹</button>
+      <button type="button" aria-label={L("ใบถัดไป", "Next card")} onClick={() => go(1)} className="fx-fan-btn right-1">›</button>
     </div>
   );
 }

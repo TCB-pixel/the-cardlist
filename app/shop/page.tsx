@@ -9,6 +9,7 @@ import BottomNav from "@/components/BottomNav";
 import LogoLoader from "@/components/LogoLoader";
 import TopBar from "@/components/TopBar";
 import { createClient } from "@/lib/supabase";
+import { useLang } from "@/lib/i18n";
 import { SHIPPING_FEE } from "@/lib/order-email";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -94,6 +95,7 @@ function CardPlaceholder({ tcg }: { tcg: string }) {
 
 export default function ShopPage() {
   const supabase = createClient();
+  const { L, locale } = useLang();
 
   const [products, setProducts]           = useState<Product[]>([]);
   const [loading, setLoading]             = useState(true);
@@ -196,12 +198,12 @@ export default function ShopPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        alert(data.error ?? "ขอสิทธิ์ไม่สำเร็จ");
+        alert(data.error ?? L("ขอสิทธิ์ไม่สำเร็จ", "Couldn't submit your request"));
       } else {
         await loadLotteries(products.map((pp) => pp.id));
       }
     } catch {
-      alert("เกิดข้อผิดพลาด กรุณาลองใหม่");
+      alert(L("เกิดข้อผิดพลาด กรุณาลองใหม่", "Something went wrong. Please try again."));
     } finally {
       setRequesting(null);
     }
@@ -252,9 +254,9 @@ export default function ShopPage() {
         window.location.href = data.url;
         return;
       }
-      setCheckoutError(data.error ?? "เกิดข้อผิดพลาด กรุณาลองใหม่");
+      setCheckoutError(data.error ?? L("เกิดข้อผิดพลาด กรุณาลองใหม่", "Something went wrong. Please try again."));
     } catch {
-      setCheckoutError("เชื่อมต่อไม่สำเร็จ ตรวจอินเทอร์เน็ตแล้วลองใหม่");
+      setCheckoutError(L("เชื่อมต่อไม่สำเร็จ ตรวจอินเทอร์เน็ตแล้วลองใหม่", "Connection failed. Check your internet and try again."));
     }
     setCheckingOut(null);
   }
@@ -292,7 +294,7 @@ export default function ShopPage() {
         const c = cat.toLowerCase();
         const hit = categoryTabs.find((t) => t !== ALL_CAT && t.toLowerCase().includes(c));
         if (hit) setActiveCategory(hit);
-        else setCatNotice("ตอนนี้ยังไม่มีสินค้าในหมวดนี้ แสดงสินค้าทั้งหมดแทน");
+        else setCatNotice(L("ตอนนี้ยังไม่มีสินค้าในหมวดนี้ แสดงสินค้าทั้งหมดแทน", "No products in this category yet — showing everything instead."));
       }
       const tcg = q.get("tcg");
       if (tcg) {
@@ -335,7 +337,7 @@ export default function ShopPage() {
     <div className="min-h-screen bg-zinc-50 pb-20">
       <TopBar
         rightSlot={
-          <button onClick={() => setShowCart(true)} className="relative p-2.5 -m-1.5" aria-label={`ตะกร้าสินค้า (${totalItems} ชิ้น)`}>
+          <button onClick={() => setShowCart(true)} className="relative p-2.5 -m-1.5" aria-label={L(`ตะกร้าสินค้า (${totalItems} ชิ้น)`, `Cart (${totalItems} items)`)}>
             <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
               <path d="M3 4h2.5l2 10h9l2-10H17" stroke="#0a0a0a" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
               <circle cx="8.5" cy="18" r="1.2" fill="#0a0a0a"/>
@@ -357,11 +359,11 @@ export default function ShopPage() {
             <circle cx="6" cy="6" r="4.5" stroke="#a1a1aa" strokeWidth="1.2"/>
             <line x1="9.5" y1="9.5" x2="12.5" y2="12.5" stroke="#a1a1aa" strokeWidth="1.2" strokeLinecap="round"/>
           </svg>
-          <input type="text" placeholder="ค้นหาการ์ด, ชุด, สินค้า..."
-            aria-label="ค้นหาสินค้า"
+          <input type="text" placeholder={L("ค้นหาการ์ด, ชุด, สินค้า...", "Search cards, sets, products…")}
+            aria-label={L("ค้นหาสินค้า", "Search products")}
             className="bg-transparent text-base sm:text-xs text-zinc-700 placeholder-zinc-500 flex-1 outline-none"
             value={search} onChange={(e) => setSearch(e.target.value)} />
-          {search && <button onClick={() => setSearch("")} aria-label="ล้างคำค้นหา" className="text-zinc-500 text-sm w-8 h-8 -my-2 -mr-2 flex items-center justify-center">✕</button>}
+          {search && <button onClick={() => setSearch("")} aria-label={L("ล้างคำค้นหา", "Clear search")} className="text-zinc-500 text-sm w-8 h-8 -my-2 -mr-2 flex items-center justify-center">✕</button>}
         </div>
       </div>
 
@@ -380,36 +382,36 @@ export default function ShopPage() {
       {/* Sort */}
       <div className="flex items-center justify-between gap-2 px-4 py-2 bg-zinc-50 flex-wrap">
         <div className="flex items-center gap-2">
-          <p className="text-[11px] text-zinc-500">{loading ? "กำลังโหลด..." : `${filtered.length} รายการ`}</p>
+          <p className="text-[11px] text-zinc-500">{loading ? L("กำลังโหลด...", "Loading…") : L(`${filtered.length} รายการ`, `${filtered.length} items`)}</p>
           <button onClick={() => setInStockOnly((v) => !v)} aria-pressed={inStockOnly}
             className={`text-[11px] px-3 py-1.5 rounded-full border transition-colors ${
               inStockOnly ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 text-zinc-500 bg-white"
             }`}>
-            เฉพาะมีของ
+            {L("เฉพาะมีของ", "In stock")}
           </button>
           {products.some((p) => p.is_preorder) && (
             <button onClick={() => setPreorderOnly((v) => !v)} aria-pressed={preorderOnly}
               className={`text-[11px] px-3 py-1.5 rounded-full border transition-colors ${
                 preorderOnly ? "bg-amber-500 text-white border-amber-500" : "border-zinc-200 text-zinc-500 bg-white"
               }`}>
-              พรีออเดอร์
+              {L("พรีออเดอร์", "Pre-order")}
             </button>
           )}
         </div>
         <div className="flex items-center gap-1.5">
-          <select aria-label="หมวดสินค้า"
+          <select aria-label={L("หมวดสินค้า", "Category")}
             className="text-[11px] text-zinc-700 border border-zinc-200 rounded-lg px-2 py-1.5 bg-white max-w-[110px]"
             value={activeCategory} onChange={(e) => setActiveCategory(e.target.value)}>
             {categoryTabs.map((cat) => (
-              <option key={cat} value={cat}>{cat === ALL_CAT ? "ทุกหมวด" : cat}</option>
+              <option key={cat} value={cat}>{cat === ALL_CAT ? L("ทุกหมวด", "All categories") : cat}</option>
             ))}
           </select>
-          <select aria-label="เรียงสินค้า"
+          <select aria-label={L("เรียงสินค้า", "Sort products")}
             className="text-[11px] text-zinc-700 border border-zinc-200 rounded-lg px-2 py-1.5 bg-white"
             value={sort} onChange={(e) => setSort(e.target.value)}>
-            <option value="default">เรียงปกติ</option>
-            <option value="price_asc">ราคาต่ำ → สูง</option>
-            <option value="price_desc">ราคาสูง → ต่ำ</option>
+            <option value="default">{L("เรียงปกติ", "Default")}</option>
+            <option value="price_asc">{L("ราคาต่ำ → สูง", "Price: low → high")}</option>
+            <option value="price_desc">{L("ราคาสูง → ต่ำ", "Price: high → low")}</option>
           </select>
         </div>
       </div>
@@ -422,13 +424,13 @@ export default function ShopPage() {
           <LogoLoader />
         ) : loadError && products.length === 0 ? (
           <div className="text-center py-16" role="alert">
-            <p className="text-sm font-semibold text-zinc-700">โหลดรายการสินค้าไม่สำเร็จ</p>
-            <p className="text-xs text-zinc-500 mt-1">ตรวจอินเทอร์เน็ตแล้วลองใหม่อีกครั้ง</p>
-            <button onClick={() => setReloadKey((k) => k + 1)} className="mt-4 text-xs font-semibold border border-zinc-200 rounded-xl px-5 py-2.5 text-zinc-700">ลองใหม่</button>
+            <p className="text-sm font-semibold text-zinc-700">{L("โหลดรายการสินค้าไม่สำเร็จ", "Couldn't load products")}</p>
+            <p className="text-xs text-zinc-500 mt-1">{L("ตรวจอินเทอร์เน็ตแล้วลองใหม่อีกครั้ง", "Check your internet and try again.")}</p>
+            <button onClick={() => setReloadKey((k) => k + 1)} className="mt-4 text-xs font-semibold border border-zinc-200 rounded-xl px-5 py-2.5 text-zinc-700">{L("ลองใหม่", "Try again")}</button>
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-16 text-zinc-500 text-sm">
-            {products.length === 0 ? "ยังไม่มีสินค้า" : "ไม่พบสินค้าที่ค้นหา"}
+            {products.length === 0 ? L("ยังไม่มีสินค้า", "No products yet") : L("ไม่พบสินค้าที่ค้นหา", "No matching products")}
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -445,11 +447,11 @@ export default function ShopPage() {
                   )}
                   {lot && (
                     <span className="absolute top-2 right-2 z-10 text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-600 text-white tracking-wide">
-                      🎟️ ลุ้นสิทธิ์
+                      {L("🎟️ ลุ้นสิทธิ์", "🎟️ Lottery")}
                     </span>
                   )}
                   {p.image_url ? (
-                    <button type="button" aria-label={`ดูรายละเอียด ${p.name}`} className="h-36 w-full relative bg-zinc-50 overflow-hidden cursor-pointer block" onClick={() => setDetail(p)}>
+                    <button type="button" aria-label={L(`ดูรายละเอียด ${p.name}`, `View details: ${p.name}`)} className="h-36 w-full relative bg-zinc-50 overflow-hidden cursor-pointer block" onClick={() => setDetail(p)}>
                       <Image
                         src={p.image_url}
                         alt={p.name}
@@ -475,15 +477,15 @@ export default function ShopPage() {
                   <p className="text-[10px] text-zinc-500 mt-0.5 leading-tight truncate">{p.sub}</p>
                   <p className="text-[13px] font-bold text-zinc-900 mt-2">฿{p.price.toLocaleString()}</p>
                   {depositOf(p as any) && (
-                    <p className="text-[10px] text-amber-700 font-semibold">มัดจำ ฿{depositOf(p as any)!.toLocaleString()}</p>
+                    <p className="text-[10px] text-amber-700 font-semibold">{L("มัดจำ", "Deposit")} ฿{depositOf(p as any)!.toLocaleString()}</p>
                   )}
                   {p.is_preorder && p.preorder_release_date && (
-                    <p className="text-[10px] text-amber-700 font-semibold mt-0.5">วางจำหน่าย {formatReleaseDate(p.preorder_release_date, false)}</p>
+                    <p className="text-[10px] text-amber-700 font-semibold mt-0.5">{L("วางจำหน่าย", "Release")} {formatReleaseDate(p.preorder_release_date, false, locale)}</p>
                   )}
                   <p className="text-[10px] text-zinc-500 mt-0.5">
                     {p.is_preorder
-                      ? (isPreorderClosed(p) ? "ปิดรับแล้ว" : p.stock <= 0 ? "เต็มโควต้าแล้ว" : p.stock <= 10 ? `เหลือโควต้า ${p.stock}` : "เปิดรับพรีออเดอร์")
-                      : (p.stock <= 0 ? "หมดสต็อก" : p.stock <= 3 ? `เหลือ ${p.stock} ใบ` : "มีสต็อก")}
+                      ? (isPreorderClosed(p) ? L("ปิดรับแล้ว", "Closed") : p.stock <= 0 ? L("เต็มโควต้าแล้ว", "Fully booked") : p.stock <= 10 ? L(`เหลือโควต้า ${p.stock}`, `${p.stock} slots left`) : L("เปิดรับพรีออเดอร์", "Pre-order open"))
+                      : (p.stock <= 0 ? L("หมดสต็อก", "Sold out") : p.stock <= 3 ? L(`เหลือ ${p.stock} ใบ`, `Only ${p.stock} left`) : L("มีสต็อก", "In stock"))}
                   </p>
 
                   {!lot ? (
@@ -491,40 +493,40 @@ export default function ShopPage() {
                       onClick={() => addToCart(p)}
                       disabled={p.stock <= 0 || isPreorderClosed(p)}
                       className="mt-2 w-full text-xs bg-zinc-900 text-white rounded-lg py-2.5 tracking-wide active:opacity-70 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed">
-                      {isPreorderClosed(p) ? "ปิดรับแล้ว" : p.stock <= 0 ? (p.is_preorder ? "เต็มโควต้า" : "หมดสต็อก") : (p.is_preorder ? "+ พรีออเดอร์" : "+ ตะกร้า")}
+                      {isPreorderClosed(p) ? L("ปิดรับแล้ว", "Closed") : p.stock <= 0 ? (p.is_preorder ? L("เต็มโควต้า", "Fully booked") : L("หมดสต็อก", "Sold out")) : (p.is_preorder ? L("+ พรีออเดอร์", "+ Pre-order") : L("+ ตะกร้า", "+ Cart"))}
                     </button>
                   ) : lot.status === "open" ? (
                     lot.myEntry ? (
                       <button disabled className="mt-2 w-full text-xs bg-zinc-100 text-zinc-500 rounded-lg py-2.5 tracking-wide cursor-not-allowed">
-                        ขอสิทธิ์แล้ว รอผล
+                        {L("ขอสิทธิ์แล้ว รอผล", "Entered — awaiting draw")}
                       </button>
                     ) : (
                       <button
                         onClick={() => requestToBuy(p)}
                         disabled={requesting === p.id}
                         className="mt-2 w-full text-xs bg-purple-600 text-white rounded-lg py-2.5 tracking-wide active:opacity-70 transition-opacity disabled:opacity-50">
-                        {requesting === p.id ? "กำลังส่ง..." : "🎟️ ขอสิทธิ์ซื้อ"}
+                        {requesting === p.id ? L("กำลังส่ง...", "Sending…") : L("🎟️ ขอสิทธิ์ซื้อ", "🎟️ Enter lottery")}
                       </button>
                     )
                   ) : lot.myEntry?.status === "won" && hoursLeft(lot.myEntry.purchaseDeadline) !== 0 ? (
                     <>
                       <p className="text-[10px] text-purple-600 font-semibold mt-2">
-                        🎉 ได้สิทธิ์! เหลือ {hoursLeft(lot.myEntry.purchaseDeadline)} ชม.
+                        {L(`🎉 ได้สิทธิ์! เหลือ ${hoursLeft(lot.myEntry.purchaseDeadline)} ชม.`, `🎉 You won! ${hoursLeft(lot.myEntry.purchaseDeadline)}h left to buy`)}
                       </p>
                       <button
                         onClick={() => addToCart(p)}
                         disabled={p.stock <= 0}
                         className="mt-1 w-full text-xs bg-purple-600 text-white rounded-lg py-2.5 tracking-wide active:opacity-70 transition-opacity disabled:opacity-30">
-                        {p.stock <= 0 ? "หมดสต็อก" : "+ ตะกร้า"}
+                        {p.stock <= 0 ? L("หมดสต็อก", "Sold out") : L("+ ตะกร้า", "+ Cart")}
                       </button>
                     </>
                   ) : lot.myEntry?.status === "purchased" ? (
                     <button disabled className="mt-2 w-full text-xs bg-zinc-100 text-zinc-500 rounded-lg py-2.5 tracking-wide cursor-not-allowed">
-                      ซื้อแล้ว
+                      {L("ซื้อแล้ว", "Purchased")}
                     </button>
                   ) : (
                     <button disabled className="mt-2 w-full text-xs bg-zinc-100 text-zinc-500 rounded-lg py-2.5 tracking-wide cursor-not-allowed">
-                      {lot.myEntry?.status === "won" ? "หมดเวลาซื้อ" : "พลาดสิทธิ์รอบนี้"}
+                      {lot.myEntry?.status === "won" ? L("หมดเวลาซื้อ", "Purchase window expired") : L("พลาดสิทธิ์รอบนี้", "Not selected this round")}
                     </button>
                   )}
                 </div>
@@ -537,30 +539,30 @@ export default function ShopPage() {
 
       {/* Cart Drawer */}
       {showCart && (
-        <div className="fixed inset-x-0 bottom-16 z-50 flex flex-col justify-end" role="dialog" aria-modal="true" aria-label="ตะกร้าสินค้า">
+        <div className="fixed inset-x-0 bottom-16 z-50 flex flex-col justify-end" role="dialog" aria-modal="true" aria-label={L("ตะกร้าสินค้า", "Cart")}>
           <div className="fixed inset-0 bg-black/40" onClick={() => setShowCart(false)} />
           <div className="relative bg-white rounded-t-3xl flex flex-col" style={{ maxHeight: "60vh" }}>
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 flex-shrink-0">
-              <h3 className="text-sm font-semibold text-zinc-900">ตะกร้าสินค้า ({totalItems})</h3>
-              <button onClick={() => setShowCart(false)} aria-label="ปิดตะกร้า" className="text-zinc-500 text-lg leading-none w-10 h-10 -mr-2 flex items-center justify-center">✕</button>
+              <h3 className="text-sm font-semibold text-zinc-900">{L("ตะกร้าสินค้า", "Cart")} ({totalItems})</h3>
+              <button onClick={() => setShowCart(false)} aria-label={L("ปิดตะกร้า", "Close cart")} className="text-zinc-500 text-lg leading-none w-10 h-10 -mr-2 flex items-center justify-center">✕</button>
             </div>
             {/* Items - scrollable */}
             <div className="overflow-y-auto flex-1 px-5 py-3 space-y-3">
               {cart.length === 0 ? (
-                <p className="text-center text-sm text-zinc-500 py-8">ตะกร้าว่างอยู่</p>
+                <p className="text-center text-sm text-zinc-500 py-8">{L("ตะกร้าว่างอยู่", "Your cart is empty")}</p>
               ) : cart.map((item) => (
                 <div key={item.id} className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-zinc-900 truncate">
                       {item.name}
-                      {products.find((p) => p.id === item.id)?.is_preorder && <span className="ml-1.5 text-[10px] font-bold text-amber-700 bg-amber-50 rounded px-1 py-0.5">พรีออเดอร์</span>}
+                      {products.find((p) => p.id === item.id)?.is_preorder && <span className="ml-1.5 text-[10px] font-bold text-amber-700 bg-amber-50 rounded px-1 py-0.5">{L("พรีออเดอร์", "Pre-order")}</span>}
                     </p>
                     <p className="text-[11px] text-zinc-500 mt-0.5">฿{item.price.toLocaleString()} × {item.qty}</p>
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-xs font-semibold text-zinc-900">฿{(item.price * item.qty).toLocaleString()}</span>
-                    <button onClick={() => removeFromCart(item.id)} aria-label={`เอา ${item.name} ออกจากตะกร้า`} className="text-zinc-500 hover:text-red-600 text-sm w-10 h-10 -mr-2 flex items-center justify-center">✕</button>
+                    <button onClick={() => removeFromCart(item.id)} aria-label={L(`เอา ${item.name} ออกจากตะกร้า`, `Remove ${item.name} from cart`)} className="text-zinc-500 hover:text-red-600 text-sm w-10 h-10 -mr-2 flex items-center justify-center">✕</button>
                   </div>
                 </div>
               ))}
@@ -569,26 +571,26 @@ export default function ShopPage() {
             <div className="flex-shrink-0 px-5 pt-3 pb-6 border-t border-zinc-100 bg-white">
               {cart.some((i) => products.find((p) => p.id === i.id)?.is_preorder) && (
                 <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mb-3 leading-relaxed">
-                  📦 ตะกร้ามีสินค้า<b>พรีออเดอร์</b> —{" "}
+                  {L("📦 ตะกร้ามีสินค้า", "📦 Your cart has ")}<b>{L("พรีออเดอร์", "pre-order")}</b>{L("", " items")} —{" "}
                   {cart.some((i) => depositOf((products.find((p) => p.id === i.id) ?? { price: 0 }) as any))
-                    ? "ชำระเฉพาะค่ามัดจำตอนนี้ ส่วนที่เหลือชำระเมื่อสินค้าเข้า"
-                    : "ชำระเต็มจำนวนตอนสั่ง"}
-                  {" "}และจัดส่งหลังสินค้าวางจำหน่าย (ถ้าสั่งรวมกับสินค้าอื่น จะจัดส่งพร้อมกันเมื่อของครบ)
+                    ? L("ชำระเฉพาะค่ามัดจำตอนนี้ ส่วนที่เหลือชำระเมื่อสินค้าเข้า", "pay just the deposit now and the rest when stock arrives,")
+                    : L("ชำระเต็มจำนวนตอนสั่ง", "pay in full when you order,")}
+                  {" "}{L("และจัดส่งหลังสินค้าวางจำหน่าย (ถ้าสั่งรวมกับสินค้าอื่น จะจัดส่งพร้อมกันเมื่อของครบ)", "and they ship after release (if ordered with other items, everything ships together once all items are in).")}
                 </p>
               )}
               <div className="space-y-1 mb-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-zinc-500">ยอดสินค้า</span>
+                  <span className="text-xs text-zinc-500">{L("ยอดสินค้า", "Subtotal")}</span>
                   <span className="text-xs text-zinc-700">฿{totalPrice.toLocaleString()}</span>
                 </div>
                 {shippingFee > 0 && (
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-zinc-500">ค่าบริการจัดส่ง</span>
+                    <span className="text-xs text-zinc-500">{L("ค่าบริการจัดส่ง", "Shipping")}</span>
                     <span className="text-xs text-zinc-700">฿{shippingFee.toLocaleString()}</span>
                   </div>
                 )}
                 <div className="flex items-center justify-between pt-1.5 border-t border-zinc-100">
-                  <span className="text-xs font-semibold text-zinc-700">รวม</span>
+                  <span className="text-xs font-semibold text-zinc-700">{L("รวม", "Total")}</span>
                   <span className="text-base font-bold text-zinc-900">฿{(totalPrice + shippingFee).toLocaleString()}</span>
                 </div>
               </div>
@@ -601,18 +603,18 @@ export default function ShopPage() {
                     onClick={() => startCheckout("promptpay")}
                     disabled={checkingOut !== null}
                     className="btn-primary w-full py-3.5 text-center text-sm font-semibold disabled:opacity-50">
-                    {checkingOut === "promptpay" ? "กำลังไปหน้าชำระเงิน..." : `ชำระผ่าน PromptPay — ฿${(totalPrice + shippingFee).toLocaleString()} (ไม่มีค่าธรรมเนียมบัตร)`}
+                    {checkingOut === "promptpay" ? L("กำลังไปหน้าชำระเงิน...", "Going to checkout…") : L(`ชำระผ่าน PromptPay — ฿${(totalPrice + shippingFee).toLocaleString()} (ไม่มีค่าธรรมเนียมบัตร)`, `Pay with PromptPay — ฿${(totalPrice + shippingFee).toLocaleString()} (no card fee)`)}
                   </button>
                   <button
                     onClick={() => startCheckout("card")}
                     disabled={checkingOut !== null}
                     className="w-full py-3.5 text-center text-sm font-semibold rounded-xl border border-zinc-200 text-zinc-700 active:opacity-70 transition-opacity disabled:opacity-50">
                     {checkingOut === "card"
-                      ? "กำลังไปหน้าชำระเงิน..."
-                      : `ชำระด้วยบัตรเครดิต/เดบิต — ฿${(totalPrice + shippingFee + cardFee).toLocaleString()}`}
+                      ? L("กำลังไปหน้าชำระเงิน...", "Going to checkout…")
+                      : L(`ชำระด้วยบัตรเครดิต/เดบิต — ฿${(totalPrice + shippingFee + cardFee).toLocaleString()}`, `Pay by credit/debit card — ฿${(totalPrice + shippingFee + cardFee).toLocaleString()}`)}
                   </button>
                   <p className="text-[11px] text-zinc-500 text-center">
-                    ค่าบริการจัดส่ง ฿{SHIPPING_FEE.toLocaleString()} ต่อคำสั่งซื้อ · การชำระด้วยบัตรมีค่าธรรมเนียม 3% ของยอดสินค้า (ธนาคาร/เครือข่ายบัตรเรียกเก็บ) แสดงแยกให้เห็นชัดเจนก่อนชำระเงินเสมอ
+                    {L(`ค่าบริการจัดส่ง ฿${SHIPPING_FEE.toLocaleString()} ต่อคำสั่งซื้อ · การชำระด้วยบัตรมีค่าธรรมเนียม 3% ของยอดสินค้า (ธนาคาร/เครือข่ายบัตรเรียกเก็บ) แสดงแยกให้เห็นชัดเจนก่อนชำระเงินเสมอ`, `Shipping ฿${SHIPPING_FEE.toLocaleString()} per order · Card payments carry a 3% fee on the subtotal (charged by the bank/card network), always shown separately before you pay.`)}
                   </p>
                 </div>
               )}
@@ -626,7 +628,7 @@ export default function ShopPage() {
         <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[100] animate-bounce-in">
           <div className="bg-zinc-900 text-white text-xs font-semibold px-4 py-2.5 rounded-2xl shadow-lg flex items-center gap-2 max-w-[calc(100vw-32px)]" role="status">
             <span>🛒</span>
-            <span>เพิ่ม "{toast.length > 20 ? toast.slice(0, 20) + "..." : toast}" ลงตะกร้าแล้ว</span>
+            <span>{L("เพิ่ม", "Added")} "{toast.length > 20 ? toast.slice(0, 20) + "..." : toast}" {L("ลงตะกร้าแล้ว", "to cart")}</span>
             <span className="text-green-400">✓</span>
           </div>
         </div>
@@ -659,6 +661,7 @@ function ProductDetail({ product, lottery, onClose, onAdd }: {
   const gallery = [product.image_url, ...(product.images ?? [])].filter(Boolean) as string[];
   const [active, setActive] = useState(0);
   const badge = badgeOf(product);
+  const { L, locale } = useLang();
   useModal(true, onClose);
 
   return (
@@ -678,7 +681,7 @@ function ProductDetail({ product, lottery, onClose, onAdd }: {
           {badge && (
             <span className={`absolute top-3 left-3 ${BADGE_CLASS[badge] ?? "badge-pre"}`}>{badge}</span>
           )}
-          <button onClick={onClose} aria-label="ปิด"
+          <button onClick={onClose} aria-label={L("ปิด", "Close")}
             className="absolute top-3 right-3 w-10 h-10 rounded-full bg-white/90 text-zinc-700 flex items-center justify-center text-lg leading-none">
             ×
           </button>
@@ -711,35 +714,35 @@ function ProductDetail({ product, lottery, onClose, onAdd }: {
           <p className="text-xl font-bold text-zinc-900 mt-3">฿{product.price.toLocaleString()}</p>
           {product.is_preorder && (
             <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mt-2 leading-relaxed">
-              📦 พรีออเดอร์{product.preorder_release_date ? ` · คาดว่าวางจำหน่าย ${formatReleaseDate(product.preorder_release_date)}` : ""}
+              📦 {L("พรีออเดอร์", "Pre-order")}{product.preorder_release_date ? L(` · คาดว่าวางจำหน่าย ${formatReleaseDate(product.preorder_release_date, true, locale)}`, ` · Expected release ${formatReleaseDate(product.preorder_release_date, true, locale)}`) : ""}
               {depositOf(product as any)
-                ? <><br />มัดจำชุดละ ฿{depositOf(product as any)!.toLocaleString()} (ส่วนที่เหลือ ฿{(product.price - depositOf(product as any)!).toLocaleString()} ชำระเมื่อสินค้าเข้า)</>
-                : <><br />ชำระเต็มจำนวนตอนสั่ง</>}
-              {product.preorder_close_at && <><br />ปิดรับออเดอร์ {formatCloseAt(product.preorder_close_at)}</>}
-              <br />จัดส่งหลังสินค้าวางจำหน่าย
+                ? <><br />{L(`มัดจำชุดละ ฿${depositOf(product as any)!.toLocaleString()} (ส่วนที่เหลือ ฿${(product.price - depositOf(product as any)!).toLocaleString()} ชำระเมื่อสินค้าเข้า)`, `Deposit ฿${depositOf(product as any)!.toLocaleString()} each (remaining ฿${(product.price - depositOf(product as any)!).toLocaleString()} due when stock arrives)`)}</>
+                : <><br />{L("ชำระเต็มจำนวนตอนสั่ง", "Pay in full when you order")}</>}
+              {product.preorder_close_at && <><br />{L("ปิดรับออเดอร์", "Orders close")} {formatCloseAt(product.preorder_close_at, locale)}</>}
+              <br />{L("จัดส่งหลังสินค้าวางจำหน่าย", "Ships after release")}
             </p>
           )}
           <p className="text-[11px] text-zinc-500 mt-0.5">
             {product.is_preorder
-              ? (isPreorderClosed(product) ? "ปิดรับแล้ว" : product.stock <= 0 ? "เต็มโควต้าแล้ว" : `เหลือโควต้า ${product.stock}`)
-              : (product.stock <= 0 ? "หมดสต็อก" : product.stock <= 3 ? `เหลือ ${product.stock} ชิ้น` : "มีสต็อก")}
+              ? (isPreorderClosed(product) ? L("ปิดรับแล้ว", "Closed") : product.stock <= 0 ? L("เต็มโควต้าแล้ว", "Fully booked") : L(`เหลือโควต้า ${product.stock}`, `${product.stock} slots left`))
+              : (product.stock <= 0 ? L("หมดสต็อก", "Sold out") : product.stock <= 3 ? L(`เหลือ ${product.stock} ชิ้น`, `Only ${product.stock} left`) : L("มีสต็อก", "In stock"))}
           </p>
 
           {product.description && (
             <div className="mt-4 pt-4 border-t border-zinc-100">
-              <p className="text-[10px] text-zinc-500 tracking-widest font-semibold mb-1.5">รายละเอียด</p>
+              <p className="text-[10px] text-zinc-500 tracking-widest font-semibold mb-1.5">{L("รายละเอียด", "Details")}</p>
               <p className="text-xs text-zinc-600 leading-relaxed whitespace-pre-line">{product.description}</p>
             </div>
           )}
 
           {lottery ? (
             <p className="mt-4 text-center text-[11px] text-purple-700 bg-purple-50 border border-purple-100 rounded-xl py-2.5">
-              🎟️ สินค้านี้ต้องขอสิทธิ์ซื้อ — กดที่ปุ่มในหน้ารายการสินค้า
+              {L("🎟️ สินค้านี้ต้องขอสิทธิ์ซื้อ — กดที่ปุ่มในหน้ารายการสินค้า", "🎟️ This item is sold by lottery — enter using the button on the product list")}
             </p>
           ) : (
             <button onClick={onAdd} disabled={product.stock <= 0 || isPreorderClosed(product)}
               className="mt-4 w-full bg-zinc-900 text-white text-xs font-semibold py-3 rounded-xl active:opacity-70 disabled:opacity-30">
-              {isPreorderClosed(product) ? "ปิดรับแล้ว" : product.stock <= 0 ? (product.is_preorder ? "เต็มโควต้า" : "หมดสต็อก") : (product.is_preorder ? "+ พรีออเดอร์" : "+ เพิ่มลงตะกร้า")}
+              {isPreorderClosed(product) ? L("ปิดรับแล้ว", "Closed") : product.stock <= 0 ? (product.is_preorder ? L("เต็มโควต้า", "Fully booked") : L("หมดสต็อก", "Sold out")) : (product.is_preorder ? L("+ พรีออเดอร์", "+ Pre-order") : L("+ เพิ่มลงตะกร้า", "+ Add to cart"))}
             </button>
           )}
         </div>

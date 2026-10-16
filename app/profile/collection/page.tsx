@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import BottomNav from "@/components/BottomNav";
+import LangToggle from "@/components/LangToggle";
+import { useLang } from "@/lib/i18n";
 
 type CollectionCard = {
   id: string;
@@ -33,6 +35,7 @@ const EMPTY_FORM = {
 
 export default function CollectionPage() {
   const router = useRouter();
+  const { L } = useLang();
   const [userId, setUserId] = useState("");
   const [cards, setCards] = useState<CollectionCard[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,7 +89,7 @@ export default function CollectionPage() {
   }
 
   async function handleSave() {
-    if (!form.card_name.trim()) { setError("กรุณากรอกชื่อการ์ด"); return; }
+    if (!form.card_name.trim()) { setError(L("กรุณากรอกชื่อการ์ด", "Please enter a card name")); return; }
     setSaving(true);
     setError("");
     try {
@@ -99,7 +102,7 @@ export default function CollectionPage() {
       await loadCards(userId);
       setShowForm(false);
     } catch (err: any) {
-      setError(err?.message ?? "บันทึกไม่สำเร็จ");
+      setError(err?.message ?? L("บันทึกไม่สำเร็จ", "Couldn't save"));
     } finally {
       setSaving(false);
     }
@@ -141,7 +144,10 @@ export default function CollectionPage() {
             </Link>
             <span className="text-sm font-semibold text-zinc-900">Collection</span>
           </div>
-          <button onClick={openAdd} className="text-xs font-semibold text-zinc-900">+ เพิ่ม</button>
+          <div className="flex items-center gap-2">
+            <LangToggle />
+            <button onClick={openAdd} className="text-xs font-semibold text-zinc-900">{L("+ เพิ่ม", "+ Add")}</button>
+          </div>
         </div>
       </header>
 
@@ -150,12 +156,12 @@ export default function CollectionPage() {
         <div className="bg-white border-b border-zinc-100 px-4 py-3 flex items-center gap-4">
           <div className="text-center">
             <p className="text-sm font-bold text-zinc-900">{cards.length}</p>
-            <p className="text-[10px] text-zinc-500 tracking-wide">รายการ</p>
+            <p className="text-[10px] text-zinc-500 tracking-wide">{L("รายการ", "Entries")}</p>
           </div>
           <div className="w-px h-8 bg-zinc-100" />
           <div className="text-center">
             <p className="text-sm font-bold text-zinc-900">{totalCards}</p>
-            <p className="text-[10px] text-zinc-500 tracking-wide">ใบรวม</p>
+            <p className="text-[10px] text-zinc-500 tracking-wide">{L("ใบรวม", "Total cards")}</p>
           </div>
           <div className="w-px h-8 bg-zinc-100" />
           {TCG_LIST.map((t) => {
@@ -174,14 +180,14 @@ export default function CollectionPage() {
       {/* Add/Edit Form */}
       {showForm && (
         <div className="bg-white border-b border-zinc-100 px-4 py-5">
-          <p className="text-xs font-semibold text-zinc-900 mb-4">{editId ? "แก้ไขการ์ด" : "เพิ่มการ์ดใหม่"}</p>
+          <p className="text-xs font-semibold text-zinc-900 mb-4">{editId ? L("แก้ไขการ์ด", "Edit card") : L("เพิ่มการ์ดใหม่", "Add new card")}</p>
           <div className="space-y-3">
-            <input className="input" placeholder="ชื่อการ์ด *" value={form.card_name}
+            <input className="input" placeholder={L("ชื่อการ์ด *", "Card name *")} value={form.card_name}
               onChange={(e) => setForm({ ...form, card_name: e.target.value })} />
             <div className="grid grid-cols-2 gap-2">
-              <input className="input" placeholder="ชื่อเซต" value={form.set_name}
+              <input className="input" placeholder={L("ชื่อเซต", "Set name")} value={form.set_name}
                 onChange={(e) => setForm({ ...form, set_name: e.target.value })} />
-              <input className="input" placeholder="เลขการ์ด เช่น OP01-001" value={form.card_number}
+              <input className="input" placeholder={L("เลขการ์ด เช่น OP01-001", "Card number, e.g. OP01-001")} value={form.card_number}
                 onChange={(e) => setForm({ ...form, card_number: e.target.value })} />
             </div>
             {/* TCG */}
@@ -222,7 +228,7 @@ export default function CollectionPage() {
             </div>
             {/* Quantity */}
             <div className="flex items-center gap-3">
-              <p className="text-[11px] text-zinc-500 w-16">จำนวน</p>
+              <p className="text-[11px] text-zinc-500 w-16">{L("จำนวน", "Quantity")}</p>
               <div className="flex items-center gap-3 border border-zinc-200 rounded-xl px-3 py-2">
                 <button onClick={() => setForm({ ...form, quantity: Math.max(1, form.quantity - 1) })}
                   className="text-zinc-500 w-6 text-center font-bold">−</button>
@@ -231,13 +237,13 @@ export default function CollectionPage() {
                   className="text-zinc-500 w-6 text-center font-bold">+</button>
               </div>
             </div>
-            <input className="input" placeholder="หมายเหตุ (ไม่บังคับ)" value={form.note}
+            <input className="input" placeholder={L("หมายเหตุ (ไม่บังคับ)", "Note (optional)")} value={form.note}
               onChange={(e) => setForm({ ...form, note: e.target.value })} />
             {error && <p className="text-[11px] text-red-600">{error}</p>}
             <div className="flex gap-2 pt-1">
-              <button onClick={() => setShowForm(false)} className="btn-outline flex-1 py-3">ยกเลิก</button>
+              <button onClick={() => setShowForm(false)} className="btn-outline flex-1 py-3">{L("ยกเลิก", "Cancel")}</button>
               <button onClick={handleSave} disabled={saving} className="btn-primary flex-1 py-3 disabled:opacity-40">
-                {saving ? "กำลังบันทึก..." : "บันทึก"}
+                {saving ? L("กำลังบันทึก...", "Saving...") : L("บันทึก", "Save")}
               </button>
             </div>
           </div>
@@ -247,13 +253,13 @@ export default function CollectionPage() {
       {/* Filter & Search */}
       {!showForm && (
         <div className="px-4 pt-4 pb-2 space-y-2">
-          <input className="input" placeholder="ค้นหาการ์ด..." value={search}
+          <input className="input" placeholder={L("ค้นหาการ์ด...", "Search cards...")} value={search}
             onChange={(e) => setSearch(e.target.value)} />
           <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
             {["ทั้งหมด", ...TCG_LIST].map((t) => (
               <button key={t} onClick={() => setFilterTcg(t)}
                 className={`flex-shrink-0 text-[11px] px-3 py-1.5 rounded-full border transition-colors ${filterTcg === t ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 text-zinc-500"}`}>
-                {t}
+                {t === "ทั้งหมด" ? L("ทั้งหมด", "All") : t}
               </button>
             ))}
           </div>
@@ -266,10 +272,10 @@ export default function CollectionPage() {
           {filtered.length === 0 && (
             <div className="card px-5 py-10 text-center">
               <p className="text-sm text-zinc-500 mb-1">
-                {cards.length === 0 ? "ยังไม่มีการ์ดในคอลเลกชัน" : "ไม่พบการ์ดที่ค้นหา"}
+                {cards.length === 0 ? L("ยังไม่มีการ์ดในคอลเลกชัน", "No cards in your collection yet") : L("ไม่พบการ์ดที่ค้นหา", "No matching cards")}
               </p>
               {cards.length === 0 && (
-                <button onClick={openAdd} className="mt-3 btn-primary px-6 py-2.5">เพิ่มการ์ดแรก</button>
+                <button onClick={openAdd} className="mt-3 btn-primary px-6 py-2.5">{L("เพิ่มการ์ดแรก", "Add your first card")}</button>
               )}
             </div>
           )}
@@ -291,10 +297,10 @@ export default function CollectionPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3 ml-3 flex-shrink-0">
-                  <button onClick={() => openEdit(c)} className="text-[11px] text-zinc-500 underline">แก้ไข</button>
+                  <button onClick={() => openEdit(c)} className="text-[11px] text-zinc-500 underline">{L("แก้ไข", "Edit")}</button>
                   <button onClick={() => handleDelete(c.id)} disabled={deleting === c.id}
                     className="text-[11px] text-red-400 underline disabled:opacity-40">
-                    {deleting === c.id ? "..." : "ลบ"}
+                    {deleting === c.id ? "..." : L("ลบ", "Delete")}
                   </button>
                 </div>
               </div>

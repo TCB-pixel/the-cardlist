@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Banner } from "@/lib/banners";
 import BrandText from "@/components/BrandText";
+import { useLang } from "@/lib/i18n";
 
 interface HeroBannerProps {
   banners: Banner[];
@@ -11,6 +12,7 @@ interface HeroBannerProps {
 }
 
 export default function HeroBanner({ banners, intervalMs = 4000 }: HeroBannerProps) {
+  const { L } = useLang();
   const active = banners.filter((b) => b.active).sort((a, b) => a.order - b.order);
   const [current, setCurrent] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -141,7 +143,7 @@ export default function HeroBanner({ banners, intervalMs = 4000 }: HeroBannerPro
       {/* ── Navigation ── */}
       {active.length > 1 && (
         <div className="relative z-10 flex items-center justify-between px-5 pb-3.5">
-          <button onClick={prev} aria-label="แบนเนอร์ก่อนหน้า" className="text-zinc-400 hover:text-white transition-colors p-2.5 -m-1.5">
+          <button onClick={prev} aria-label={L("แบนเนอร์ก่อนหน้า", "Previous banner")} className="text-zinc-400 hover:text-white transition-colors p-2.5 -m-1.5">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
               <path d="M10 3L6 8l4 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
@@ -151,13 +153,13 @@ export default function HeroBanner({ banners, intervalMs = 4000 }: HeroBannerPro
               <button
                 key={i}
                 onClick={() => { setCurrent(i); setAnimKey((k) => k + 1); }}
-                aria-label={`ไปแบนเนอร์ที่ ${i + 1}`}
+                aria-label={L(`ไปแบนเนอร์ที่ ${i + 1}`, `Go to banner ${i + 1}`)}
                 aria-current={i === current ? "true" : undefined}
                 className={`transition-all rounded-full ${i === current ? "w-6 h-1 bg-white" : "w-1 h-1 bg-zinc-600 hover:bg-zinc-400"}`}
               />
             ))}
           </div>
-          <button onClick={next} aria-label="แบนเนอร์ถัดไป" className="text-zinc-400 hover:text-white transition-colors p-2.5 -m-1.5">
+          <button onClick={next} aria-label={L("แบนเนอร์ถัดไป", "Next banner")} className="text-zinc-400 hover:text-white transition-colors p-2.5 -m-1.5">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
               <path d="M6 3l4 5-4 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { LangProvider } from "@/lib/i18n";
 
 const SITE_DESCRIPTION = "แพลตฟอร์มสำหรับคนเล่นการ์ดเกมในไทย — ซื้อการ์ดและอุปกรณ์ ติดตามอีเวนต์ และจองโต๊ะร้านค้าในงาน The Cardlist";
 
@@ -50,7 +51,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
       <body>
-        {children}
+        <LangProvider>{children}</LangProvider>
         <script dangerouslySetInnerHTML={{
           __html: `
             if ('serviceWorker' in navigator) {

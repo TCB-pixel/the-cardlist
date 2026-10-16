@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase";
 import BottomNav from "@/components/BottomNav";
 import LogoLoader from "@/components/LogoLoader";
 import TopBar from "@/components/TopBar";
+import { useLang } from "@/lib/i18n";
 import type { Artist, ArtistCard, ArtistCategory } from "@/lib/types";
 
 const ALL = "ทั้งหมด";
@@ -100,6 +101,7 @@ function CardDetail({ card, artist, category, onClose }: {
   category?: ArtistCategory;
   onClose: () => void;
 }) {
+  const { L } = useLang();
   const socials = artist
     ? ([
         ["Instagram", artist.instagram_url],
@@ -122,7 +124,7 @@ function CardDetail({ card, artist, category, onClose }: {
             <div className="w-full h-full flex items-center justify-center text-4xl text-zinc-300">🎨</div>
           )}
           <SampleWatermark size="lg" />
-          <button onClick={onClose} aria-label="ปิด"
+          <button onClick={onClose} aria-label={L("ปิด", "Close")}
             className="absolute top-3 right-3 w-10 h-10 rounded-full bg-white/90 text-zinc-700 flex items-center justify-center text-lg leading-none">
             ×
           </button>
@@ -155,13 +157,13 @@ function CardDetail({ card, artist, category, onClose }: {
             <p className="text-xs text-zinc-600 leading-relaxed mt-3 whitespace-pre-line">{card.description}</p>
           )}
 
-          <DetailSection icon="✨" title="เรื่องราวเบื้องหลัง" body={card.story} />
-          <DetailSection icon="⭐" title="ทำไมการ์ดใบนี้ถึงพิเศษ" body={card.significance} />
-          <DetailSection icon="🎟️" title="วิธีได้มา" body={card.how_to_get} />
+          <DetailSection icon="✨" title={L("เรื่องราวเบื้องหลัง", "The story behind it")} body={card.story} />
+          <DetailSection icon="⭐" title={L("ทำไมการ์ดใบนี้ถึงพิเศษ", "Why this card is special")} body={card.significance} />
+          <DetailSection icon="🎟️" title={L("วิธีได้มา", "How to get it")} body={card.how_to_get} />
 
           {artist && (
             <div className="mt-4 pt-4 border-t border-zinc-100">
-              <p className="text-[10px] text-zinc-500 tracking-widest font-semibold mb-2">ศิลปิน</p>
+              <p className="text-[10px] text-zinc-500 tracking-widest font-semibold mb-2">{L("ศิลปิน", "Artist")}</p>
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-full bg-zinc-100 overflow-hidden flex-shrink-0 flex items-center justify-center text-xs font-bold text-zinc-500">
                   {artist.avatar_url ? (
@@ -196,6 +198,7 @@ function CardDetail({ card, artist, category, onClose }: {
 }
 
 export default function ThaiArtistCardsPage() {
+  const { L } = useLang();
   const supabase = createClient();
   const [cards, setCards] = useState<ArtistCard[]>([]);
   const [artists, setArtists] = useState<Artist[]>([]);
@@ -265,9 +268,9 @@ export default function ThaiArtistCardsPage() {
       <div className="lg:max-w-[70%] lg:mx-auto">
 
       <div className="px-4 pt-4 pb-1">
-        <h1 className="text-sm font-semibold text-zinc-900">การ์ดศิลปินไทย</h1>
+        <h1 className="text-sm font-semibold text-zinc-900">{L("การ์ดศิลปินไทย", "Thai Artist Cards")}</h1>
         <p className="text-[11px] text-zinc-500 mt-0.5">
-          รวมผลงานการ์ดจากศิลปินไทย — คัดสรรโดย The Cardlist
+          {L("รวมผลงานการ์ดจากศิลปินไทย — คัดสรรโดย The Cardlist", "Card artwork from Thai artists — curated by The Cardlist")}
         </p>
       </div>
 
@@ -281,7 +284,7 @@ export default function ThaiArtistCardsPage() {
                   ? "bg-zinc-900 text-white border-zinc-900 font-semibold"
                   : "bg-white text-zinc-500 border-zinc-200"
               }`}>
-              {name}
+              {name === ALL ? L("ทั้งหมด", "All") : name}
             </button>
           ))}
         </div>
@@ -297,7 +300,7 @@ export default function ThaiArtistCardsPage() {
                   ? "bg-zinc-200 text-zinc-900 font-semibold"
                   : "bg-white text-zinc-500 border border-zinc-100"
               }`}>
-              {name}
+              {name === ALL ? L("ทั้งหมด", "All") : name}
             </button>
           ))}
         </div>
@@ -310,7 +313,7 @@ export default function ThaiArtistCardsPage() {
           <div className="card px-4 py-12 text-center">
             <p className="text-2xl mb-2">🎨</p>
             <p className="text-xs text-zinc-500">
-              {visible.length === 0 ? "ยังไม่มีการ์ดศิลปิน" : "ไม่พบการ์ดตามที่กรอง"}
+              {visible.length === 0 ? L("ยังไม่มีการ์ดศิลปิน", "No artist cards yet") : L("ไม่พบการ์ดตามที่กรอง", "No cards match your filters")}
             </p>
           </div>
         ) : (
@@ -329,7 +332,7 @@ export default function ThaiArtistCardsPage() {
                 <section key={artist.id}>
                   <div className="flex items-baseline gap-2 mb-2.5">
                     <h2 className="text-xs font-bold text-zinc-900">{artist.name}</h2>
-                    <span className="text-[11px] text-zinc-500 flex-shrink-0">{artistCards.length} ใบ</span>
+                    <span className="text-[11px] text-zinc-500 flex-shrink-0">{L(`${artistCards.length} ใบ`, `${artistCards.length} ${artistCards.length === 1 ? "card" : "cards"}`)}</span>
                     <span className="flex-1 h-px bg-zinc-200" />
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

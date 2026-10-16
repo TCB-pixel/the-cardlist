@@ -4,9 +4,12 @@ import Image from "next/image";
 import { createClient } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { safeNext } from "@/lib/auth-next";
+import LangToggle from "@/components/LangToggle";
+import { useLang } from "@/lib/i18n";
 
 export default function CompleteProfilePage() {
   const router = useRouter();
+  const { L } = useLang();
   const supabase = createClient();
 
   const [loading, setLoading] = useState(true);
@@ -52,11 +55,11 @@ export default function CompleteProfilePage() {
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (!firstName || !lastName) { setError("กรุณากรอกชื่อและนามสกุล"); return; }
+    if (!firstName || !lastName) { setError(L("กรุณากรอกชื่อและนามสกุล", "Please enter your first and last name")); return; }
 
     let birthDate: string | null = null;
     if (birthDay && birthMonth && birthYear) {
-      if (birthYear.length !== 4) { setError("กรุณากรอกปี ค.ศ. 4 หลัก เช่น 2000"); return; }
+      if (birthYear.length !== 4) { setError(L("กรุณากรอกปี ค.ศ. 4 หลัก เช่น 2000", "Please enter a 4-digit year, e.g. 2000")); return; }
       birthDate = `${birthYear}-${birthMonth.padStart(2, "0")}-${birthDay.padStart(2, "0")}`;
     }
 
@@ -84,7 +87,7 @@ export default function CompleteProfilePage() {
       if (updateErr) throw updateErr;
       router.replace(next ?? "/profile");
     } catch (err: any) {
-      setError(err?.message ?? "เกิดข้อผิดพลาด กรุณาลองใหม่");
+      setError(err?.message ?? L("เกิดข้อผิดพลาด กรุณาลองใหม่", "Something went wrong. Please try again"));
     } finally {
       setSaving(false);
     }
@@ -92,10 +95,10 @@ export default function CompleteProfilePage() {
 
   const days = Array.from({ length: 31 }, (_, i) => String(i + 1));
   const months = [
-    { v: "1", l: "มกราคม" }, { v: "2", l: "กุมภาพันธ์" }, { v: "3", l: "มีนาคม" },
-    { v: "4", l: "เมษายน" }, { v: "5", l: "พฤษภาคม" }, { v: "6", l: "มิถุนายน" },
-    { v: "7", l: "กรกฎาคม" }, { v: "8", l: "สิงหาคม" }, { v: "9", l: "กันยายน" },
-    { v: "10", l: "ตุลาคม" }, { v: "11", l: "พฤศจิกายน" }, { v: "12", l: "ธันวาคม" },
+    { v: "1", l: L("มกราคม", "January") }, { v: "2", l: L("กุมภาพันธ์", "February") }, { v: "3", l: L("มีนาคม", "March") },
+    { v: "4", l: L("เมษายน", "April") }, { v: "5", l: L("พฤษภาคม", "May") }, { v: "6", l: L("มิถุนายน", "June") },
+    { v: "7", l: L("กรกฎาคม", "July") }, { v: "8", l: L("สิงหาคม", "August") }, { v: "9", l: L("กันยายน", "September") },
+    { v: "10", l: L("ตุลาคม", "October") }, { v: "11", l: L("พฤศจิกายน", "November") }, { v: "12", l: L("ธันวาคม", "December") },
   ];
 
   if (loading) {
@@ -108,6 +111,9 @@ export default function CompleteProfilePage() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
+      <div className="flex items-center justify-end px-4 pt-4">
+        <div className="flex items-center gap-2"><LangToggle /></div>
+      </div>
       <div className="flex flex-col items-center text-center px-6 pt-10 pb-6">
         {lineAvatar ? (
           <Image src={lineAvatar} alt={lineDisplayName || "LINE"} width={80} height={80}
@@ -125,8 +131,8 @@ export default function CompleteProfilePage() {
             <span className="text-[11px] bg-[#06C755] text-white px-2 py-0.5 rounded-full font-semibold">LINE</span>
           </div>
         )}
-        <h1 className="text-xl font-bold text-zinc-900 mt-2">กรอกข้อมูลเพิ่มเติม</h1>
-        <p className="text-sm text-zinc-500 mt-1">แค่ชื่อ-นามสกุล ก็เสร็จแล้ว!</p>
+        <h1 className="text-xl font-bold text-zinc-900 mt-2">{L("กรอกข้อมูลเพิ่มเติม", "Complete your profile")}</h1>
+        <p className="text-sm text-zinc-500 mt-1">{L("แค่ชื่อ-นามสกุล ก็เสร็จแล้ว!", "Just your name and you're done!")}</p>
       </div>
 
       <div className="flex-1 px-6 pb-10">
@@ -134,34 +140,34 @@ export default function CompleteProfilePage() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-[11px] font-semibold text-zinc-500 tracking-wide block mb-1.5">
-                ชื่อ <span className="text-red-400">*</span>
+                {L("ชื่อ", "First name")} <span className="text-red-400">*</span>
               </label>
-              <input type="text" className="input" placeholder="ชื่อจริง"
+              <input type="text" className="input" placeholder={L("ชื่อจริง", "First name")}
                 value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
             </div>
             <div>
               <label className="text-[11px] font-semibold text-zinc-500 tracking-wide block mb-1.5">
-                นามสกุล <span className="text-red-400">*</span>
+                {L("นามสกุล", "Last name")} <span className="text-red-400">*</span>
               </label>
-              <input type="text" className="input" placeholder="นามสกุล"
+              <input type="text" className="input" placeholder={L("นามสกุล", "Last name")}
                 value={lastName} onChange={(e) => setLastName(e.target.value)} required />
             </div>
           </div>
 
           <div>
             <label className="text-[11px] font-semibold text-zinc-500 tracking-wide block mb-1.5">
-              วันเกิด <span className="text-zinc-500 font-normal">(ไม่บังคับ)</span>
+              {L("วันเกิด", "Birthday")} <span className="text-zinc-500 font-normal">{L("(ไม่บังคับ)", "(optional)")}</span>
             </label>
             <div className="grid grid-cols-3 gap-2">
               <select className="input text-sm" value={birthDay} onChange={(e) => setBirthDay(e.target.value)}>
-                <option value="">วัน</option>
+                <option value="">{L("วัน", "Day")}</option>
                 {days.map((d) => <option key={d} value={d}>{d}</option>)}
               </select>
               <select className="input text-sm" value={birthMonth} onChange={(e) => setBirthMonth(e.target.value)}>
-                <option value="">เดือน</option>
+                <option value="">{L("เดือน", "Month")}</option>
                 {months.map((m) => <option key={m.v} value={m.v}>{m.l}</option>)}
               </select>
-              <input type="number" className="input text-sm" placeholder="ปี ค.ศ."
+              <input type="number" className="input text-sm" placeholder={L("ปี ค.ศ.", "Year")}
                 value={birthYear} onChange={(e) => setBirthYear(e.target.value)}
                 min="1900" max="2099" />
             </div>
@@ -169,7 +175,7 @@ export default function CompleteProfilePage() {
 
           <div>
             <label className="text-[11px] font-semibold text-zinc-500 tracking-wide block mb-1.5">
-              เบอร์โทรศัพท์ <span className="text-zinc-500 font-normal">(ไม่บังคับ)</span>
+              {L("เบอร์โทรศัพท์", "Phone number")} <span className="text-zinc-500 font-normal">{L("(ไม่บังคับ)", "(optional)")}</span>
             </label>
             <input type="tel" className="input" placeholder="08x-xxx-xxxx"
               value={phone} onChange={(e) => setPhone(e.target.value)} />
@@ -183,11 +189,11 @@ export default function CompleteProfilePage() {
 
           <button type="submit" disabled={saving}
             className={`btn-primary w-full py-3.5 text-sm mt-2 ${saving ? "opacity-50 cursor-not-allowed" : ""}`}>
-            {saving ? "กำลังบันทึก..." : "เริ่มใช้งาน →"}
+            {saving ? L("กำลังบันทึก...", "Saving...") : L("เริ่มใช้งาน →", "Get started →")}
           </button>
           <button type="button" onClick={() => router.replace(next ?? "/")}
             className="block mx-auto text-[12px] text-zinc-500 underline underline-offset-2 pt-1">
-            ข้ามไปก่อน (กรอกภายหลังได้ที่หน้าโปรไฟล์)
+            {L("ข้ามไปก่อน (กรอกภายหลังได้ที่หน้าโปรไฟล์)", "Skip for now (you can fill this in later on your profile)")}
           </button>
         </form>
       </div>

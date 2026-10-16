@@ -3,6 +3,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase";
 import BottomNav from "@/components/BottomNav";
+import LangToggle from "@/components/LangToggle";
+import { useLang } from "@/lib/i18n";
 
 const TIERS = [
   {
@@ -17,6 +19,12 @@ const TIERS = [
       "จองอีเวนต์ในร้าน",
       "รับ Points ทุกการสั่งซื้อ",
     ],
+    benefitsEn: [
+      "Shop all products",
+      "Track your orders",
+      "Book in-store events",
+      "Earn Points on every order",
+    ],
   },
   {
     key: "silver",
@@ -29,6 +37,12 @@ const TIERS = [
       "ส่วนลด 3% ทุกออเดอร์",
       "Early Access สินค้า Pre-Order",
       "Priority Booking อีเวนต์",
+    ],
+    benefitsEn: [
+      "All Bronze benefits",
+      "3% off every order",
+      "Early Access to Pre-Orders",
+      "Priority event booking",
     ],
   },
   {
@@ -44,6 +58,13 @@ const TIERS = [
       "Exclusive Gold Member Events",
       "ของแถมพิเศษทุกเดือน",
     ],
+    benefitsEn: [
+      "All Silver benefits",
+      "5% off every order",
+      "Free shipping on every order",
+      "Exclusive Gold Member Events",
+      "Special monthly gifts",
+    ],
   },
   {
     key: "platinum",
@@ -51,6 +72,7 @@ const TIERS = [
     color: "#7F77DD",
     bg: "bg-purple-50",
     spend: "฿300,000 ขึ้นไป",
+    spendEn: "฿300,000+",
     benefits: [
       "ทุกสิทธิ์ Gold",
       "ส่วนลด 8% ทุกออเดอร์",
@@ -59,11 +81,20 @@ const TIERS = [
       "Card Grading Service ฟรี 1 ใบ/เดือน",
       "ของแถม Limited Edition",
     ],
+    benefitsEn: [
+      "All Gold benefits",
+      "8% off every order",
+      "Personal Shopper Service",
+      "VIP Events & Private Sales",
+      "1 free Card Grading per month",
+      "Limited Edition gifts",
+    ],
   },
 ];
 
 export default function BenefitsPage() {
   const [currentTier, setCurrentTier] = useState<string | null>(null);
+  const { L, lang } = useLang();
 
   useEffect(() => {
     async function load() {
@@ -90,7 +121,10 @@ export default function BenefitsPage() {
               <path d="M12 5l-5 5 5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </Link>
-          <span className="text-sm font-semibold text-zinc-900">สิทธิประโยชน์สมาชิก</span>
+          <span className="text-sm font-semibold text-zinc-900">{L("สิทธิประโยชน์สมาชิก", "Member benefits")}</span>
+          <div className="ml-auto flex items-center gap-2">
+            <LangToggle />
+          </div>
         </div>
       </header>
 
@@ -99,7 +133,7 @@ export default function BenefitsPage() {
         <div className="card px-5 py-4 text-center">
           <p className="text-xs font-semibold text-zinc-900 mb-1"><span className="font-cardlist font-normal tracking-wide">The Cardlist</span> Membership</p>
           <p className="text-[11px] text-zinc-500 leading-relaxed">
-            ยิ่งซื้อมาก ยิ่งได้รับสิทธิ์มากขึ้น<br/>ยอดสะสมรายปีจะถูกนับใหม่ทุกวันที่ 1 มกราคม
+            {L("ยิ่งซื้อมาก ยิ่งได้รับสิทธิ์มากขึ้น", "The more you shop, the more you get")}<br/>{L("ยอดสะสมรายปีจะถูกนับใหม่ทุกวันที่ 1 มกราคม", "Annual spend resets every 1 January")}
           </p>
         </div>
 
@@ -122,16 +156,16 @@ export default function BenefitsPage() {
                   {isActive && (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white"
                       style={{ background: tier.color }}>
-                      ระดับปัจจุบัน
+                      {L("ระดับปัจจุบัน", "Current tier")}
                     </span>
                   )}
                 </div>
-                <span className="text-[11px] text-zinc-500">{tier.spend}</span>
+                <span className="text-[11px] text-zinc-500">{lang === "en" && tier.spendEn ? tier.spendEn : tier.spend}</span>
               </div>
 
               {/* Benefits List */}
               <div className="px-5 py-4 space-y-2.5">
-                {tier.benefits.map((b, i) => (
+                {(lang === "en" ? tier.benefitsEn : tier.benefits).map((b, i) => (
                   <div key={i} className="flex items-start gap-2.5">
                     <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="mt-0.5 flex-shrink-0">
                       <circle cx="7" cy="7" r="6" fill={tier.color} fillOpacity="0.15"/>
@@ -147,13 +181,13 @@ export default function BenefitsPage() {
 
         {/* Points info */}
         <div className="card px-5 py-4">
-          <p className="text-xs font-semibold text-zinc-900 mb-3">การสะสม Points</p>
+          <p className="text-xs font-semibold text-zinc-900 mb-3">{L("การสะสม Points", "Earning Points")}</p>
           <div className="space-y-2">
             {[
-              { label: "ทุกการสั่งซื้อ",      value: "฿100 = 1 Point" },
-              { label: "รีวิวสินค้า",          value: "+5 Points" },
-              { label: "จองและเข้าร่วม Event", value: "+10 Points" },
-              { label: "แนะนำเพื่อน",          value: "+50 Points" },
+              { label: L("ทุกการสั่งซื้อ", "Every order"),      value: "฿100 = 1 Point" },
+              { label: L("รีวิวสินค้า", "Product review"),          value: "+5 Points" },
+              { label: L("จองและเข้าร่วม Event", "Book & attend an event"), value: "+10 Points" },
+              { label: L("แนะนำเพื่อน", "Refer a friend"),          value: "+50 Points" },
             ].map((r) => (
               <div key={r.label} className="flex items-center justify-between py-1.5 border-b border-zinc-50 last:border-0">
                 <span className="text-[11px] text-zinc-500">{r.label}</span>

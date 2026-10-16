@@ -9,6 +9,8 @@ import { getTier, getNextTier, TIER_LABEL, TIER_COLOR } from "@/lib/tiers";
 import BottomNav from "@/components/BottomNav";
 import LogoLoader from "@/components/LogoLoader";
 import FacebookFollowCard from "@/components/FacebookFollowCard";
+import LangToggle from "@/components/LangToggle";
+import { useLang } from "@/lib/i18n";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -46,6 +48,14 @@ const STATUS_LABEL: Record<string, string> = {
   confirmed: "ยืนยันแล้ว",
   cancelled: "ยกเลิก",
 };
+const STATUS_LABEL_EN: Record<string, string> = {
+  completed: "Completed",
+  shipped:   "Shipped",
+  pending:   "Awaiting payment",
+  paid:      "Paid",
+  confirmed: "Confirmed",
+  cancelled: "Cancelled",
+};
 
 type Tab = "overview" | "orders" | "bookings" | "qr";
 
@@ -71,18 +81,18 @@ type PriorityTicket = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString("th-TH", {
+function formatDate(dateStr: string, locale: string) {
+  return new Date(dateStr).toLocaleDateString(locale, {
     day: "numeric", month: "short", year: "numeric",
   });
 }
 
-function formatOrderItems(items: Order["order_items"]) {
+function formatOrderItems(items: Order["order_items"], L: (th: string, en: string) => string) {
   if (!items?.length) return "—";
   const first = items[0];
-  const name = first.name ?? "สินค้า";
+  const name = first.name ?? L("สินค้า", "Item");
   const qty = first.qty;
-  const extra = items.length > 1 ? ` +${items.length - 1} รายการ` : "";
+  const extra = items.length > 1 ? L(` +${items.length - 1} รายการ`, ` +${items.length - 1} more`) : "";
   return `${name} × ${qty}${extra}`;
 }
 
@@ -165,6 +175,7 @@ function Barcode({ value }: { value: string }) {
 export default function ProfilePage() {
   const router = useRouter();
   const supabase = createClient();
+  const { L, lang, locale } = useLang();
 
   // Auth & data state
   const [loading, setLoading] = useState(true);
@@ -314,7 +325,7 @@ export default function ProfilePage() {
 
     } catch (err: any) {
       console.error("profile load failed:", err);
-      setFetchError("โหลดข้อมูลโปรไฟล์ไม่สำเร็จ ตรวจอินเทอร์เน็ตแล้วลองใหม่");
+      setFetchError("load_failed");
     } finally {
       setLoading(false);
     }
@@ -336,9 +347,9 @@ export default function ProfilePage() {
   if (!profile && fetchError) {
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6 text-center pb-20" role="alert">
-        <h2 className="text-lg font-bold text-zinc-900 mb-2">โหลดข้อมูลไม่สำเร็จ</h2>
-        <p className="text-sm text-zinc-500 mb-8">{fetchError}</p>
-        <button onClick={loadData} className="bg-zinc-900 text-white text-sm font-semibold px-8 py-3 rounded-xl">ลองใหม่</button>
+        <h2 className="text-lg font-bold text-zinc-900 mb-2">{L("โหลดข้อมูลไม่สำเร็จ", "Couldn't load data")}</h2>
+        <p className="text-sm text-zinc-500 mb-8">{L("โหลดข้อมูลโปรไฟล์ไม่สำเร็จ ตรวจอินเทอร์เน็ตแล้วลองใหม่", "Couldn't load your profile. Check your connection and try again.")}</p>
+        <button onClick={loadData} className="bg-zinc-900 text-white text-sm font-semibold px-8 py-3 rounded-xl">{L("ลองใหม่", "Try again")}</button>
         <BottomNav />
       </div>
     );
@@ -349,13 +360,13 @@ export default function ProfilePage() {
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6 text-center pb-20">
         <Image src="/images/logo-square.jpg" alt="The Cardlist" width={52} height={52} className="mb-6" />
-        <h2 className="text-lg font-bold text-zinc-900 mb-2">เข้าสู่ระบบก่อน</h2>
-        <p className="text-sm text-zinc-500 mb-8">เพื่อดูโปรไฟล์ ประวัติสั่งซื้อ และการจองอีเวนต์</p>
+        <h2 className="text-lg font-bold text-zinc-900 mb-2">{L("เข้าสู่ระบบก่อน", "Please log in")}</h2>
+        <p className="text-sm text-zinc-500 mb-8">{L("เพื่อดูโปรไฟล์ ประวัติสั่งซื้อ และการจองอีเวนต์", "To see your profile, order history and event bookings")}</p>
         <Link href="/login" className="bg-zinc-900 text-white text-sm font-semibold px-8 py-3 rounded-xl mb-3 block">
-          เข้าสู่ระบบ
+          {L("เข้าสู่ระบบ", "Log in")}
         </Link>
         <Link href="/register" className="border border-zinc-200 text-zinc-700 text-sm font-semibold px-8 py-3 rounded-xl block">
-          สมัครสมาชิก
+          {L("สมัครสมาชิก", "Sign up")}
         </Link>
         <BottomNav />
       </div>
@@ -377,23 +388,26 @@ export default function ProfilePage() {
       {/* ── Header ── */}
       <header className="sticky top-0 z-40 bg-white border-b border-zinc-100">
         <div className="flex items-center justify-between px-4 h-12">
-          <span className="text-sm font-semibold text-zinc-900 tracking-wide">โปรไฟล์</span>
+          <span className="text-sm font-semibold text-zinc-900 tracking-wide">{L("โปรไฟล์", "Profile")}</span>
+          <div className="flex items-center gap-2">
+          <LangToggle />
           <button
             onClick={handleLogout}
             disabled={loggingOut}
             className="text-[11px] text-zinc-500 active:text-zinc-700 disabled:opacity-40"
           >
-            {loggingOut ? "กำลังออก..." : "ออกจากระบบ"}
+            {loggingOut ? L("กำลังออก...", "Logging out...") : L("ออกจากระบบ", "Log out")}
           </button>
+          </div>
         </div>
       </header>
 
       {/* ── Error Banner ── */}
       {fetchError && (
         <div className="bg-red-50 border-b border-red-100 px-4 py-2.5 flex items-center justify-between gap-3">
-          <p className="text-[11px] text-red-600">{fetchError}</p>
+          <p className="text-[11px] text-red-600">{L("โหลดข้อมูลโปรไฟล์ไม่สำเร็จ ตรวจอินเทอร์เน็ตแล้วลองใหม่", "Couldn't load your profile. Check your connection and try again.")}</p>
           <button onClick={loadData} className="text-[11px] font-semibold text-red-700 underline flex-shrink-0">
-            ลองใหม่
+            {L("ลองใหม่", "Try again")}
           </button>
         </div>
       )}
@@ -403,13 +417,13 @@ export default function ProfilePage() {
         <Link href="/profile/edit"
           className="bg-amber-50 border-b border-amber-100 px-4 py-3 flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs font-semibold text-amber-900">ยังไม่ได้กรอกเบอร์โทร</p>
+            <p className="text-xs font-semibold text-amber-900">{L("ยังไม่ได้กรอกเบอร์โทร", "No phone number yet")}</p>
             <p className="text-[11px] text-amber-700 mt-0.5">
-              กรอกไว้เผื่อเปิด QR ไม่ได้ พนักงานจะค้นหาคุณด้วยเบอร์แทนได้
+              {L("กรอกไว้เผื่อเปิด QR ไม่ได้ พนักงานจะค้นหาคุณด้วยเบอร์แทนได้", "Add one so staff can find you by phone if your QR won't open")}
             </p>
           </div>
           <span className="text-[11px] bg-amber-900 text-white font-semibold px-3 py-1.5 rounded-lg flex-shrink-0">
-            กรอกเลย
+            {L("กรอกเลย", "Add now")}
           </span>
         </Link>
       )}
@@ -420,13 +434,13 @@ export default function ProfilePage() {
           <div className="flex items-center gap-2.5">
             <Image src="/icons/icon-192.png" alt="" width={32} height={32} className="rounded-lg flex-shrink-0" />
             <div>
-              <p className="text-xs font-semibold text-white">ติดตั้งแอป <span className="font-cardlist font-normal tracking-wide">The Cardlist</span></p>
-              <p className="text-[11px] text-zinc-500 mt-0.5">เพิ่มไปยังหน้าจอหลักได้เลย</p>
+              <p className="text-xs font-semibold text-white">{L("ติดตั้งแอป", "Install")} <span className="font-cardlist font-normal tracking-wide">The Cardlist</span>{L("", " app")}</p>
+              <p className="text-[11px] text-zinc-500 mt-0.5">{L("เพิ่มไปยังหน้าจอหลักได้เลย", "Add it to your home screen")}</p>
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <button onClick={handleInstall} className="text-[11px] bg-white text-zinc-900 font-semibold px-3 py-1.5 rounded-lg">
-              ติดตั้ง
+              {L("ติดตั้ง", "Install")}
             </button>
             <button onClick={() => setShowInstallBanner(false)} className="text-zinc-500 text-lg leading-none">✕</button>
           </div>
@@ -439,7 +453,7 @@ export default function ProfilePage() {
             <circle cx="7" cy="7" r="6" fill="#16a34a"/>
             <path d="M4 7l2 2 4-4" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
-          <p className="text-[11px] text-green-700 font-medium">ติดตั้งแอปแล้ว — ใช้งานได้แบบออฟไลน์</p>
+          <p className="text-[11px] text-green-700 font-medium">{L("ติดตั้งแอปแล้ว — ใช้งานได้แบบออฟไลน์", "App installed — works offline")}</p>
         </div>
       )}
 
@@ -475,7 +489,7 @@ export default function ProfilePage() {
         <div className="grid grid-cols-4 gap-2 mb-5">
           {[
             { label: "Points",   value: profile.points.toLocaleString() },
-            { label: "ยอดสะสม",  value: totalSpend >= 1000 ? `฿${(totalSpend / 1000).toFixed(1)}K` : `฿${totalSpend}` },
+            { label: L("ยอดสะสม", "Spent"),  value: totalSpend >= 1000 ? `฿${(totalSpend / 1000).toFixed(1)}K` : `฿${totalSpend}` },
             { label: "Orders",   value: orders.length },
             { label: "Events",   value: bookings.length },
           ].map((s) => (
@@ -503,14 +517,14 @@ export default function ProfilePage() {
         {nextTierKey && nextThreshold !== null && (
           <div>
             <div className="flex justify-between mb-1.5">
-              <span className="text-[11px] text-zinc-500 font-medium">ยอดซื้อสะสม → {TIER_LABEL[nextTierKey]}</span>
+              <span className="text-[11px] text-zinc-500 font-medium">{L("ยอดซื้อสะสม", "Total spend")} → {TIER_LABEL[nextTierKey]}</span>
               <span className="text-[11px] text-zinc-500">฿{totalSpend.toLocaleString()} / ฿{nextThreshold.toLocaleString()}</span>
             </div>
             <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden">
               <div className="h-full rounded-full transition-all duration-500" style={{ width: `${spendPct}%`, background: tierColor }} />
             </div>
             <p className="text-[11px] text-zinc-500 mt-1">
-              อีก ฿{spendRemaining.toLocaleString()} จะขึ้น {TIER_LABEL[nextTierKey]}
+              {L(`อีก ฿${spendRemaining.toLocaleString()} จะขึ้น ${TIER_LABEL[nextTierKey]}`, `฿${spendRemaining.toLocaleString()} more to reach ${TIER_LABEL[nextTierKey]}`)}
             </p>
           </div>
         )}
@@ -519,7 +533,7 @@ export default function ProfilePage() {
           <div className="mt-3 flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full" style={{ background: tierColor }} />
             <p className="text-[11px] font-semibold" style={{ color: tierColor }}>
-              Platinum — ระดับสูงสุด 🎉
+              {L("Platinum — ระดับสูงสุด 🎉", "Platinum — top tier 🎉")}
             </p>
           </div>
         )}
@@ -528,7 +542,7 @@ export default function ProfilePage() {
       {/* ── Tabs ── */}
       <div className="flex bg-white border-b border-zinc-100 overflow-x-auto scrollbar-hide">
         {(["overview", "orders", "bookings", "qr"] as Tab[]).map((t) => {
-          const labels: Record<Tab, string> = { overview: "ภาพรวม", orders: "สั่งซื้อ", bookings: "จอง", qr: "QR" };
+          const labels: Record<Tab, string> = { overview: L("ภาพรวม", "Overview"), orders: L("สั่งซื้อ", "Orders"), bookings: L("จอง", "Bookings"), qr: "QR" };
           return (
             <button
               key={t}
@@ -564,8 +578,8 @@ export default function ProfilePage() {
             </div>
             {!installed && (
               <div className="card px-4 py-4 mb-4">
-                <p className="text-xs font-semibold text-zinc-900 mb-1">ดาวน์โหลดแอป <span className="font-cardlist font-normal tracking-wide">The Cardlist</span></p>
-                <p className="text-[11px] text-zinc-500 mb-3">ติดตั้งเป็นแอปบนมือถือและคอมพิวเตอร์ได้เลย</p>
+                <p className="text-xs font-semibold text-zinc-900 mb-1">{L("ดาวน์โหลดแอป", "Get")} <span className="font-cardlist font-normal tracking-wide">The Cardlist</span>{L("", " app")}</p>
+                <p className="text-[11px] text-zinc-500 mb-3">{L("ติดตั้งเป็นแอปบนมือถือและคอมพิวเตอร์ได้เลย", "Install it as an app on your phone or computer")}</p>
                 <div className="grid grid-cols-2 gap-2">
                   <button onClick={handleInstall} className="flex items-center gap-2 border border-zinc-200 rounded-xl px-3 py-2.5 text-left hover:bg-zinc-50 transition-colors">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
@@ -573,7 +587,7 @@ export default function ProfilePage() {
                       <circle cx="12" cy="18" r="1" fill="#0a0a0a"/>
                     </svg>
                     <div>
-                      <p className="text-[11px] font-semibold text-zinc-900">มือถือ</p>
+                      <p className="text-[11px] font-semibold text-zinc-900">{L("มือถือ", "Mobile")}</p>
                       <p className="text-[10px] text-zinc-500">Android / iOS</p>
                     </div>
                   </button>
@@ -589,16 +603,16 @@ export default function ProfilePage() {
                     </div>
                   </button>
                 </div>
-                <p className="text-[10px] text-zinc-500 mt-2.5 text-center">* iOS: กด Share → "Add to Home Screen" ใน Safari</p>
+                <p className="text-[10px] text-zinc-500 mt-2.5 text-center">{L('* iOS: กด Share → "Add to Home Screen" ใน Safari', '* iOS: tap Share → "Add to Home Screen" in Safari')}</p>
               </div>
             )}
             {[
-              { label: "แก้ไขโปรไฟล์",       href: "/profile/edit" },
-              { label: "ประวัติการสั่งซื้อ",   href: "/orders" },
-              { label: "ที่อยู่จัดส่ง",        href: "/profile/address" },
+              { label: L("แก้ไขโปรไฟล์", "Edit profile"),       href: "/profile/edit" },
+              { label: L("ประวัติการสั่งซื้อ", "Order history"),   href: "/orders" },
+              { label: L("ที่อยู่จัดส่ง", "Shipping address"),        href: "/profile/address" },
               { label: "Collection Tracker",   href: "/profile/collection" },
               { label: "Deck Builder",          href: "/profile/decks" },
-              { label: "สิทธิประโยชน์สมาชิก",  href: "/profile/benefits" },
+              { label: L("สิทธิประโยชน์สมาชิก", "Member benefits"),  href: "/profile/benefits" },
             ].map((item) => (
               <Link
                 key={item.label}
@@ -619,14 +633,14 @@ export default function ProfilePage() {
           <div className="space-y-2">
             {orders.length > 0 && (
               <div className="card px-4 py-3 mb-2 flex items-center justify-between bg-zinc-50">
-                <span className="text-[11px] text-zinc-500">ยอดซื้อรวมทั้งหมด</span>
+                <span className="text-[11px] text-zinc-500">{L("ยอดซื้อรวมทั้งหมด", "Total spend")}</span>
                 <span className="text-sm font-bold text-zinc-900">฿{totalSpend.toLocaleString()}</span>
               </div>
             )}
             {orders.length === 0 ? (
               <div className="card px-5 py-10 text-center">
-                <p className="text-sm text-zinc-500">ยังไม่มีประวัติการสั่งซื้อ</p>
-                <Link href="/shop" className="mt-4 inline-block btn-primary px-6 py-2.5">ไปที่ร้านค้า</Link>
+                <p className="text-sm text-zinc-500">{L("ยังไม่มีประวัติการสั่งซื้อ", "No orders yet")}</p>
+                <Link href="/shop" className="mt-4 inline-block btn-primary px-6 py-2.5">{L("ไปที่ร้านค้า", "Go to shop")}</Link>
               </div>
             ) : (
               orders.map((o) => (
@@ -636,12 +650,12 @@ export default function ProfilePage() {
                       #{o.id.slice(0, 8).toUpperCase()}
                     </p>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${STATUS_STYLE[o.status]}`}>
-                      {STATUS_LABEL[o.status]}
+                      {(lang === "en" ? STATUS_LABEL_EN : STATUS_LABEL)[o.status]}
                     </span>
                   </div>
-                  <p className="text-xs font-medium text-zinc-900">{formatOrderItems(o.order_items)}</p>
+                  <p className="text-xs font-medium text-zinc-900">{formatOrderItems(o.order_items, L)}</p>
                   <div className="flex items-center justify-between mt-2">
-                    <p className="text-[11px] text-zinc-500">{formatDate(o.created_at)}</p>
+                    <p className="text-[11px] text-zinc-500">{formatDate(o.created_at, locale)}</p>
                     <p className="text-xs font-bold text-zinc-900">฿{Number(o.total_amount).toLocaleString()}</p>
                   </div>
                 </div>
@@ -655,8 +669,8 @@ export default function ProfilePage() {
           <div className="space-y-2">
             {bookings.length === 0 ? (
               <div className="card px-5 py-10 text-center">
-                <p className="text-sm text-zinc-500">ยังไม่มีการจองอีเวนต์</p>
-                <Link href="/events" className="mt-4 inline-block btn-primary px-6 py-2.5">ดูอีเวนต์</Link>
+                <p className="text-sm text-zinc-500">{L("ยังไม่มีการจองอีเวนต์", "No event bookings yet")}</p>
+                <Link href="/events" className="mt-4 inline-block btn-primary px-6 py-2.5">{L("ดูอีเวนต์", "Browse events")}</Link>
               </div>
             ) : (
               bookings.map((b) => (
@@ -666,12 +680,12 @@ export default function ProfilePage() {
                       #{b.id.slice(0, 8).toUpperCase()}
                     </p>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${STATUS_STYLE[b.status]}`}>
-                      {STATUS_LABEL[b.status]}
+                      {(lang === "en" ? STATUS_LABEL_EN : STATUS_LABEL)[b.status]}
                     </span>
                   </div>
                   <p className="text-xs font-medium text-zinc-900">{b.events?.title ?? "—"}</p>
                   <p className="text-[11px] text-zinc-500 mt-0.5">
-                    {b.events?.date ? formatDate(b.events.date) : "—"}
+                    {b.events?.date ? formatDate(b.events.date, locale) : "—"}
                     {b.events?.time ? ` · ${b.events.time.slice(0, 5)}` : ""}
                     {b.events?.location ? ` · ${b.events.location}` : ""}
                   </p>
@@ -679,7 +693,7 @@ export default function ProfilePage() {
                     onClick={() => setActiveTab("qr")}
                     className="mt-3 text-[11px] border border-zinc-200 rounded-lg px-3 py-1.5 text-zinc-600 w-full text-center active:bg-zinc-50"
                   >
-                    ดู QR Code
+                    {L("ดู QR Code", "View QR code")}
                   </button>
                 </div>
               ))
@@ -695,7 +709,7 @@ export default function ProfilePage() {
               <div className="card px-5 py-5">
                 <div className="text-center">
                   <p className="text-[10px] font-semibold text-zinc-500 tracking-widest mb-1">MEMBER QR</p>
-                  <p className="text-xs text-zinc-500 mb-4">ยื่นให้พนักงานสแกนทุกครั้งที่มาเล่น</p>
+                  <p className="text-xs text-zinc-500 mb-4">{L("ยื่นให้พนักงานสแกนทุกครั้งที่มาเล่น", "Show this to staff every time you play")}</p>
                   <QRCode value={profile.member_code} />
                   <p className="text-sm font-mono font-semibold text-zinc-900 mt-3 tracking-wider">{profile.member_code}</p>
                 </div>
@@ -703,12 +717,12 @@ export default function ProfilePage() {
                 {/* สะสมรอบเล่น */}
                 <div className="mt-5 pt-4 border-t border-zinc-100">
                   <div className="flex items-baseline justify-between mb-3">
-                    <p className="text-[10px] font-semibold text-zinc-500 tracking-widest">สะสมรอบเล่น</p>
-                    <p className="text-xs text-zinc-900"><span className="text-xl font-bold">{playCount}</span> ครั้ง</p>
+                    <p className="text-[10px] font-semibold text-zinc-500 tracking-widest">{L("สะสมรอบเล่น", "PLAY STAMPS")}</p>
+                    <p className="text-xs text-zinc-900"><span className="text-xl font-bold">{playCount}</span> {L("ครั้ง", playCount === 1 ? "visit" : "visits")}</p>
                   </div>
 
                   {stampRewards.length === 0 ? (
-                    <p className="text-[11px] text-zinc-500">ยังไม่มีสิทธิ์พิเศษในช่วงนี้</p>
+                    <p className="text-[11px] text-zinc-500">{L("ยังไม่มีสิทธิ์พิเศษในช่วงนี้", "No rewards available right now")}</p>
                   ) : stampRewards.map((r) => {
                     const grant = myGrants.find((g) => g.reward_id === r.id);
                     const pct = Math.min(100, (playCount / r.required_visits) * 100);
@@ -720,10 +734,10 @@ export default function ProfilePage() {
                           {grant ? (
                             <span className={`flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded tracking-widest ${
                               grant.status === "used" ? "bg-zinc-100 text-zinc-500" : "bg-green-50 text-green-700"}`}>
-                              {grant.status === "used" ? "ใช้แล้ว" : "ได้สิทธิ์แล้ว"}
+                              {grant.status === "used" ? L("ใช้แล้ว", "Used") : L("ได้สิทธิ์แล้ว", "Earned")}
                             </span>
                           ) : soldOut ? (
-                            <span className="flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded tracking-widest bg-red-50 text-red-600">เต็มแล้ว</span>
+                            <span className="flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded tracking-widest bg-red-50 text-red-600">{L("เต็มแล้ว", "Full")}</span>
                           ) : (
                             <span className="flex-shrink-0 text-[11px] text-zinc-500">{playCount}/{r.required_visits}</span>
                           )}
@@ -732,14 +746,14 @@ export default function ProfilePage() {
                           <div className={`h-full rounded-full ${grant ? "bg-green-600" : "bg-zinc-900"}`} style={{ width: `${pct}%` }} />
                         </div>
                         {r.quota != null && !grant && (
-                          <p className="text-[10px] text-zinc-500 mt-1">เหลือ {Math.max(0, r.quota - r.granted_count)} สิทธิ์จาก {r.quota}</p>
+                          <p className="text-[10px] text-zinc-500 mt-1">{L(`เหลือ ${Math.max(0, r.quota - r.granted_count)} สิทธิ์จาก ${r.quota}`, `${Math.max(0, r.quota - r.granted_count)} of ${r.quota} left`)}</p>
                         )}
                       </div>
                     );
                   })}
                   {myGrants.some((g) => g.status === "granted") && (
                     <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mt-3">
-                      🎁 คุณมีสิทธิ์ที่ยังไม่ได้ใช้ — แจ้งพนักงานหน้างานเพื่อใช้สิทธิ์ได้เลย
+                      {L("🎁 คุณมีสิทธิ์ที่ยังไม่ได้ใช้ — แจ้งพนักงานหน้างานเพื่อใช้สิทธิ์ได้เลย", "🎁 You have an unused reward — ask staff in store to redeem it")}
                     </p>
                   )}
                 </div>
@@ -749,8 +763,8 @@ export default function ProfilePage() {
             {genRegs.length === 0 && priorityTickets.length === 0 ? (
               <div className="card px-5 py-10 text-center">
                 <p className="text-2xl mb-3">🎫</p>
-                <p className="text-sm text-zinc-500">ยังไม่มีบัตรเข้างาน</p>
-                <p className="text-[11px] text-zinc-500 mt-1">ลงทะเบียนเข้างานเพื่อรับ QR บัตรเข้างาน</p>
+                <p className="text-sm text-zinc-500">{L("ยังไม่มีบัตรเข้างาน", "No event tickets yet")}</p>
+                <p className="text-[11px] text-zinc-500 mt-1">{L("ลงทะเบียนเข้างานเพื่อรับ QR บัตรเข้างาน", "Register for an event to get your ticket QR")}</p>
               </div>
             ) : (
               <>
@@ -759,11 +773,11 @@ export default function ProfilePage() {
                   <div key={g.id} className="card px-5 py-5">
                     <div className="flex items-center gap-2 mb-3">
                       <span className="text-[11px] bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded-full font-semibold">GENERAL</span>
-                      <span className="text-[11px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">ฟรี</span>
+                      <span className="text-[11px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">{L("ฟรี", "FREE")}</span>
                     </div>
                     <p className="text-xs font-semibold text-zinc-900 mb-0.5">{(g.events as any)?.title ?? "—"}</p>
                     <p className="text-[11px] text-zinc-500 mb-4">
-                      {(g.events as any)?.date ? formatDate((g.events as any).date) : ""} · {(g.events as any)?.location ?? ""}
+                      {(g.events as any)?.date ? formatDate((g.events as any).date, locale) : ""} · {(g.events as any)?.location ?? ""}
                     </p>
                     <div className="flex justify-center mb-2">
                       <QRCode value={g.qr_code} />
@@ -773,17 +787,17 @@ export default function ProfilePage() {
                     {/* สิทธิ์ — โชว์เฉพาะ event ที่เปิดสิทธิ์นี้ไว้ (general_perk_enabled) */}
                     {(g.events as any)?.general_perk_enabled !== false && (
                       <div className="bg-zinc-50 rounded-xl p-3 space-y-2">
-                        <p className="text-[11px] font-semibold text-zinc-500 tracking-widest uppercase">สิทธิ์ของคุณ</p>
+                        <p className="text-[11px] font-semibold text-zinc-500 tracking-widest uppercase">{L("สิทธิ์ของคุณ", "Your perks")}</p>
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2 min-w-0">
                             <span className="text-sm">🎲</span>
-                            <span className="text-[11px] text-zinc-700">สิทธิ์ลุ้นซื้อ ชุด “30th CELEBRATION” FUTURISTIC RARE</span>
+                            <span className="text-[11px] text-zinc-700">{L("สิทธิ์ลุ้นซื้อ ชุด “30th CELEBRATION” FUTURISTIC RARE", "Chance to buy the “30th CELEBRATION” FUTURISTIC RARE set")}</span>
                           </div>
-                          <span className="flex-shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600">ลุ้นหน้างาน</span>
+                          <span className="flex-shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600">{L("ลุ้นหน้างาน", "Drawn on site")}</span>
                         </div>
                       </div>
                     )}
-                    <p className="text-[10px] text-zinc-500 text-center mt-3">แสดง QR Code นี้หน้างานเพื่อใช้สิทธิ์</p>
+                    <p className="text-[10px] text-zinc-500 text-center mt-3">{L("แสดง QR Code นี้หน้างานเพื่อใช้สิทธิ์", "Show this QR code at the event to redeem")}</p>
                   </div>
                 ))}
 
@@ -793,12 +807,12 @@ export default function ProfilePage() {
                     <div className="flex items-center gap-2 mb-3">
                       <span className="text-[11px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold">🥇 PRIORITY GUEST</span>
                       <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${p.status === "approved" ? "bg-green-100 text-green-700" : "bg-amber-50 text-amber-600"}`}>
-                        {p.status === "approved" ? "✓ อนุมัติแล้ว" : "รอยืนยัน"}
+                        {p.status === "approved" ? L("✓ อนุมัติแล้ว", "✓ Approved") : L("รอยืนยัน", "Pending")}
                       </span>
                     </div>
                     <p className="text-xs font-semibold text-zinc-900 mb-0.5">{(p.events as any)?.title ?? "—"}</p>
                     <p className="text-[11px] text-zinc-500 mb-4">
-                      {(p.events as any)?.date ? formatDate((p.events as any).date) : ""} · {(p.events as any)?.location ?? ""}
+                      {(p.events as any)?.date ? formatDate((p.events as any).date, locale) : ""} · {(p.events as any)?.location ?? ""}
                     </p>
                     {p.status === "approved" && (
                       <>
@@ -811,16 +825,16 @@ export default function ProfilePage() {
                     )}
                     {/* สิทธิ์ */}
                     <div className="bg-amber-50 rounded-xl p-3 space-y-2">
-                      <p className="text-[11px] font-semibold text-zinc-500 tracking-widest uppercase">สิทธิ์ของคุณ</p>
+                      <p className="text-[11px] font-semibold text-zinc-500 tracking-widest uppercase">{L("สิทธิ์ของคุณ", "Your perks")}</p>
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
                           <span className="text-sm">🎲</span>
-                          <span className="text-[11px] text-zinc-700">สิทธิ์ลุ้นซื้อ ชุด “30th CELEBRATION” FUTURISTIC RARE</span>
+                          <span className="text-[11px] text-zinc-700">{L("สิทธิ์ลุ้นซื้อ ชุด “30th CELEBRATION” FUTURISTIC RARE", "Chance to buy the “30th CELEBRATION” FUTURISTIC RARE set")}</span>
                         </div>
-                        <span className="flex-shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600">ลุ้นหน้างาน</span>
+                        <span className="flex-shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600">{L("ลุ้นหน้างาน", "Drawn on site")}</span>
                       </div>
                     </div>
-                    <p className="text-[10px] text-zinc-500 text-center mt-3">แสดง QR Code นี้หน้างานเพื่อใช้สิทธิ์</p>
+                    <p className="text-[10px] text-zinc-500 text-center mt-3">{L("แสดง QR Code นี้หน้างานเพื่อใช้สิทธิ์", "Show this QR code at the event to redeem")}</p>
                   </div>
                 ))}
               </>

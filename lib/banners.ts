@@ -52,6 +52,23 @@ export const DEFAULT_HOME_BANNERS: Banner[] = [
   },
 ];
 
+// แบนเนอร์สำรองฉบับภาษาอังกฤษ (โครงเดียวกับ DEFAULT_HOME_BANNERS)
+export const DEFAULT_HOME_BANNERS_EN: Banner[] = [
+  {
+    ...DEFAULT_HOME_BANNERS[0],
+    title: "The Cardlist\nThailand's TCG community",
+    subtitle: "Buy cards · Join events · Book vendor tables",
+    ctaLabel: "Shop now",
+    ctaSecondaryLabel: "See events",
+  },
+  {
+    ...DEFAULT_HOME_BANNERS[1],
+    title: "Book a Vendor table\nat our events",
+    subtitle: "Pick a table from the real floor plan and pay instantly",
+    ctaLabel: "Book a table",
+  },
+];
+
 export const DEFAULT_TOURNAMENT_BANNERS: Banner[] = [
   {
     id: "t1",

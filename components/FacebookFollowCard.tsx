@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase";
+import { useLang } from "@/lib/i18n";
 
 /**
  * ชวนสมาชิกติดตามเพจ Facebook
@@ -15,6 +16,7 @@ export default function FacebookFollowCard({
   /** เรียกเมื่อสมาชิกกดลิงก์ไปเพจ — ใช้ปลดล็อกเงื่อนไข "ต้องฟอลเพจ" ของหน้าที่ครอบอยู่ */
   onClicked?: () => void;
 }) {
+  const { L } = useLang();
   const [url, setUrl] = useState<string | null>(null);
   const [clicked, setClicked] = useState(false);
   const [ready, setReady] = useState(false);
@@ -67,7 +69,7 @@ export default function FacebookFollowCard({
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
           <path d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.1 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.69 4.53-4.69 1.31 0 2.68.24 2.68.24v2.96h-1.51c-1.49 0-1.96.93-1.96 1.89v2.26h3.33l-.53 3.49h-2.8V24C19.61 23.1 24 18.1 24 12.07z"/>
         </svg>
-        ติดตามเพจ The Cardlist
+        {L("ติดตามเพจ The Cardlist", "Follow The Cardlist")}
       </a>
     );
   }
@@ -81,16 +83,16 @@ export default function FacebookFollowCard({
           </svg>
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold text-zinc-900">ติดตามเพจ <span className="font-cardlist font-normal tracking-wide">The Cardlist</span></p>
+          <p className="text-xs font-semibold text-zinc-900">{L("ติดตามเพจ", "Follow")} <span className="font-cardlist font-normal tracking-wide">The Cardlist</span></p>
           <p className="text-[11px] text-zinc-500 mt-0.5">
-            {clicked ? "ขอบคุณที่ติดตามนะครับ 🙌" : "อัปเดตอีเวนต์ การ์ดใหม่ และโปรโมชั่นก่อนใคร"}
+            {clicked ? L("ขอบคุณที่ติดตามนะครับ 🙌", "Thanks for following! 🙌") : L("อัปเดตอีเวนต์ การ์ดใหม่ และโปรโมชั่นก่อนใคร", "Be first to hear about events, new cards and deals")}
           </p>
         </div>
         <a href={url} target="_blank" rel="noopener noreferrer" onClick={handleClick}
           className={`text-[11px] font-semibold px-3 py-1.5 rounded-lg flex-shrink-0 ${
             clicked ? "border border-zinc-200 text-zinc-500" : "bg-[#1877F2] text-white"
           }`}>
-          {clicked ? "เปิดเพจ" : "กดไลค์เพจ"}
+          {clicked ? L("เปิดเพจ", "Open page") : L("กดไลค์เพจ", "Like page")}
         </a>
       </div>
     </div>
