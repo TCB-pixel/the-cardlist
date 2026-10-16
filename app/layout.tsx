@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { LangProvider } from "@/lib/i18n";
+import { SPLASH_SCRIPT } from "@/lib/splash";
 
 const SITE_DESCRIPTION = "แพลตฟอร์มสำหรับคนเล่นการ์ดเกมในไทย — ซื้อการ์ดและอุปกรณ์ ติดตามอีเวนต์ และจองโต๊ะร้านค้าในงาน The Cardlist";
 
@@ -51,6 +52,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
       </head>
       <body>
+        <script dangerouslySetInnerHTML={{ __html: SPLASH_SCRIPT }} />
         <LangProvider>{children}</LangProvider>
         <script dangerouslySetInnerHTML={{
           __html: `

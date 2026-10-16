@@ -1,5 +1,6 @@
-const CACHE = "cardlist-v2";
-const PRECACHE = ["/", "/shop", "/events", "/news", "/offline"];
+const CACHE = "cardlist-v3";
+const PRECACHE = ["/", "/shop", "/events", "/news", "/offline",
+  "/images/splash/c-red.png", "/images/splash/c-yellow.png", "/images/splash/c-blue.png", "/images/splash/c-full.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(PRECACHE).catch(() => {})));
