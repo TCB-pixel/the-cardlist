@@ -12,3 +12,9 @@ export function ownerId(): string | null {
 }
 
 export const WAIT_MESSAGE = "รอแอดมินตรวจสอบสักครู่นะครับ 🙏";
+export const WAIT_MESSAGE_EN = "Thank you! Our admin will check and get back to you shortly 🙏";
+
+// ข้อความไม่มีตัวอักษรไทยเลย = ลูกค้าต่างชาติ → ข้อความระบบเป็นภาษาอังกฤษ
+export function waitMessageFor(text: string): string {
+  return /[฀-๿]/.test(text) ? WAIT_MESSAGE : WAIT_MESSAGE_EN;
+}

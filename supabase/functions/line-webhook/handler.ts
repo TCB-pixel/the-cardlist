@@ -4,7 +4,7 @@
 // 5. เจ้าของพิมพ์อย่างอื่น → ผู้ช่วย AI ส่วนตัว (_shared/assistant.ts) / "ลูกค้า: ..." = ทดสอบเป็นลูกค้า
 import { clip, getDisplayName, push, reply, replyOrPush, showLoading, textMessage } from "../_shared/line.ts";
 import { AiUsage, decide, HistoryTurn, mustEscalate } from "../_shared/ai.ts";
-import { db, ownerId, WAIT_MESSAGE } from "../_shared/db.ts";
+import { db, ownerId, waitMessageFor } from "../_shared/db.ts";
 import { askAssistant, isAssistantUser } from "../_shared/assistant.ts";
 
 // deno-lint-ignore no-explicit-any
@@ -148,7 +148,7 @@ async function escalate(
     .eq("line_user_id", userId)
     .in("status", ["pending", "awaiting_owner_reply"])
     .gte("created_at", since);
-  if (!waiting) await replyOrPush(e.replyToken, userId, [textMessage(WAIT_MESSAGE)]);
+  if (!waiting) await replyOrPush(e.replyToken, userId, [textMessage(waitMessageFor(question))]);
 
   const { data: log } = await db.from("chat_logs").insert({
     line_user_id: userId,
