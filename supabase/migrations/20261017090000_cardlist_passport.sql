@@ -2,7 +2,7 @@
 -- ตารางใหม่ทั้งหมด ไม่แตะตารางเดิม · เปิด RLS ไม่มี policy = เข้าถึงผ่าน API ฝั่ง server (service role) เท่านั้น
 -- ข้อมูลส่วนบุคคล: ไม่เก็บชื่อ เบอร์ อีเมล · passports เก็บแค่รหัสการ์ด + hash ของรหัสบนเครื่อง
 
-create extension if not exists pgcrypto;
+-- pgcrypto อยู่ใน schema extensions (ค่าเริ่มต้นของ Supabase)
 
 -- ───────── งาน ─────────
 create table public.passport_events (
@@ -30,8 +30,8 @@ create table public.passport_stations (
   name text not null,
   logo_path text,
   qr_mode text not null default 'daily' check (qr_mode in ('daily', 'rotating')),
-  secret text not null default encode(gen_random_bytes(24), 'hex'),
-  display_key text not null default encode(gen_random_bytes(12), 'hex'),
+  secret text not null default encode(extensions.gen_random_bytes(24), 'hex'),
+  display_key text not null default encode(extensions.gen_random_bytes(12), 'hex'),
   is_test boolean not null default false,
   active boolean not null default true,
   sort int not null default 0,
@@ -46,8 +46,8 @@ create table public.passports (
   code text unique not null,
   kind text not null check (kind in ('card', 'free')),
   status text not null default 'unsold' check (status in ('unsold', 'sold', 'active')),
-  claim_secret text not null default encode(gen_random_bytes(12), 'hex'),
-  redeem_secret text not null default encode(gen_random_bytes(16), 'hex'),
+  claim_secret text not null default encode(extensions.gen_random_bytes(12), 'hex'),
+  redeem_secret text not null default encode(extensions.gen_random_bytes(16), 'hex'),
   device_hash text,
   user_id uuid references auth.users(id) on delete set null,
   is_test boolean not null default false,
