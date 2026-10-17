@@ -1,13 +1,24 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { canScanNatively, scanQrNative } from "@/lib/native";
 
 // กล้องสแกน QR (html5-qrcode ตัวเดียวกับ /admin/scan) — อ่านได้ 1 ครั้งแล้วปิดกล้อง
+// เปิดในแอปมือถือ → ใช้กล้องเนทีฟเต็มจอแทน (เร็วกว่า ไม่ต้องขออนุญาตกล้องในเว็บ)
 export default function Scanner({ onResult, onClose, dark = true }: { onResult: (text: string) => void; onClose: () => void; dark?: boolean }) {
   const ref = useRef<any>(null);
   const [err, setErr] = useState("");
+  const [native, setNative] = useState(false);
+  const nativeStarted = useRef(false);
   const id = useRef(`qr-${Math.random().toString(36).slice(2)}`).current;
 
   useEffect(() => {
+    if (canScanNatively()) {
+      setNative(true);
+      if (nativeStarted.current) return;
+      nativeStarted.current = true;
+      scanQrNative("วาง QR ให้อยู่ในกรอบ").then((text) => (text ? onResult(text) : onClose()));
+      return;
+    }
     let stopped = false;
     (async () => {
       try {
@@ -28,6 +39,8 @@ export default function Scanner({ onResult, onClose, dark = true }: { onResult: 
     return () => { stopped = true; ref.current?.stop?.().catch(() => {}); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  if (native) return null; // กล้องเนทีฟแสดงเต็มจอเอง
 
   return (
     <div className={`rounded-2xl p-3 ${dark ? "bg-zinc-900" : "bg-white border border-zinc-200"}`}>
