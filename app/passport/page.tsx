@@ -70,6 +70,7 @@ export default function PassportPage() {
       setMsg(j.error === "pool_empty" ? "ของรางวัลหมดแล้ว — ติดต่อพนักงานที่บูธ The Cardlist" : "ฉีกซองไม่สำเร็จ ลองอีกครั้ง");
       return;
     }
+    setS((prev) => prev && { ...prev, packsUnopened: Math.max(0, prev.packsUnopened - 1) });
     const high = HIGH.includes(j.tier);
     if (high) vibrate([40, 60, 40]);
     setTimeout(() => {

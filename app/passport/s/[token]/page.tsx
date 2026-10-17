@@ -59,7 +59,7 @@ export default function StampPage() {
                 </div>
               </>
             ) : (
-              <div className={r.already ? "" : "pp-slam"}><Stamp index={Math.max(0, (r.count ?? 1) - 1)} size={190} ring={`${r.station?.name} · THE CARDLIST`} label={r.station?.name} /></div>
+              <div className={r.already ? "" : "pp-slam"}><Stamp index={Math.max(0, (r.count ?? 1) - 1)} size={190} ring={`${(r.event?.name ?? "CARDLIST PASSPORT").toUpperCase()} · THE CARDLIST`} label={r.station?.name} /></div>
             )}
           </div>
           <h1 className="text-xl font-semibold text-white">{r.already ? (learn ? "เกมนี้เรียนแล้ว" : "จุดนี้ได้แสตมป์แล้ว") : learn ? `เรียน ${r.station?.name} แล้ว` : "ได้แสตมป์แล้ว"}</h1>
