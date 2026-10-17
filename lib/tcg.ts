@@ -2,10 +2,12 @@
 // ค่าที่เก็บในฐานข้อมูลคือข้อความนี้ตรง ๆ ("MTG" คงไว้ให้ตรงกับข้อมูลเดิม)
 // Battle of Talingchan และ Monsnatch: เจ้าของสั่งเพิ่ม 17 ต.ค. 2026 (มีแข่งในร้านทุกพฤ./ศ.) — ยังไม่มีกติกาเด็คและฐานข้อมูลการ์ดในระบบ
 // Eidolon: เจ้าของสั่งเพิ่ม 18 ต.ค. 2026 (ร้านเป็นหุ้นส่วน Eidolon — ใช้ข้อมูล/ภาพการ์ดได้ ดู company-brain/eidolon-assets.md)
-export const TCG_LIST = ["Pokémon", "One Piece", "MTG", "Gundam", "Union Arena", "Riftbound", "Battle of Talingchan", "Monsnatch", "Eidolon"];
+// Duel Masters … Nijinana: เจ้าของสั่งเพิ่ม 18 ต.ค. 2026 — ข้อมูลการ์ดจาก OnPlay Arena (arena.onplay.in.th) · ยังไม่มีกติกาเด็คในระบบ
+export const ONPLAY_GAMES = ["Duel Masters", "Haikyu!!", "Detective Conan", "WIXOSS", "Horo-Beat", "Nijinana"];
+export const TCG_LIST = ["Pokémon", "One Piece", "MTG", "Gundam", "Union Arena", "Riftbound", "Battle of Talingchan", "Monsnatch", "Eidolon", ...ONPLAY_GAMES];
 
 // เกมที่มีฐานข้อมูลการ์ดในตาราง tcg_cards แล้ว (เฟส 1) — เกมอื่นยังพิมพ์ชื่อเอง หรือทีมร้านเพิ่มผ่านหลังบ้าน
-export const CATALOG_GAMES = ["Pokémon", "One Piece", "Eidolon"];
+export const CATALOG_GAMES = ["Pokémon", "One Piece", "Eidolon", ...ONPLAY_GAMES];
 
 export const TCG_LABEL: Record<string, string> = { MTG: "Magic" };
 export const tcgLabel = (t: string) => TCG_LABEL[t] ?? t;

@@ -6,6 +6,7 @@
 //     node --env-file=.env.local scripts/sync-tcg-cards.mjs
 //   เลือกเกม: --game=pokemon / --game=onepiece / --game=pokemon-th / --game=eidolon (ไม่ใส่ = ทั้งหมด)
 //   Eidolon: --eidolon-csv=<ไฟล์> ใช้ CSV ที่บันทึกไว้แทนการดึงใหม่ (ใช้ตอนทดสอบ)
+//   OnPlay (6 เกม): --game=onplay · ทดสอบ --onplay-game=haikyu --onplay-max-pages=1
 //   Pokémon Thailand:
 //     --th-html=<ไฟล์>   ใช้หน้า /th/deck-build/ ที่บันทึกไว้แทนการดึงใหม่ (ใช้ตอนทดสอบ)
 //     --th-details=<N>   ดึงหน้ารายละเอียดการ์ดที่ยังไม่มีเซต/เลขการ์ด ทีละใบ ห่างกัน 1.5 วินาที สูงสุด N ใบต่อรอบ
@@ -20,7 +21,7 @@
 // แหล่งข้อมูลบางแห่งมีราคาการ์ดปนมา — สคริปต์นี้ไม่เก็บราคาเด็ดขาด (กฎบริษัท)
 
 import { createClient } from "@supabase/supabase-js";
-import { readFileSync } from "fs";
+import { readFileSync, writeFileSync } from "fs";
 
 const args = process.argv.slice(2);
 const DRY = args.includes("--dry-run");
@@ -296,9 +297,75 @@ async function eidolon() {
   return { sets: [...sets.values()], cards };
 }
 
+// ---------- OnPlay Arena (https://arena.onplay.in.th/cards/) ----------
+// เจ้าของสั่งดึง 18 ต.ค. 2026 ("ทั้ง 6 เกม ตามที่ robots.txt อนุญาต") · robots.txt: Allow: / · ไม่พบหน้าเงื่อนไขการใช้งาน
+// ใช้ JSON API ที่หน้าเว็บของ OnPlay ใช้เอง · ทีละหน้า 200 ใบ ห่างกัน 1.5 วินาที · ดึงไม่เกินวันละครั้ง
+// รูป: ลิงก์ตามที่ OnPlay ให้มา (Duel Masters ชี้ไปเว็บ Takara Tomy, เกมอื่นอยู่บนเซิร์ฟเวอร์ OnPlay) ไม่โหลดมาเก็บเอง
+const ONPLAY = "https://arena.onplay.in.th/api/v1";
+const ONPLAY_GAMES = {
+  dm: "Duel Masters", haikyu: "Haikyu!!", conan: "Detective Conan",
+  wixoss: "WIXOSS", horobeat: "Horo-Beat", nijisanji: "Nijinana",
+};
+const ONPLAY_ONLY = arg("onplay-game"); // ทดสอบทีละเกม เช่น --onplay-game=haikyu
+const ONPLAY_MAX_PAGES = parseInt(arg("onplay-max-pages") ?? "0", 10) || Infinity; // ทดสอบแบบจำกัดหน้า
+
+async function onPlay() {
+  const sets = [];
+  const cards = [];
+  for (const [code, game] of Object.entries(ONPLAY_GAMES)) {
+    if (ONPLAY_ONLY && ONPLAY_ONLY !== code) continue;
+    const filters = await getJson(`${ONPLAY}/cards/filters/?game=${code}`);
+    await sleep(1500);
+    const setName = new Map((filters.sets ?? []).map((s) => [s.code, s.name_th || s.name_en || s.name || s.code]));
+    for (const [set_code, name] of setName) {
+      sets.push({ game, lang: "th", set_code, name, release_date: null, card_count: null, logo_url: null, source: "onplay" });
+    }
+    let url = `${ONPLAY}/cards/?game=${code}&page_size=200`;
+    let pages = 0;
+    let n = 0;
+    while (url && pages < ONPLAY_MAX_PAGES) {
+      const page = await getJson(url);
+      pages++;
+      for (const c of page.results ?? []) {
+        const facet = (k) => c.facets?.[k]?.[0];
+        const name = (c.name_th || c.name_en || c.name_jp || "").trim();
+        const number = (c.card_no || c.card_key || "").trim(); // บางเกม (Haikyu) ไม่มี card_no ใช้ card_key แทน
+        if (!name || !number) continue;
+        cards.push({
+          game, lang: c.attributes?.text_lang === "jp" ? "ja" : "th",
+          set_code: c.set_code || "", set_name: setName.get(c.set_code) ?? c.set_code ?? "",
+          card_number: number, variant: c.is_parallel ? "parallel" : "normal", name,
+          release_date: null,
+          rarity: c.rarity || null,
+          card_type: facet("type")?.name_en || facet("type")?.name_th || null,
+          color: facet("color")?.name_th || facet("color")?.name_en || null,
+          image_url: c.image || null,
+          // ข้อมูลเกม + ชื่อภาษาอื่น + สถานะแบน (ไม่มีราคา)
+          attrs: {
+            ...(c.attributes ?? {}),
+            name_en: c.name_en || null, name_jp: c.name_jp || null,
+            text: c.text || null,
+            banlist: Array.isArray(c.banlist) && c.banlist.length ? c.banlist : undefined,
+          },
+          source: "onplay", source_id: String(c.id),
+        });
+        n++;
+      }
+      url = page.next ? page.next.replace(/^http:/, "https:") : null;
+      if (url) await sleep(1500);
+    }
+    console.log(`OnPlay ${game}: ${setName.size} ชุด · ${n} ใบ (${pages} หน้า)`);
+    await sleep(1500);
+  }
+  return { sets, cards };
+}
+
 // ---------- main ----------
 const now = new Date().toISOString();
-const result = { sets: [], cards: [] };
+// --save=<ไฟล์> (ใช้กับ --dry-run) เก็บผลที่ดึงได้ · --load=<ไฟล์> เขียนผลที่เก็บไว้เข้าฐานข้อมูลโดยไม่ดึงจากแหล่งซ้ำ
+const SAVE = arg("save");
+const LOAD = arg("load");
+const result = LOAD ? JSON.parse(readFileSync(LOAD, "utf8")) : { sets: [], cards: [] };
 
 let db = null;
 if (!DRY) {
@@ -308,14 +375,14 @@ if (!DRY) {
   db = createClient(url, key, { auth: { persistSession: false } });
 }
 
-for (const [key, fn] of [["pokemon", pokemon], ["onepiece", onePiece]]) {
+for (const [key, fn] of LOAD ? [] : [["pokemon", pokemon], ["onepiece", onePiece]]) {
   if (GAME !== "all" && GAME !== key) continue;
   const r = await fn();
   result.sets.push(...r.sets);
   result.cards.push(...r.cards);
 }
 
-if (GAME === "all" || GAME === "pokemon-th") {
+if (!LOAD && (GAME === "all" || GAME === "pokemon-th")) {
   // แถวเดิมของ pokemon-th + กันดึงเกินวันละครั้ง
   const existing = new Map();
   let skip = false;
@@ -354,7 +421,7 @@ if (GAME === "all" || GAME === "pokemon-th") {
   }
 }
 
-if (GAME === "all" || GAME === "eidolon") {
+if (!LOAD && (GAME === "all" || GAME === "eidolon")) {
   let skip = false;
   if (db && !FORCE) {
     const { data } = await db.from("tcg_cards").select("updated_at").eq("source", "eidolon").order("updated_at", { ascending: false }).limit(1);
@@ -370,6 +437,22 @@ if (GAME === "all" || GAME === "eidolon") {
   }
 }
 
+if (!LOAD && (GAME === "all" || GAME === "onplay")) {
+  let skip = false;
+  if (db && !FORCE) {
+    const { data } = await db.from("tcg_cards").select("updated_at").eq("source", "onplay").order("updated_at", { ascending: false }).limit(1);
+    if (data?.[0] && Date.now() - Date.parse(data[0].updated_at) < 20 * 3600 * 1000) {
+      console.log("OnPlay: ดึงไปแล้วภายใน 20 ชั่วโมง — ข้าม (ใช้ --force ถ้าจำเป็น)");
+      skip = true;
+    }
+  }
+  if (!skip) {
+    const r = await onPlay();
+    result.sets.push(...r.sets);
+    result.cards.push(...r.cards);
+  }
+}
+
 const banned = result.cards.filter((c) => Object.keys(c.attrs).some((k) => /price|value/i.test(k)));
 if (banned.length) throw new Error(`พบข้อมูลราคาใน ${banned.length} แถว — หยุดก่อนบันทึก`);
 
@@ -378,6 +461,7 @@ for (const c of result.cards) byGame[`${c.game} (${c.lang})`] = (byGame[`${c.gam
 console.log(`รวม ${result.sets.length} เซต · ${result.cards.length} ใบ`, byGame);
 
 if (DRY) {
+  if (SAVE) { writeFileSync(SAVE, JSON.stringify(result)); console.log(`บันทึกผลไว้ที่ ${SAVE}`); }
   const sample = [...result.cards.filter((c) => c.source === "pokemon-th" && c.card_number).slice(0, 2), ...result.cards.slice(0, 2)].slice(0, 3);
   console.log("ตัวอย่าง:", JSON.stringify(sample, null, 2));
   console.log("--dry-run: ไม่ได้เขียนฐานข้อมูล");

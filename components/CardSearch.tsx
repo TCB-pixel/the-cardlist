@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase";
 import { useLang } from "@/lib/i18n";
-import { CATALOG_GAMES } from "@/lib/tcg";
+import { CATALOG_GAMES, ONPLAY_GAMES } from "@/lib/tcg";
 
 export type TcgCard = {
   id: string;
@@ -113,6 +113,8 @@ export default function CardSearch({ game, onSelect }: { game: string; onSelect:
       <p className="text-[11px] text-zinc-500">
         {!synced
           ? L("เกมนี้ยังมีข้อมูลการ์ดไม่ครบ — ไม่เจอให้พิมพ์ชื่อเองด้านล่าง", "Card data for this game is limited — type the name below if it's missing.")
+          : ONPLAY_GAMES.includes(game)
+            ? L("ข้อมูลการ์ดจาก OnPlay Arena (arena.onplay.in.th)", "Card data from OnPlay Arena (arena.onplay.in.th)")
           : game === "Eidolon"
             ? L("ข้อมูลและภาพการ์ดจาก Eidolon TCG (eidolontcg.com)", "Card data and images from Eidolon TCG (eidolontcg.com)")
             : game === "Pokémon"
