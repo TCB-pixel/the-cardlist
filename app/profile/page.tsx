@@ -10,7 +10,7 @@ import { getTier, getNextTier, TIER_LABEL, TIER_COLOR } from "@/lib/tiers";
 import BottomNav from "@/components/BottomNav";
 import LogoLoader from "@/components/LogoLoader";
 import FacebookFollowCard from "@/components/FacebookFollowCard";
-import LangToggle from "@/components/LangToggle";
+import TopBar from "@/components/TopBar";
 import { useLang } from "@/lib/i18n";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -197,7 +197,7 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [loggingOut, setLoggingOut] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [showInstallBanner, setShowInstallBanner] = useState(false);
+  const [showInstallHint, setShowInstallHint] = useState(false);
   const [showLineBanner, setShowLineBanner] = useState(false);
   const [installed, setInstalled] = useState(false);
 
@@ -206,11 +206,9 @@ export default function ProfilePage() {
     window.addEventListener("beforeinstallprompt", (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      setShowInstallBanner(true);
     });
     window.addEventListener("appinstalled", () => {
       setInstalled(true);
-      setShowInstallBanner(false);
     });
     if (window.matchMedia("(display-mode: standalone)").matches) {
       setInstalled(true);
@@ -218,11 +216,11 @@ export default function ProfilePage() {
   }, []);
 
   async function handleInstall() {
-    if (!deferredPrompt) return;
+    // iOS และเบราว์เซอร์ที่ไม่มีปุ่มติดตั้งอัตโนมัติ → บอกวิธีติดตั้งเอง
+    if (!deferredPrompt) { setShowInstallHint(true); return; }
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === "accepted") setInstalled(true);
-    setShowInstallBanner(false);
   }
 
   // ── Fetch data ──
@@ -379,176 +377,145 @@ export default function ProfilePage() {
   const tierColor = TIER_COLOR[tierKey];
   const tierLabel = TIER_LABEL[tierKey];
   const { next: nextTierKey, nextThreshold } = getNextTier(tierKey);
-  const ptsPct = Math.min(Math.round((profile.points / 2000) * 100), 100);
   const spendPct = nextThreshold ? Math.min(Math.round((totalSpend / nextThreshold) * 100), 100) : 100;
   const spendRemaining = nextThreshold ? Math.max(nextThreshold - totalSpend, 0) : 0;
 
   return (
     <div className="min-h-screen bg-zinc-50 pb-20">
 
-      {/* ── Header ── */}
-      <header className="sticky top-0 z-40 bg-white border-b border-zinc-100">
-        <div className="flex items-center justify-between px-4 h-12">
-          <span className="text-sm font-semibold text-zinc-900 tracking-wide">{L("โปรไฟล์", "Profile")}</span>
-          <div className="flex items-center gap-2">
-          <LangToggle />
-          <button
-            onClick={handleLogout}
-            disabled={loggingOut}
-            className="text-[11px] text-zinc-500 active:text-zinc-700 disabled:opacity-40"
-          >
-            {loggingOut ? L("กำลังออก...", "Logging out...") : L("ออกจากระบบ", "Log out")}
-          </button>
-          </div>
-        </div>
-      </header>
+      <TopBar title={L("โปรไฟล์", "Profile")} />
 
       {/* ── Error Banner ── */}
       {fetchError && (
-        <div className="bg-red-50 border-b border-red-100 px-4 py-2.5 flex items-center justify-between gap-3">
-          <p className="text-[11px] text-red-600">{L("โหลดข้อมูลโปรไฟล์ไม่สำเร็จ ตรวจอินเทอร์เน็ตแล้วลองใหม่", "Couldn't load your profile. Check your connection and try again.")}</p>
-          <button onClick={loadData} className="text-[11px] font-semibold text-red-700 underline flex-shrink-0">
+        <div className="bg-red-50 border-b border-red-100 px-4 py-2.5 flex items-center justify-between gap-3" role="alert">
+          <p className="text-[11px] text-red-700">{L("โหลดข้อมูลโปรไฟล์ไม่สำเร็จ ตรวจอินเทอร์เน็ตแล้วลองใหม่", "Couldn't load your profile. Check your connection and try again.")}</p>
+          <button onClick={loadData} className="text-xs font-semibold text-red-700 underline flex-shrink-0 py-2">
             {L("ลองใหม่", "Try again")}
           </button>
         </div>
       )}
 
-      {/* ── เตือนให้กรอกเบอร์ — พนักงานใช้ค้นหาตอนบันทึกรอบเล่น ── */}
-      {!loading && profile && !profile.phone && (
-        <Link href="/profile/edit"
-          className="bg-amber-50 border-b border-amber-100 px-4 py-3 flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold text-amber-900">{L("ยังไม่ได้กรอกเบอร์โทร", "No phone number yet")}</p>
-            <p className="text-[11px] text-amber-700 mt-0.5">
-              {L("กรอกไว้เผื่อเปิด QR ไม่ได้ พนักงานจะค้นหาคุณด้วยเบอร์แทนได้", "Add one so staff can find you by phone if your QR won't open")}
-            </p>
-          </div>
-          <span className="text-[11px] bg-amber-900 text-white font-semibold px-3 py-1.5 rounded-lg flex-shrink-0">
-            {L("กรอกเลย", "Add now")}
-          </span>
-        </Link>
-      )}
-
-      {/* ── PWA Install Banner ── */}
-      {showInstallBanner && !installed && (
-        <div className="bg-zinc-900 px-4 py-3 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <Image src="/icons/icon-192.png" alt="" width={32} height={32} className="rounded-lg flex-shrink-0" />
-            <div>
-              <p className="text-xs font-semibold text-white">{L("ติดตั้งแอป", "Install")} <span className="font-cardlist font-normal tracking-wide">The Cardlist</span>{L("", " app")}</p>
-              <p className="text-[11px] text-zinc-500 mt-0.5">{L("เพิ่มไปยังหน้าจอหลักได้เลย", "Add it to your home screen")}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <button onClick={handleInstall} className="text-[11px] bg-white text-zinc-900 font-semibold px-3 py-1.5 rounded-lg">
-              {L("ติดตั้ง", "Install")}
-            </button>
-            <button onClick={() => setShowInstallBanner(false)} className="text-zinc-500 text-lg leading-none">✕</button>
-          </div>
-        </div>
-      )}
-
-      {installed && (
-        <div className="bg-green-900/20 border-b border-green-900/20 px-4 py-2 flex items-center gap-2">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <circle cx="7" cy="7" r="6" fill="#16a34a"/>
-            <path d="M4 7l2 2 4-4" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-          <p className="text-[11px] text-green-700 font-medium">{L("ติดตั้งแอปแล้ว — ใช้งานได้แบบออฟไลน์", "App installed — works offline")}</p>
-        </div>
-      )}
-
-      {/* ── Profile Card ── */}
-      <div className="bg-white px-5 py-5 border-b border-zinc-100">
-        <div className="flex items-center gap-4 mb-5">
-          {/* Avatar */}
+      {/* ── ข้อมูลสมาชิก: ชื่อ ระดับ ตัวเลขหลัก และความคืบหน้าระดับถัดไป (แถบเดียว) ── */}
+      <section className="bg-white px-4 pt-5 pb-4 border-b border-zinc-100">
+        <div className="flex items-center gap-3">
           {profile.avatar_url ? (
             <Image
               src={profile.avatar_url}
               alt={profile.display_name ?? profile.username}
-              width={56} height={56}
-              className="w-14 h-14 rounded-2xl object-cover flex-shrink-0"
+              width={52} height={52}
+              className="w-[52px] h-[52px] rounded-2xl object-cover flex-shrink-0"
             />
           ) : (
-            <div className="w-14 h-14 rounded-2xl bg-zinc-900 flex items-center justify-center text-white text-lg font-bold flex-shrink-0">
+            <div className="w-[52px] h-[52px] rounded-2xl bg-zinc-900 flex items-center justify-center text-white text-lg font-bold flex-shrink-0">
               {(profile.display_name ?? profile.username)[0].toUpperCase()}
             </div>
           )}
-          <div>
-            <p className="text-sm font-bold text-zinc-900">{profile.display_name ?? profile.username}</p>
-            <p className="text-[11px] text-zinc-500 mt-0.5">@{profile.username}</p>
-            <div className="flex items-center gap-1.5 mt-1.5">
-              <span className="w-2 h-2 rounded-full" style={{ background: tierColor }} />
-              <span className="text-[11px] font-semibold tracking-widest" style={{ color: tierColor }}>
-                {tierLabel.toUpperCase()} MEMBER
+          <div className="min-w-0 flex-1">
+            <p className="text-base font-bold text-zinc-900 truncate">{profile.display_name ?? profile.username}</p>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold" style={{ color: tierColor }}>
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: tierColor }} />
+                {tierLabel} Member
               </span>
+              <span className="text-[11px] text-zinc-500 truncate">@{profile.username}</span>
             </div>
           </div>
+          {profile.member_code && (
+            <button
+              onClick={() => setActiveTab("qr")}
+              aria-label={L("QR สมาชิก", "Member QR")}
+              className="w-11 h-11 rounded-xl border border-zinc-200 flex flex-col items-center justify-center text-zinc-900 active:bg-zinc-50 flex-shrink-0">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+                <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" />
+                <path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h3v-3" strokeLinecap="round" />
+              </svg>
+            </button>
+          )}
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-4 gap-2 mb-5">
+        <div className="grid grid-cols-3 mt-4 divide-x divide-zinc-100">
           {[
-            { label: "Points",   value: profile.points.toLocaleString() },
-            { label: L("ยอดสะสม", "Spent"),  value: totalSpend >= 1000 ? `฿${(totalSpend / 1000).toFixed(1)}K` : `฿${totalSpend}` },
-            { label: "Orders",   value: orders.length },
-            { label: "Events",   value: bookings.length },
+            { label: "Points", value: profile.points.toLocaleString() },
+            { label: L("ยอดสะสม", "Spent"), value: totalSpend >= 1000 ? `฿${(totalSpend / 1000).toFixed(1)}K` : `฿${totalSpend}` },
+            { label: L("มาเล่น", "Visits"), value: `${playCount}` },
           ].map((s) => (
-            <div key={s.label} className="bg-zinc-50 rounded-xl py-2.5 text-center">
-              <p className="text-sm font-bold text-zinc-900">{s.value}</p>
-              <p className="text-[10px] text-zinc-500 mt-0.5 tracking-wide">{s.label}</p>
+            <div key={s.label} className="text-center">
+              <p className="text-base font-bold text-zinc-900">{s.value}</p>
+              <p className="text-[11px] text-zinc-500">{s.label}</p>
             </div>
           ))}
         </div>
 
-        {/* Points progress */}
-        {nextTierKey && (
-          <div className="mb-3">
-            <div className="flex justify-between mb-1.5">
-              <span className="text-[11px] text-zinc-500 font-medium">Points: {tierLabel} → {TIER_LABEL[nextTierKey]}</span>
-              <span className="text-[11px] text-zinc-500">{profile.points.toLocaleString()} / 2,000</span>
-            </div>
-            <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden">
-              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${ptsPct}%`, background: tierColor }} />
-            </div>
-          </div>
-        )}
-
-        {/* Spend progress */}
-        {nextTierKey && nextThreshold !== null && (
-          <div>
-            <div className="flex justify-between mb-1.5">
-              <span className="text-[11px] text-zinc-500 font-medium">{L("ยอดซื้อสะสม", "Total spend")} → {TIER_LABEL[nextTierKey]}</span>
-              <span className="text-[11px] text-zinc-500">฿{totalSpend.toLocaleString()} / ฿{nextThreshold.toLocaleString()}</span>
-            </div>
+        {nextTierKey && nextThreshold !== null ? (
+          <div className="mt-4">
             <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden">
               <div className="h-full rounded-full transition-all duration-500" style={{ width: `${spendPct}%`, background: tierColor }} />
             </div>
-            <p className="text-[11px] text-zinc-500 mt-1">
+            <p className="text-[11px] text-zinc-500 mt-1.5">
               {L(`อีก ฿${spendRemaining.toLocaleString()} จะขึ้น ${TIER_LABEL[nextTierKey]}`, `฿${spendRemaining.toLocaleString()} more to reach ${TIER_LABEL[nextTierKey]}`)}
             </p>
           </div>
-        )}
+        ) : tierKey === "platinum" ? (
+          <p className="text-[11px] font-semibold mt-4" style={{ color: tierColor }}>
+            {L("Platinum — ระดับสูงสุดแล้ว", "Platinum — top tier")}
+          </p>
+        ) : null}
+      </section>
 
-        {tierKey === "platinum" && (
-          <div className="mt-3 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full" style={{ background: tierColor }} />
-            <p className="text-[11px] font-semibold" style={{ color: tierColor }}>
-              {L("Platinum — ระดับสูงสุด 🎉", "Platinum — top tier 🎉")}
-            </p>
+      {/* ── เตือนให้กรอกเบอร์ — พนักงานใช้ค้นหาตอนบันทึกรอบเล่น ── */}
+      {!profile.phone && (
+        <Link href="/profile/edit"
+          className="bg-amber-50 border-b border-amber-100 px-4 py-3 flex items-center justify-between gap-3">
+          <p className="text-[11px] text-amber-800 min-w-0">
+            <span className="font-semibold">{L("ยังไม่ได้กรอกเบอร์โทร", "No phone number yet")}</span>
+            {" — "}{L("พนักงานใช้ค้นหาคุณเมื่อเปิด QR ไม่ได้", "staff use it to find you if your QR won't open")}
+          </p>
+          <span className="text-xs font-semibold text-amber-800 underline flex-shrink-0">{L("กรอกเลย", "Add")}</span>
+        </Link>
+      )}
+
+      {/* ── CARDLIST PASSPORT — ธีมทองเดียวกับหน้า /passport ── */}
+      <div className="px-4 pt-4">
+        <Link href="/passport"
+          className="relative block overflow-hidden rounded-2xl bg-[#141414] px-5 py-5 ring-1 ring-[#a88c4a]/50 active:opacity-90">
+          {/* วงรีทองโปร่ง (ลวดลายเดียวกับธีมอีเวนต์) */}
+          <svg className="pointer-events-none absolute -right-10 -top-8 h-48 w-48 text-[#a88c4a] opacity-30" viewBox="0 0 200 200" fill="none" aria-hidden="true">
+            <ellipse cx="100" cy="100" rx="90" ry="60" stroke="currentColor" />
+            <ellipse cx="100" cy="100" rx="70" ry="44" stroke="currentColor" />
+            <ellipse cx="100" cy="100" rx="50" ry="30" stroke="currentColor" />
+          </svg>
+          <div className="relative flex items-center gap-4">
+            <img src="/images/passport/c-mark.png" alt="" className="h-12 w-12 shrink-0 object-contain" />
+            <div className="min-w-0">
+              <p className="font-cardlist font-normal text-[11px] tracking-[0.18em] text-[#a88c4a]">THE CARDLIST</p>
+              <p className="font-cardlist font-normal text-[32px] leading-none tracking-[0.04em] bg-gradient-to-b from-[#f6e7bd] via-[#e9d29a] to-[#a88c4a] bg-clip-text text-transparent">
+                PASSPORT
+              </p>
+            </div>
           </div>
-        )}
+          <p className="relative mt-3 text-[11px] text-zinc-400">
+            {L("สะสมแสตมป์ในงานอีเวนต์ · ฉีกซองลุ้นรางวัล · Learn To Play ฟรี", "Collect event stamps · open reward packs · Learn To Play for free")}
+          </p>
+          <span className="relative mt-3 inline-flex items-center gap-1.5 rounded-full border border-[#a88c4a]/70 px-3 py-1.5 text-xs font-semibold text-[#e9d29a]">
+            {L("เปิดพาสปอร์ต", "Open passport")}
+            <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </span>
+        </Link>
       </div>
 
       {/* ── Tabs ── */}
-      <div className="flex bg-white border-b border-zinc-100 overflow-x-auto scrollbar-hide">
+      <div className="flex bg-white border-y border-zinc-100 overflow-x-auto scrollbar-hide mt-4" role="tablist">
         {(["overview", "orders", "bookings", "qr"] as Tab[]).map((t) => {
-          const labels: Record<Tab, string> = { overview: L("ภาพรวม", "Overview"), orders: L("สั่งซื้อ", "Orders"), bookings: L("จอง", "Bookings"), qr: "QR" };
+          const labels: Record<Tab, string> = { overview: L("เมนู", "Menu"), orders: L("สั่งซื้อ", "Orders"), bookings: L("จอง", "Bookings"), qr: "QR" };
           return (
             <button
               key={t}
+              role="tab"
+              aria-selected={activeTab === t}
               onClick={() => setActiveTab(t)}
-              className={`flex-shrink-0 text-[11px] px-5 py-3 tracking-wide border-b-2 transition-colors ${
+              className={`flex-1 flex-shrink-0 text-xs px-4 py-3 border-b-2 transition-colors ${
                 activeTab === t ? "border-zinc-900 text-zinc-900 font-semibold" : "border-transparent text-zinc-500"
               }`}
             >
@@ -571,75 +538,75 @@ export default function ProfilePage() {
       {/* ── Tab Content ── */}
       <div className="px-4 py-4">
 
-        {/* OVERVIEW */}
+        {/* MENU — รวมเป็นกลุ่ม แทนการ์ดแยกทีละอัน */}
         {activeTab === "overview" && (
-          <div className="space-y-2">
-            {/* CARDLIST PASSPORT — สะสมแสตมป์ในงานอีเวนต์ (เจ้าของให้อยู่ในหน้าโปรไฟล์) */}
-            <Link href="/passport" className="mb-4 flex items-center gap-3 rounded-2xl bg-[#141414] px-4 py-4 active:opacity-90">
-              <img src="/images/passport/c-mark.png" alt="" className="h-10 w-10 shrink-0 object-contain" />
-              <div className="min-w-0 flex-1">
-                <p className="font-cardlist text-[10px] tracking-[0.14em] text-[#a88c4a]">THE CARDLIST</p>
-                <p className="font-cardlist text-xl leading-none tracking-[0.06em] text-[#e9d29a]">PASSPORT</p>
-                <p className="mt-1 text-[11px] text-zinc-400">{L("สะสมแสตมป์ในงานอีเวนต์ · ฉีกซองลุ้นรางวัล · Learn To Play ฟรี", "Collect event stamps · open reward packs · Learn To Play for free")}</p>
-              </div>
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0 text-[#a88c4a]">
-                <path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </Link>
-            <div className="mb-4">
-              <FacebookFollowCard />
-            </div>
-            {!installed && (
-              <div className="card px-4 py-4 mb-4">
-                <p className="text-xs font-semibold text-zinc-900 mb-1">{L("ดาวน์โหลดแอป", "Get")} <span className="font-cardlist font-normal tracking-wide">The Cardlist</span>{L("", " app")}</p>
-                <p className="text-[11px] text-zinc-500 mb-3">{L("ติดตั้งเป็นแอปบนมือถือและคอมพิวเตอร์ได้เลย", "Install it as an app on your phone or computer")}</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <button onClick={handleInstall} className="flex items-center gap-2 border border-zinc-200 rounded-xl px-3 py-2.5 text-left hover:bg-zinc-50 transition-colors">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                      <rect x="5" y="2" width="14" height="20" rx="2" stroke="#0a0a0a" strokeWidth="1.3"/>
-                      <circle cx="12" cy="18" r="1" fill="#0a0a0a"/>
-                    </svg>
-                    <div>
-                      <p className="text-[11px] font-semibold text-zinc-900">{L("มือถือ", "Mobile")}</p>
-                      <p className="text-[10px] text-zinc-500">Android / iOS</p>
-                    </div>
-                  </button>
-                  <button onClick={handleInstall} className="flex items-center gap-2 border border-zinc-200 rounded-xl px-3 py-2.5 text-left hover:bg-zinc-50 transition-colors">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                      <rect x="2" y="4" width="20" height="14" rx="2" stroke="#0a0a0a" strokeWidth="1.3"/>
-                      <line x1="8" y1="22" x2="16" y2="22" stroke="#0a0a0a" strokeWidth="1.3" strokeLinecap="round"/>
-                      <line x1="12" y1="18" x2="12" y2="22" stroke="#0a0a0a" strokeWidth="1.3"/>
-                    </svg>
-                    <div>
-                      <p className="text-[11px] font-semibold text-zinc-900">Desktop</p>
-                      <p className="text-[10px] text-zinc-500">Windows / Mac</p>
-                    </div>
-                  </button>
+          <div className="space-y-4">
+            {[
+              {
+                title: L("บัญชีของฉัน", "My account"),
+                items: [
+                  { label: L("แก้ไขโปรไฟล์", "Edit profile"), href: "/profile/edit" },
+                  { label: L("ประวัติการสั่งซื้อ", "Order history"), href: "/orders" },
+                  { label: L("ที่อยู่จัดส่ง", "Shipping address"), href: "/profile/address" },
+                  { label: L("สิทธิประโยชน์สมาชิก", "Member benefits"), href: "/profile/benefits" },
+                  ...(FEATURES.collectionTracker ? [{ label: "Collection Tracker", href: "/profile/collection" }] : []),
+                  ...(FEATURES.deckBuilder ? [{ label: "Deck Builder", href: "/profile/decks" }] : []),
+                ],
+              },
+              {
+                title: L("ความเป็นส่วนตัว", "Privacy"),
+                items: [
+                  { label: L("นโยบายความเป็นส่วนตัว", "Privacy policy"), href: "/privacy" },
+                  { label: L("ลบบัญชี", "Delete account"), href: "/account/delete" },
+                ],
+              },
+            ].map((group) => (
+              <div key={group.title}>
+                <p className="text-[11px] font-semibold text-zinc-500 px-1 mb-1.5">{group.title}</p>
+                <div className="card divide-y divide-zinc-100 overflow-hidden">
+                  {group.items.map((item) => (
+                    <Link key={item.href} href={item.href}
+                      className="px-4 py-3.5 flex items-center justify-between active:bg-zinc-50">
+                      <span className="text-sm text-zinc-900">{item.label}</span>
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="text-zinc-400" aria-hidden="true">
+                        <path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </Link>
+                  ))}
                 </div>
-                <p className="text-[10px] text-zinc-500 mt-2.5 text-center">{L('* iOS: กด Share → "Add to Home Screen" ใน Safari', '* iOS: tap Share → "Add to Home Screen" in Safari')}</p>
+              </div>
+            ))}
+
+            {/* ติดตั้งแอป — แถวเดียว (เดิมมีทั้งแบนเนอร์บนสุดและการ์ด 2 ปุ่ม) */}
+            {!installed && (
+              <div className="card px-4 py-3.5">
+                <button onClick={handleInstall} className="w-full flex items-center justify-between gap-3 text-left">
+                  <span className="flex items-center gap-3 min-w-0">
+                    <Image src="/icons/icon-192.png" alt="" width={32} height={32} className="rounded-lg flex-shrink-0" />
+                    <span className="min-w-0">
+                      <span className="block text-sm text-zinc-900">{L("ติดตั้งแอป", "Install the")} <span className="font-cardlist font-normal tracking-wide">The Cardlist</span>{L("", " app")}</span>
+                      <span className="block text-[11px] text-zinc-500">{L("เปิดเร็วขึ้นจากหน้าจอหลัก", "Open faster from your home screen")}</span>
+                    </span>
+                  </span>
+                  <span className="text-xs font-semibold text-zinc-900 flex-shrink-0">{L("ติดตั้ง", "Install")}</span>
+                </button>
+                {showInstallHint && (
+                  <p className="text-[11px] text-zinc-500 mt-3 pt-3 border-t border-zinc-100">
+                    {L('iPhone/iPad: กด Share ใน Safari → "Add to Home Screen" · Android/คอม: เปิดเมนูเบราว์เซอร์ → "ติดตั้งแอป"', 'iPhone/iPad: tap Share in Safari → "Add to Home Screen" · Android/desktop: open the browser menu → "Install app"')}
+                  </p>
+                )}
               </div>
             )}
-            {[
-              { label: L("แก้ไขโปรไฟล์", "Edit profile"),       href: "/profile/edit" },
-              { label: L("ประวัติการสั่งซื้อ", "Order history"),   href: "/orders" },
-              { label: L("ที่อยู่จัดส่ง", "Shipping address"),        href: "/profile/address" },
-              ...(FEATURES.collectionTracker ? [{ label: "Collection Tracker", href: "/profile/collection" }] : []),
-              ...(FEATURES.deckBuilder ? [{ label: "Deck Builder", href: "/profile/decks" }] : []),
-              { label: L("สิทธิประโยชน์สมาชิก", "Member benefits"),  href: "/profile/benefits" },
-              { label: L("นโยบายความเป็นส่วนตัว", "Privacy policy"),  href: "/privacy" },
-              { label: L("ลบบัญชี", "Delete account"),             href: "/account/delete" },
-            ].map((item) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                className="card px-4 py-3.5 flex items-center justify-between active:bg-zinc-50 block"
-              >
-                <span className="text-sm text-zinc-900">{item.label}</span>
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="text-zinc-300">
-                  <path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </Link>
-            ))}
+
+            <FacebookFollowCard />
+
+            <button
+              onClick={handleLogout}
+              disabled={loggingOut}
+              className="btn-outline w-full disabled:opacity-40"
+            >
+              {loggingOut ? L("กำลังออก...", "Logging out...") : L("ออกจากระบบ", "Log out")}
+            </button>
           </div>
         )}
 
