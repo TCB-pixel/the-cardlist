@@ -9,11 +9,12 @@ export type RuleCard = {
   color?: string | null;     // One Piece: "Red" หรือ "Red Green"
   tags?: string[] | null;    // ป้ายพิเศษจากฐานข้อมูลการ์ด เช่น Battle of Talingchan: "only1", "biased" (ลำเอียง)
   points?: number | null;    // Monsnatch: Deck Point (สัญลักษณ์ดาว) — null = ยังไม่มีข้อมูล
+  section?: string | null;   // ส่วนของเด็ค (lib/tcg.ts deckSections): BoT "side" · Monsnatch Standard "A"/"B" · ไม่มี = ส่วนหลัก
 };
 
 // แปลงการ์ดในเด็ค + ข้อมูลจากฐานข้อมูลการ์ด (ถ้ามี) เป็น RuleCard — ใช้ทั้งหน้า Deck Builder และ API ส่ง decklist
 export function toRuleCard(
-  c: { card_name: string; card_number?: string | null; quantity: number },
+  c: { card_name: string; card_number?: string | null; quantity: number; section?: string | null },
   d?: { card_type?: string | null; color?: string | null; attrs?: { tags?: unknown; deck_points?: unknown } | null } | null,
 ): RuleCard {
   const pts = Number(d?.attrs?.deck_points);
@@ -22,6 +23,7 @@ export function toRuleCard(
     card_type: d?.card_type ?? null, color: d?.color ?? null,
     tags: d && Array.isArray(d.attrs?.tags) ? (d.attrs!.tags as string[]) : d ? [] : null,
     points: d?.attrs?.deck_points != null && Number.isFinite(pts) ? pts : null,
+    section: c.section ?? null,
   };
 }
 
@@ -125,13 +127,20 @@ export function checkDeck(game: string, format: string, cards: RuleCard[]): Rule
 //   · ชื่อเดียวกันใส่ได้สูงสุด 4 ใบ ยกเว้น Only #1 ใส่ได้ใบเดียวและแบบเดียว
 //   · การ์ดสัญลักษณ์ "ลำเอียง" ใส่ในเด็คแข่งขันไม่ได้
 //   · LIFE Deck 5 ใบพอดี ชื่อไม่ซ้ำกัน
-// ยังไม่ตรวจ: การ์ดบาป (ban list เป็นรูปภาพ เปลี่ยนตามประกาศ) · Side Deck 10 ใบของงาน Best of 3
+//   · Side Deck (งาน Best of 3) เพิ่มได้อีก 10 ใบ ห้ามใส่ LIFE · ชื่อเดียวกันรวม Main + Side ไม่เกิน 4 ใบ (กฎงานแข่ง ข้อ 1)
+// ยังไม่ตรวจ: การ์ดบาป (ban list เป็นรูปภาพ เปลี่ยนตามประกาศ)
+// ข้อที่ไม่ชัด: Side Deck "เพิ่มได้อีก 10 ใบ" — ตีความว่าไม่เกิน 10 ใบ · การ์ด Only #1 ใน Side Deck — กฎไม่ได้ระบุ (แสดงเป็น "ตรวจไม่ได้")
 // ข้อที่ไม่ชัด: rule book เขียน "50 ใบพอดี และต้องมี Only #1 1 ใบ" — ตีความว่า Only #1 นับรวมใน 50 ใบ
 const isLife = (c: RuleCard) => (c.card_type ?? "").trim().toUpperCase() === "LIFE";
 const nameKey = (c: RuleCard) => c.name.trim().toLowerCase();
 
-function checkBot(cards: RuleCard[], total: number): RuleResult {
+function checkBot(all: RuleCard[], allTotal: number): RuleResult {
   const issues: RuleIssue[] = [];
+  // Side Deck (งาน Best of 3) แยกตรวจ — ส่วนที่เหลือคือ Main + LIFE
+  const side = all.filter((c) => c.section === "side");
+  const cards = all.filter((c) => c.section !== "side");
+  const sideCount = side.reduce((s, c) => s + c.quantity, 0);
+  const total = allTotal - sideCount;
   const typed = cards.filter((c) => c.card_type);
   const untyped = cards.filter((c) => !c.card_type);
   const life = typed.filter(isLife);
@@ -152,7 +161,8 @@ function checkBot(cards: RuleCard[], total: number): RuleResult {
   const only1 = main.filter((c) => c.tags?.includes("only1"));
   const only1Count = only1.reduce((s, c) => s + c.quantity, 0);
   const normal = main.filter((c) => !c.tags?.includes("only1"));
-  issues.push(...overLimit(normal, 4, nameKey));
+  // ชื่อเดียวกันไม่เกิน 4 ใบ — นับรวม Main + Side (กฎงานแข่ง: "รวมกับ Main Deck แล้วจะต้องชื่อไม่ซ้ำกันเกิน 4 ใบ")
+  issues.push(...overLimit([...normal, ...side.filter((c) => !c.tags?.includes("only1"))], 4, nameKey));
   if (only1Count > 1) issues.push({ level: "error", th: `มีการ์ด Only #1 ${only1Count} ใบ (ต้องมี 1 ใบ)`, en: `${only1Count} Only #1 cards (needs exactly 1)` });
   else if (only1Count === 0) {
     const noTags = main.filter((c) => !c.tags).length;
@@ -161,11 +171,20 @@ function checkBot(cards: RuleCard[], total: number): RuleResult {
       : { level: "error", th: "ยังไม่มีการ์ด Only #1 (ต้องมี 1 ใบ)", en: "No Only #1 card (needs exactly 1)" });
   }
 
-  const biased = cards.filter((c) => c.tags?.includes("biased"));
+  // Side Deck: สูงสุด 10 ใบ · ห้ามใส่ LIFE
+  if (sideCount > 10) issues.push({ level: "error", th: `Side Deck ${sideCount} ใบ (ไม่เกิน 10)`, en: `Side Deck: ${sideCount} cards (max 10)` });
+  const sideLife = side.filter(isLife);
+  if (sideLife.length) issues.push({ level: "error", th: `ใส่ LIFE Card ใน Side Deck ไม่ได้: ${sideLife.map((c) => c.name).join(", ")}`, en: `LIFE cards can't go in the Side Deck: ${sideLife.map((c) => c.name).join(", ")}` });
+  const sideUntyped = side.filter((c) => !c.card_type).length;
+  if (sideUntyped) issues.push({ level: "unknown", th: `ตรวจว่ามี LIFE ใน Side Deck ไม่ได้ ${sideUntyped} รายการ — การ์ดยังไม่มีประเภทในระบบ`, en: `Can't check for LIFE cards in ${sideUntyped} Side Deck entries — no card type yet` });
+  const sideOnly1 = side.filter((c) => c.tags?.includes("only1"));
+  if (sideOnly1.length) issues.push({ level: "unknown", th: `มีการ์ด Only #1 ใน Side Deck (${sideOnly1.map((c) => c.name).join(", ")}) — กฎงานแข่งไม่ได้ระบุกรณีนี้`, en: `Only #1 card in the Side Deck (${sideOnly1.map((c) => c.name).join(", ")}) — not covered by the tournament rules` });
+
+  const biased = all.filter((c) => c.tags?.includes("biased"));
   if (biased.length) issues.push({ level: "error", th: `การ์ด "ลำเอียง" ใช้แข่งไม่ได้: ${biased.map((c) => c.name).join(", ")}`, en: `"Biased"-marked cards aren't tournament legal: ${biased.map((c) => c.name).join(", ")}` });
   issues.push({ level: "warn", th: "ยังไม่ตรวจการ์ดบาป (ban list) — ดูประกาศล่าสุดที่ bottcg.com/rule", en: "Ban list isn't checked — see bottcg.com/rule" });
 
-  return { total, main: untyped.length ? total : mainCount, target: "Main 50 + LIFE 5", issues, checked: true };
+  return { total: allTotal, main: untyped.length ? total : mainCount, target: sideCount ? "Main 50 + LIFE 5 · Side ≤ 10" : "Main 50 + LIFE 5", issues, checked: true };
 }
 
 // ---------- Eidolon TCG ----------
@@ -235,20 +254,27 @@ function checkEidolon(cards: RuleCard[], total: number): RuleResult {
 //   · ทุกเด็คมีการ์ด 10 ใบพอดี (§15.1.1)
 //   · Constructed: ชื่อการ์ด (ชื่อภาษาอังกฤษทางการ) ซ้ำไม่ได้ · Deck Point (ดาว) รวมไม่เกิน 25 (§15.2.1–15.2.3, TRG §16.2)
 //   · Draft / Sealed: 10 ใบ ซ้ำได้ตามที่เปิดได้ ไม่จำกัดแต้ม (§15.3, §15.4)
-// ยังไม่ตรวจ: Standard ต้องลงทะเบียน 2 เด็ค (Deck A + Deck B) และชื่อห้ามซ้ำข้ามทั้งสองเด็ค (TRG §16.1, §16.3)
-//   — Deck Builder เก็บทีละเด็ค จึงตรวจข้ามเด็คไม่ได้ · การ์ดที่อนุญาตตามชุด (card pool) ของแต่ละงาน
+//   · Standard ลงทะเบียน Deck A + Deck B ส่วนละ 10 ใบ ชื่อห้ามซ้ำข้ามทั้งสองส่วน (TRG §16.1, §16.3) — Deck Builder เก็บเป็น 2 ส่วนในเด็คเดียว
+// ยังไม่ตรวจ: การ์ดที่อนุญาตตามชุด (card pool) ของแต่ละงาน
 // ข้อที่ไม่ชัด: ตัวตนของการ์ดใช้ "ชื่อภาษาอังกฤษทางการ" — ถ้าผู้เล่นพิมพ์ชื่อไทยเอง ระบบเทียบชื่อซ้ำได้เฉพาะชื่อที่พิมพ์
 function checkMonsnatch(format: string, cards: RuleCard[], total: number): RuleResult {
   const issues: RuleIssue[] = [];
-  const limited = /draft|sealed/i.test(format);
-  issues.push(...countIssue(total, 10, null, "เด็ค", "Deck"));
-  if (!limited) {
-    issues.push(...overLimit(cards, 1, nameKey));
-    const unknown = cards.filter((c) => typeof c.points !== "number");
-    const points = cards.reduce((s, c) => s + (typeof c.points === "number" ? c.points * c.quantity : 0), 0);
-    if (points > 25) issues.push({ level: "error", th: `Deck Point รวม ${points} (ไม่เกิน 25)`, en: `Deck Points total ${points} (max 25)` });
-    else if (unknown.length) issues.push({ level: "unknown", th: `ตรวจ Deck Point ไม่ครบ — ${unknown.length} รายการยังไม่มีแต้มในระบบ (นับได้ ${points}/25)`, en: `Can't fully check Deck Points — ${unknown.length} entries have no points yet (${points}/25 counted)` });
-    issues.push({ level: "warn", th: "งาน Standard ต้องส่ง Deck A + Deck B และชื่อการ์ดห้ามซ้ำข้ามสองเด็ค — ระบบยังตรวจข้ามเด็คไม่ได้", en: "Standard events need Deck A + Deck B with no name repeated across both — not checked across decks yet" });
+  // Draft / Sealed: เด็คเดียว 10 ใบ ซ้ำได้ ไม่จำกัดแต้ม
+  if (/draft|sealed/i.test(format)) {
+    issues.push(...countIssue(total, 10, null, "เด็ค", "Deck"));
+    return { total, main: total, target: "10", issues, checked: true };
   }
-  return { total, main: total, target: "10", issues, checked: true };
+  // Standard: Deck A + Deck B ส่วนละ 10 ใบ · Deck Point แต่ละส่วนไม่เกิน 25 · ชื่อห้ามซ้ำข้ามทั้งสองส่วน (TRG §16.1–16.3)
+  // การ์ดที่ไม่ได้ระบุส่วน (เด็คที่สร้างก่อนมีส่วน A/B) นับเป็น Deck A
+  for (const part of ["A", "B"]) {
+    const list = cards.filter((c) => (c.section === "B" ? "B" : "A") === part);
+    const count = list.reduce((s, c) => s + c.quantity, 0);
+    issues.push(...countIssue(count, 10, null, `Deck ${part}`, `Deck ${part}`));
+    const unknown = list.filter((c) => typeof c.points !== "number");
+    const points = list.reduce((s, c) => s + (typeof c.points === "number" ? c.points * c.quantity : 0), 0);
+    if (points > 25) issues.push({ level: "error", th: `Deck ${part}: Deck Point รวม ${points} (ไม่เกิน 25)`, en: `Deck ${part}: Deck Points total ${points} (max 25)` });
+    else if (unknown.length) issues.push({ level: "unknown", th: `Deck ${part}: ตรวจ Deck Point ไม่ครบ — ${unknown.length} รายการยังไม่มีแต้มในระบบ (นับได้ ${points}/25)`, en: `Deck ${part}: can't fully check Deck Points — ${unknown.length} entries have no points yet (${points}/25 counted)` });
+  }
+  issues.push(...overLimit(cards, 1, nameKey).map((i) => ({ ...i, th: `ชื่อซ้ำ (นับรวม Deck A + B): ${i.th}`, en: `Duplicate name across Deck A + B: ${i.en}` })));
+  return { total, main: total, target: "Deck A 10 + Deck B 10", issues, checked: true };
 }

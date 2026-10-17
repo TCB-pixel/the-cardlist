@@ -2,7 +2,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { adminFetch } from "@/lib/admin-fetch";
-import { tcgLabel } from "@/lib/tcg";
+import { tcgLabel, deckSections, sectionOf } from "@/lib/tcg";
 import type { Decklist } from "../page";
 
 type EventInfo = { title: string; date: string | null; decklist_regulation: string | null };
@@ -10,13 +10,24 @@ type EventInfo = { title: string; date: string | null; decklist_regulation: stri
 const thDate = (d: string | null) => (d ? new Date(d).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" }) : "—");
 
 // ใบลงทะเบียนเด็ค (Deck Registration Sheet) — 1 คน 1 หน้า · กด "พิมพ์" แล้วเลือก "บันทึกเป็น PDF" ได้
-function Sheet({ d, event }: { d: Decklist; event: EventInfo }) {
+// จัดกลุ่มตามประเภทการ์ด (Leader ขึ้นก่อน การ์ดที่ไม่รู้ประเภทไว้ท้าย)
+function byType(cards: Decklist["cards"]) {
   const groups = new Map<string, Decklist["cards"]>();
-  for (const c of d.cards) {
+  for (const c of cards) {
     const k = c.card_type ?? "การ์ด";
     groups.set(k, [...(groups.get(k) ?? []), c]);
   }
   const order = (k: string) => (k === "Leader" ? 0 : k === "การ์ด" ? 9 : 1);
+  return [...groups.entries()].sort((a, b) => order(a[0]) - order(b[0]));
+}
+
+function Sheet({ d, event }: { d: Decklist; event: EventInfo }) {
+  // แยกส่วนเด็คก่อน (BoT Main/Side · Monsnatch Deck A/B) แล้วค่อยแยกประเภท
+  const secs = deckSections(d.game, d.format);
+  const parts = (secs ?? [null]).map((sec) => ({
+    sec,
+    cards: d.cards.filter((c) => !sec || sectionOf(c, secs) === sec.key),
+  })).filter((p) => !p.sec || p.cards.length);
   return (
     <section className="bg-white border border-zinc-200 rounded-2xl p-8 mb-6 print:border-0 print:rounded-none print:p-0 print:mb-0 print:break-after-page text-zinc-900">
       <div className="flex items-start justify-between border-b border-zinc-900 pb-3 mb-4">
@@ -36,20 +47,29 @@ function Sheet({ d, event }: { d: Decklist; event: EventInfo }) {
         <p><span className="text-zinc-500 text-xs block">รหัสเด็ค</span><span className="font-mono">{d.deck_code || "—"}</span></p>
       </div>
 
-      {[...groups.entries()].sort((a, b) => order(a[0]) - order(b[0])).map(([type, cards]) => (
-        <div key={type} className="mb-4 break-inside-avoid">
-          <p className="text-xs font-semibold border-b border-zinc-300 pb-1 mb-1">{type} ({cards.reduce((s, c) => s + c.quantity, 0)})</p>
-          <table className="w-full text-sm">
-            <tbody>
-              {cards.map((c, i) => (
-                <tr key={i} className="border-b border-zinc-100">
-                  <td className="w-10 py-0.5 font-semibold">{c.quantity}</td>
-                  <td className="py-0.5">{c.card_name}</td>
-                  <td className="py-0.5 text-right font-mono text-xs text-zinc-600">{c.card_number}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {parts.map(({ sec, cards: partCards }) => (
+        <div key={sec?.key ?? "all"} className={sec ? "mb-5" : ""}>
+          {sec && (
+            <p className="text-sm font-bold border-b-2 border-zinc-900 pb-1 mb-2">
+              {sec.th} — {partCards.reduce((s, c) => s + c.quantity, 0)} ใบ
+            </p>
+          )}
+          {byType(partCards).map(([type, cards]) => (
+            <div key={type} className="mb-4 break-inside-avoid">
+              <p className="text-xs font-semibold border-b border-zinc-300 pb-1 mb-1">{type} ({cards.reduce((s, c) => s + c.quantity, 0)})</p>
+              <table className="w-full text-sm">
+                <tbody>
+                  {cards.map((c, i) => (
+                    <tr key={i} className="border-b border-zinc-100">
+                      <td className="w-10 py-0.5 font-semibold">{c.quantity}</td>
+                      <td className="py-0.5">{c.card_name}</td>
+                      <td className="py-0.5 text-right font-mono text-xs text-zinc-600">{c.card_number}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
         </div>
       ))}
 

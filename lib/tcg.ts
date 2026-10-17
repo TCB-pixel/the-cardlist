@@ -31,3 +31,24 @@ export function formatOptions(tcg: string, current?: string): string[] {
   const list = FORMAT_MAP[tcg] ?? ["Standard"];
   return current && !list.includes(current) ? [...list, current] : list;
 }
+
+// ส่วนของเด็ค (เก็บใน decks.cards[].section) — เกมที่ไม่มีส่วนย่อยคืน null
+// BoT: Main + LIFE (ไม่ระบุ section) / Side Deck สำหรับงาน Best of 3 · Monsnatch Standard: Deck A / Deck B
+export type DeckSection = { key: string; th: string; en: string };
+export function deckSections(tcg: string, format: string): DeckSection[] | null {
+  if (tcg === "Battle of Talingchan") return [
+    { key: "main", th: "Main + LIFE", en: "Main + LIFE" },
+    { key: "side", th: "Side Deck (Bo3)", en: "Side Deck (Bo3)" },
+  ];
+  if (tcg === "Monsnatch" && !/draft|sealed/i.test(format)) return [
+    { key: "A", th: "Deck A", en: "Deck A" },
+    { key: "B", th: "Deck B", en: "Deck B" },
+  ];
+  return null;
+}
+
+// ส่วนของการ์ดหนึ่งใบ — การ์ดที่ไม่มี section อยู่ส่วนแรกเสมอ (เด็คเดิมก่อนมีส่วนยังใช้ได้)
+export function sectionOf(c: { section?: string | null }, sections: DeckSection[] | null): string {
+  if (!sections) return "";
+  return sections.some((s) => s.key === c.section) ? (c.section as string) : sections[0].key;
+}

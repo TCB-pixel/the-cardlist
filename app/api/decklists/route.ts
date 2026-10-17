@@ -8,7 +8,7 @@ import { checkRegulation, DECKLIST_CONSENT_VERSION, STRICT_GAMES } from "@/lib/d
 // ผู้เล่นส่ง decklist ลงทัวร์ — ตรวจทุกอย่างฝั่ง server แล้วเก็บสำเนาถาวรใน event_decklists
 // (ตารางนี้ไม่มี policy ให้ผู้เล่นเขียนเอง จึงเขียนผ่าน service role หลังตรวจแล้วเท่านั้น)
 
-type DeckCard = { card_name: string; quantity: number; card_number?: string; card_id?: string };
+type DeckCard = { card_name: string; quantity: number; card_number?: string; card_id?: string; section?: string };
 
 async function sessionUser() {
   const cookieStore = await cookies();
@@ -76,6 +76,7 @@ export async function POST(req: NextRequest) {
     const d = c.card_id ? details.get(c.card_id) : undefined;
     return {
       card_name: c.card_name, card_number: c.card_number ?? "", quantity: c.quantity, card_id: c.card_id ?? null,
+      section: c.section ?? null, // BoT side · Monsnatch A/B (lib/tcg.ts deckSections)
       card_type: d?.card_type ?? null, color: d?.color ?? null, image_url: d?.image_url ?? null,
       regulation: d?.attrs?.regulation ?? null,
       tags: d?.attrs?.tags ?? null, deck_points: d?.attrs?.deck_points ?? null,

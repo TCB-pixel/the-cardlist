@@ -7,7 +7,7 @@ import TopBar from "@/components/TopBar";
 import { useLang } from "@/lib/i18n";
 import { loginHref } from "@/lib/auth-next";
 import { publicError } from "@/lib/api-error";
-import { FORMAT_MAP, tcgLabel, tcgOptions, formatOptions } from "@/lib/tcg";
+import { FORMAT_MAP, tcgLabel, tcgOptions, formatOptions, deckSections, sectionOf } from "@/lib/tcg";
 import CardSearch, { TcgCard } from "@/components/CardSearch";
 import DeckInsights, { DeckCard, useCardDetails } from "@/components/DeckInsights";
 import { parseDeckText, deckToText } from "@/lib/deck-text";
@@ -62,6 +62,16 @@ export default function DecksPage() {
   const [sharing, setSharing] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const details = useCardDetails(deck.cards);
+  // ส่วนของเด็ค (BoT: Main/Side · Monsnatch Standard: Deck A/B) — การ์ดที่เพิ่มใหม่เข้าส่วนที่เลือกอยู่
+  const sections = deckSections(deck.tcg, deck.format);
+  const [pickedSection, setPickedSection] = useState("");
+  const activeSection = sections ? (sections.some((s) => s.key === pickedSection) ? pickedSection : sections[0].key) : "";
+  const inActive = (x: DeckCard) => sectionOf(x, sections) === activeSection;
+  // เก็บ section เฉพาะส่วนที่ไม่ใช่ส่วนแรก (เด็คเดิมที่ไม่มี section = ส่วนแรก)
+  const withSection = (c: DeckCard, sec: string = activeSection): DeckCard => {
+    const { section: _drop, ...rest } = c;
+    return sections && sec && sec !== sections[0].key ? { ...rest, section: sec } : rest;
+  };
   const [submitDeck, setSubmitDeck] = useState<Deck | null>(null);
   const [submitted, setSubmitted] = useState<Submitted[]>([]);
 
@@ -154,10 +164,13 @@ export default function DecksPage() {
     for (const l of lines) {
       const hit = l.number ? byNum.get(l.number) : byName.get(l.name.toLowerCase());
       if (hit) matched++;
-      const entry: DeckCard = hit
+      // หัวข้อในข้อความ ("Side Deck:", "Deck B:") กำหนดส่วน — ไม่มีหัวข้อ = ส่วนที่เลือกอยู่
+      const sec = l.section === undefined ? activeSection : (l.section || sections?.[0].key || "");
+      const validSec = sections?.some((s) => s.key === sec) ? sec : activeSection;
+      const entry: DeckCard = withSection(hit
         ? { card_name: hit.name, card_number: hit.card_number, quantity: l.quantity, card_id: hit.id }
-        : { card_name: l.name || l.number, card_number: l.number, quantity: l.quantity };
-      const same = (x: DeckCard) => (entry.card_id
+        : { card_name: l.name || l.number, card_number: l.number, quantity: l.quantity }, validSec);
+      const same = (x: DeckCard) => sectionOf(x, sections) === sectionOf(entry, sections) && (entry.card_id
         ? x.card_id === entry.card_id
         : !x.card_id && x.card_name === entry.card_name && (x.card_number ?? "") === (entry.card_number ?? ""));
       cards = cards.some(same) ? cards.map((x) => (same(x) ? { ...x, quantity: x.quantity + entry.quantity } : x)) : [...cards, entry];
@@ -171,7 +184,7 @@ export default function DecksPage() {
   }
 
   async function exportText() {
-    const text = deckToText(deck.tcg, deck.cards);
+    const text = deckToText(deck.tcg, deck.cards, sections);
     setDeckText(text);
     setTextOpen(true);
     try { await navigator.clipboard.writeText(text); setTextMsg(L("คัดลอกรายการเด็คแล้ว", "Deck list copied")); }
@@ -198,20 +211,20 @@ export default function DecksPage() {
   function addCard() {
     const name = newCard.card_name.trim();
     if (!name) return;
-    const exists = deck.cards.some((c) => c.card_name === name);
-    const cards = exists
-      ? deck.cards.map((c) => (c.card_name === name ? { ...c, quantity: c.quantity + newCard.quantity } : c))
-      : [...deck.cards, { ...newCard, card_name: name }];
+    const same = (c: DeckCard) => c.card_name === name && inActive(c);
+    const cards = deck.cards.some(same)
+      ? deck.cards.map((c) => (same(c) ? { ...c, quantity: c.quantity + newCard.quantity } : c))
+      : [...deck.cards, withSection({ ...newCard, card_name: name })];
     setDeck({ ...deck, cards });
     setNewCard(EMPTY_CARD);
   }
 
   // เลือกจากฐานข้อมูล → เพิ่มลงเด็คทันที 1 ใบ (กดซ้ำ = เพิ่มจำนวน)
   function addFromCatalog(c: TcgCard) {
-    const same = (x: DeckCard) => (x.card_id ? x.card_id === c.id : x.card_name === c.name && (x.card_number ?? "") === c.card_number);
+    const same = (x: DeckCard) => inActive(x) && (x.card_id ? x.card_id === c.id : x.card_name === c.name && (x.card_number ?? "") === c.card_number);
     const cards = deck.cards.some(same)
       ? deck.cards.map((x) => (same(x) ? { ...x, quantity: x.quantity + 1, card_id: c.id } : x))
-      : [...deck.cards, { card_name: c.name, card_number: c.card_number, quantity: 1, card_id: c.id }];
+      : [...deck.cards, withSection({ card_name: c.name, card_number: c.card_number, quantity: 1, card_id: c.id })];
     setDeck({ ...deck, cards });
   }
 
@@ -418,6 +431,21 @@ export default function DecksPage() {
             <p className="text-xs font-semibold text-zinc-900 mb-3">
               {L("เพิ่มการ์ด", "Add cards")} <span className="text-zinc-500 font-normal">({totalCards} {L("ใบ", "cards")})</span>
             </p>
+            {sections && (
+              <div className="mb-3">
+                <p className="text-[11px] text-zinc-500 mb-1.5">{L("เพิ่มเข้าส่วน", "Add to")}</p>
+                <div className="flex gap-2 flex-wrap" role="radiogroup" aria-label={L("ส่วนของเด็ค", "Deck section")}>
+                  {sections.map((s) => {
+                    const n = deck.cards.filter((c) => sectionOf(c, sections) === s.key).reduce((t, c) => t + c.quantity, 0);
+                    return (
+                      <button key={s.key} type="button" role="radio" aria-checked={activeSection === s.key} onClick={() => setPickedSection(s.key)} className={chip(activeSection === s.key)}>
+                        {L(s.th, s.en)} · {n}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             <div className="mb-4">
               <CardSearch game={deck.tcg} onSelect={addFromCatalog} />
             </div>
@@ -462,9 +490,17 @@ export default function DecksPage() {
           </div>
 
           {/* การ์ดในเด็ค */}
-          {deck.cards.length > 0 && (
-            <div className="card px-4 py-2">
-              {deck.cards.map((c, i) => (
+          {deck.cards.length > 0 && (sections ?? [null]).map((sec) => {
+            const rows = deck.cards.map((c, i) => ({ c, i })).filter(({ c }) => !sec || sectionOf(c, sections) === sec.key);
+            if (sec && !rows.length) return null;
+            return (
+            <div key={sec?.key ?? "all"} className="card px-4 py-2">
+              {sec && (
+                <p className="text-xs font-semibold text-zinc-900 py-2 border-b border-zinc-100">
+                  {L(sec.th, sec.en)} <span className="text-zinc-500 font-normal">({rows.reduce((t, r) => t + r.c.quantity, 0)} {L("ใบ", "cards")})</span>
+                </p>
+              )}
+              {rows.map(({ c, i }) => (
                 <div key={i} className="flex items-center gap-2 py-1 border-b border-zinc-100 last:border-0">
                   {c.card_id && details[c.card_id]?.image_url && (
                     <img src={details[c.card_id].image_url!} alt="" loading="lazy" className="w-8 h-11 object-cover rounded bg-zinc-100 flex-shrink-0" />
@@ -489,7 +525,8 @@ export default function DecksPage() {
                 </div>
               ))}
             </div>
-          )}
+            );
+          })}
 
           <DeckInsights game={deck.tcg} format={deck.format} cards={deck.cards} details={details} userId={userId} />
 

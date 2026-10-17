@@ -5,7 +5,7 @@ import { useLang } from "@/lib/i18n";
 import { checkDeck, toRuleCard } from "@/lib/deck-rules";
 import { FEATURES } from "@/lib/features";
 
-export type DeckCard = { card_name: string; quantity: number; card_number?: string; card_id?: string };
+export type DeckCard = { card_name: string; quantity: number; card_number?: string; card_id?: string; section?: string };
 export type CardDetail = {
   id: string; lang: string; rarity: string | null; card_type: string | null; color: string | null;
   image_url: string | null; attrs: { cost?: string | number | null; tags?: string[]; deck_points?: number } | null;

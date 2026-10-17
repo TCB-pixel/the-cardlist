@@ -2,11 +2,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAdmin } from "@/lib/admin-context";
 import { adminFetch } from "@/lib/admin-fetch";
-import { TCG_LIST, tcgLabel } from "@/lib/tcg";
+import { TCG_LIST, tcgLabel, deckSections, sectionOf } from "@/lib/tcg";
 import { DECKLIST_STATUS_LABEL } from "@/lib/decklist";
 import { toCsvRows } from "./csv";
 
-type Card = { card_name: string; card_number: string; quantity: number; card_type: string | null };
+type Card = { card_name: string; card_number: string; quantity: number; card_type: string | null; section?: string | null };
 type Issue = { level: string; th: string };
 export type Decklist = {
   id: string; event_id: string | null; user_id: string | null; booking_id: string | null;
@@ -39,14 +39,24 @@ function CardList({ d }: { d: Decklist }) {
   return (
     <div className="bg-zinc-50 rounded-xl px-4 py-3 mt-2">
       {d.deck_code && <p className="text-[11px] text-zinc-600 mb-2">รหัสเด็ค: <span className="font-mono">{d.deck_code}</span></p>}
-      <ul className="grid sm:grid-cols-2 gap-x-6 gap-y-0.5">
-        {d.cards.map((c, i) => (
-          <li key={i} className="text-xs text-zinc-700 flex justify-between gap-2">
-            <span className="truncate">{c.card_type === "Leader" ? "★ " : ""}{c.card_name}{c.card_number ? ` · ${c.card_number}` : ""}</span>
-            <span className="text-zinc-500">×{c.quantity}</span>
-          </li>
-        ))}
-      </ul>
+      {(deckSections(d.game, d.format) ?? [null]).map((sec) => {
+        const secs = deckSections(d.game, d.format);
+        const list = d.cards.filter((c) => !sec || sectionOf(c, secs) === sec.key);
+        if (sec && !list.length) return null;
+        return (
+          <div key={sec?.key ?? "all"} className="mb-2 last:mb-0">
+            {sec && <p className="text-[11px] font-semibold text-zinc-700 mb-0.5">{sec.th} ({list.reduce((t, c) => t + c.quantity, 0)})</p>}
+            <ul className="grid sm:grid-cols-2 gap-x-6 gap-y-0.5">
+              {list.map((c, i) => (
+                <li key={i} className="text-xs text-zinc-700 flex justify-between gap-2">
+                  <span className="truncate">{c.card_type === "Leader" ? "★ " : ""}{c.card_name}{c.card_number ? ` · ${c.card_number}` : ""}</span>
+                  <span className="text-zinc-500">×{c.quantity}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+      })}
       {d.rule_issues.length > 0 && (
         <ul className="mt-2 space-y-0.5">
           {d.rule_issues.map((i, n) => <li key={n} className={`text-[11px] ${i.level === "error" ? "text-red-700" : i.level === "unknown" ? "text-zinc-600" : "text-amber-800"}`}>{i.level === "unknown" ? "ตรวจไม่ได้: " : ""}{i.th}</li>)}
