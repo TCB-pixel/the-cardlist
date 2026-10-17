@@ -45,6 +45,8 @@ const NAV: NavGroup[] = [
         icon: <><rect x="2.5" y="3" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.3" fill="none"/><rect x="11.5" y="3" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.3" fill="none"/><rect x="2.5" y="11.5" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.3" fill="none"/><rect x="11.5" y="11.5" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.3" fill="none"/></> },
       { href: "/admin/discount-codes", label: "โค้ดส่วนลด", permission: "booth:view",
         icon: <><path d="M3 10.5V4a1 1 0 011-1h6.5L17 9.5 10.5 16 3 10.5z" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinejoin="round"/><circle cx="7" cy="7" r="1.2" fill="currentColor"/></> },
+      { href: "/admin/decklists", label: "Decklist & ฐานข้อมูลการแข่ง", permission: "events:view",
+        icon: <><rect x="4" y="2.5" width="12" height="15" rx="1.6" stroke="currentColor" strokeWidth="1.3" fill="none"/><line x1="7" y1="6.5" x2="13" y2="6.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><line x1="7" y1="9.5" x2="13" y2="9.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><line x1="7" y1="12.5" x2="10.5" y2="12.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></> },
       { href: "/admin/trading-tables", label: "โต๊ะเทรด", permission: "events:view",
         icon: <><rect x="2" y="6" width="16" height="9" rx="2" stroke="currentColor" strokeWidth="1.3" fill="none"/><circle cx="10" cy="10.5" r="2" stroke="currentColor" strokeWidth="1.3" fill="none"/><line x1="5" y1="3" x2="15" y2="3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></> },
     ],
@@ -271,7 +273,7 @@ function AdminInner({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen bg-zinc-50">
 
       {/* Desktop Sidebar — ซ่อนบน mobile */}
-      <div className="hidden md:flex">
+      <div className="hidden md:flex print:hidden">
         <AdminSidebar />
       </div>
 
@@ -291,9 +293,9 @@ function AdminInner({ children }: { children: React.ReactNode }) {
       )}
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <AdminTopBar onMenuOpen={() => setMobileMenuOpen(true)} />
-        <div className="flex-1 overflow-auto">{children}</div>
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden print:overflow-visible">
+        <div className="print:hidden"><AdminTopBar onMenuOpen={() => setMobileMenuOpen(true)} /></div>
+        <div className="flex-1 overflow-auto print:overflow-visible">{children}</div>
       </main>
 
     </div>

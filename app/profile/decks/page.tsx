@@ -11,6 +11,13 @@ import { FORMAT_MAP, tcgLabel, tcgOptions, formatOptions } from "@/lib/tcg";
 import CardSearch, { TcgCard } from "@/components/CardSearch";
 import DeckInsights, { DeckCard, useCardDetails } from "@/components/DeckInsights";
 import { parseDeckText, deckToText } from "@/lib/deck-text";
+import { DECKLIST_STATUS_LABEL } from "@/lib/decklist";
+import DecklistSubmit from "@/components/DecklistSubmit";
+
+type Submitted = {
+  id: string; event_id: string | null; event_title: string; event_date: string | null; deck_name: string;
+  status: string; staff_note: string; updated_at: string; placement: number | null;
+};
 
 // การ์ดในเด็คเก็บเป็น JSON ในคอลัมน์ decks.cards (card_id = การ์ดในฐานข้อมูล tcg_cards ถ้าเลือกจากช่องค้นหา/นำเข้า)
 type Deck = {
@@ -55,6 +62,18 @@ export default function DecksPage() {
   const [sharing, setSharing] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const details = useCardDetails(deck.cards);
+  const [submitDeck, setSubmitDeck] = useState<Deck | null>(null);
+  const [submitted, setSubmitted] = useState<Submitted[]>([]);
+
+  async function loadSubmitted(uid: string) {
+    const { data } = await createClient()
+      .from("event_decklists")
+      .select("id, event_id, event_title, event_date, deck_name, status, staff_note, updated_at, placement")
+      .eq("user_id", uid)
+      .order("updated_at", { ascending: false })
+      .limit(20);
+    setSubmitted((data as Submitted[]) ?? []);
+  }
 
   async function loadDecks(uid: string) {
     const supabase = createClient();
@@ -77,7 +96,7 @@ export default function DecksPage() {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) { router.replace(loginHref("/profile/decks")); return; }
     setUserId(session.user.id);
-    await loadDecks(session.user.id);
+    await Promise.all([loadDecks(session.user.id), loadSubmitted(session.user.id)]);
     setLoading(false);
   }
 
@@ -270,6 +289,36 @@ export default function DecksPage() {
         </div>
       )}
 
+      {/* Decklist ที่ส่งลงทัวร์แล้ว */}
+      {ready && view === "list" && submitted.length > 0 && (
+        <div className="px-4 pt-4">
+          <div className="card px-4 py-4">
+            <p className="text-xs font-semibold text-zinc-900 mb-2">{L("Decklist ที่ส่งลงทัวร์", "Submitted decklists")}</p>
+            <ul className="divide-y divide-zinc-100">
+              {submitted.map((s) => {
+                const st = DECKLIST_STATUS_LABEL[s.status] ?? DECKLIST_STATUS_LABEL.submitted;
+                return (
+                  <li key={s.id} className="py-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs text-zinc-900 truncate">{s.event_title}</p>
+                      <span className={`text-[11px] rounded-full px-2 py-0.5 flex-shrink-0 ${st.cls}`}>{L(st.th, st.en)}</span>
+                    </div>
+                    <p className="text-[11px] text-zinc-500">
+                      {[s.deck_name, s.event_date && new Date(s.event_date).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" }), s.placement ? L(`อันดับ ${s.placement}`, `Placed #${s.placement}`) : ""].filter(Boolean).join(" · ")}
+                    </p>
+                    {s.staff_note && <p className="text-[11px] text-zinc-700 mt-0.5">{L("ทีมงาน", "Staff")}: {s.staff_note}</p>}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {submitDeck && (
+        <DecklistSubmit deck={submitDeck} userId={userId} onClose={() => setSubmitDeck(null)} onDone={() => loadSubmitted(userId)} />
+      )}
+
       {/* รายการเด็ค */}
       {ready && view === "list" && (
         <div className="px-4 py-4 space-y-3">
@@ -308,6 +357,10 @@ export default function DecksPage() {
                       {copied === d.id ? L("คัดลอกแล้ว", "Copied") : L("คัดลอกลิงก์", "Copy link")}
                     </button>
                   )}
+                  <button type="button" onClick={() => setSubmitDeck(d)} disabled={!d.cards?.length}
+                    className="ml-auto text-xs font-semibold text-zinc-900 border border-zinc-200 rounded-full px-3 py-1.5 disabled:opacity-40">
+                    {L("ส่ง Decklist", "Submit decklist")}
+                  </button>
                 </div>
                 {d.cards?.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-zinc-100 space-y-1">
