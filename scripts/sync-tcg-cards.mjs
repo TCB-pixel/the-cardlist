@@ -192,24 +192,26 @@ async function pokemonTh(tcgdexTh, existing) {
 
   const sets = new Map();
   const cards = list.map((c) => {
-    const old = existing.get(c.id);
-    const det = fetched.get(c.id);
+    // ค่าเดิมเก็บต่อเฉพาะที่มาจากหน้ารายละเอียดของเว็บทางการ — ค่าที่จับคู่จาก TCGdex คำนวณใหม่ทุกรอบ (กันจับคู่ผิดค้าง)
+    const oldDet = existing.get(c.id)?.attrs?.from_detail ? existing.get(c.id) : null;
+    const det = fetched.get(c.id) ?? (oldDet ? { set_code: oldDet.set_code, set_name: oldDet.set_name, card_number: oldDet.card_number, regulation: oldDet.attrs.regulation } : null);
     const td = tdCount.get(nameKey(c.name)) === 1 && pthCount.get(nameKey(c.name)) === 1 ? tdByName.get(nameKey(c.name)) : null;
-    const set_code = det?.set_code || old?.set_code || td?.set_code || "";
-    const set_name = det?.set_name || old?.set_name || td?.set_name || "";
-    if (det?.set_code) sets.set(det.set_code, { game: "Pokémon", lang: "th", set_code: det.set_code, name: det.set_name || det.set_code, release_date: null, card_count: det.set_total, logo_url: null, source: "pokemon-th" });
+    if (fetched.get(c.id)?.set_code) {
+      const d = fetched.get(c.id);
+      sets.set(d.set_code, { game: "Pokémon", lang: "th", set_code: d.set_code, name: d.set_name || d.set_code, release_date: null, card_count: d.set_total, logo_url: null, source: "pokemon-th" });
+    }
     return {
       game: "Pokémon", lang: "th",
-      set_code, set_name,
-      card_number: det?.card_number || old?.card_number || td?.card_number || "",
+      set_code: det?.set_code || td?.set_code || "",
+      set_name: det?.set_name || td?.set_name || "",
+      card_number: det?.card_number || td?.card_number || "",
       variant: "normal", name: c.name,
-      release_date: old?.release_date ?? td?.release_date ?? null,
+      release_date: td?.release_date ?? null,
       rarity: null, card_type: null, color: null,
       image_url: c.img.startsWith("http") ? c.img : `${PTH_BASE}${c.img}`,
       attrs: {
-        ...(old?.attrs ?? {}),
         legendary: c.legendary,
-        ...(det?.regulation ? { regulation: det.regulation } : {}),
+        ...(det ? { from_detail: true, ...(det.regulation ? { regulation: det.regulation } : {}) } : {}),
         ...(td ? { tcgdex_id: td.source_id, tcgdex_set: td.set_code, tcgdex_number: td.card_number } : {}),
       },
       source: "pokemon-th", source_id: c.id.padStart(8, "0"),
@@ -262,8 +264,14 @@ if (GAME === "all" || GAME === "pokemon-th") {
     // ใช้ข้อมูล TCGdex ไทยจากรอบนี้ ถ้าไม่ได้ดึงมาในรอบนี้ อ่านจากฐานข้อมูล
     let tcgdexTh = result.cards.filter((c) => c.source === "tcgdex" && c.lang === "th");
     if (!tcgdexTh.length && db) {
-      const { data } = await db.from("tcg_cards").select("name, source_id, set_code, set_name, card_number, release_date").eq("source", "tcgdex").eq("lang", "th").limit(10000);
-      tcgdexTh = data ?? [];
+      // Supabase ส่งกลับครั้งละไม่เกิน 1,000 แถว — อ่านทีละหน้า
+      for (let from = 0; ; from += 1000) {
+        const { data, error } = await db.from("tcg_cards").select("name, source_id, set_code, set_name, card_number, release_date")
+          .eq("source", "tcgdex").eq("lang", "th").order("source_id").range(from, from + 999);
+        if (error) throw new Error(`อ่าน TCGdex ไทยไม่ได้: ${error.message}`);
+        tcgdexTh.push(...data);
+        if (data.length < 1000) break;
+      }
     }
     if (!tcgdexTh.length) tcgdexTh = (await getJson("https://api.tcgdex.net/v2/th/cards")).map((c) => ({ name: c.name, source_id: c.id, set_code: c.id.split("-")[0], set_name: "", card_number: c.localId, release_date: null }));
     const r = await pokemonTh(tcgdexTh, existing);
