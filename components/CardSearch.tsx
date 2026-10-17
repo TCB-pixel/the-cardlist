@@ -48,7 +48,10 @@ export default function CardSearch({ game, onSelect }: { game: string; onSelect:
         .select("id, game, lang, set_code, set_name, card_number, variant, name, rarity, card_type, image_url")
         .eq("game", game)
         .or(`name.ilike.%${term}%,card_number.ilike.%${term}%`)
-        .order("name")
+        // เซตใหม่ก่อน (One Piece ไม่มีวันออก → เรียงรหัสเซตจากมากไปน้อยแทน)
+        .order("release_date", { ascending: false, nullsFirst: false })
+        .order("set_code", { ascending: false })
+        .order("card_number")
         .limit(20);
       if (lang !== "all") query = query.eq("lang", lang);
       const { data, error } = await query;

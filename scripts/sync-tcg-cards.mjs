@@ -68,6 +68,7 @@ async function pokemon() {
         cards.push({
           game: "Pokémon", lang, set_code: d.id, set_name: d.name,
           card_number: c.localId, variant: "normal", name: c.name,
+          release_date: d.releaseDate ?? null,
           rarity: null, card_type: null, color: null,
           image_url: c.image ? `${c.image}/low.webp` : null,
           attrs: {},
@@ -106,6 +107,7 @@ async function onePiece() {
     cards.set(r.card_image_id, {
       game: "One Piece", lang: "en", set_code: r.set_id, set_name: r.set_name,
       card_number: r.card_set_id, variant: opVariant(r.card_image_id), name: opName(r.card_name),
+      release_date: null,
       rarity: r.rarity ?? null, card_type: r.card_type ?? null, color: r.card_color ?? null,
       image_url: r.card_image ?? null,
       // ข้อมูลเกมเท่านั้น — ไม่มี inventory_price / market_price
@@ -116,7 +118,8 @@ async function onePiece() {
       source: "optcgapi", source_id: r.card_image_id,
     });
   }
-  for (const s of sets.values()) s.card_count = [...cards.values()].filter((c) => c.set_code === s.set_code).length;
+  // จำนวนการ์ดในเซต = เลขการ์ดไม่ซ้ำ (ไม่นับ parallel/reprint) ใช้คิด % ครบเซต
+  for (const s of sets.values()) s.card_count = new Set([...cards.values()].filter((c) => c.set_code === s.set_code).map((c) => c.card_number)).size;
   console.log(`One Piece: ${sets.size} เซต`);
   return { sets: [...sets.values()], cards: [...cards.values()] };
 }
