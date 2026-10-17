@@ -1,11 +1,13 @@
 "use client";
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import BottomNav from "@/components/BottomNav";
-import LangToggle from "@/components/LangToggle";
+import TopBar from "@/components/TopBar";
 import { useLang } from "@/lib/i18n";
+import { loginHref } from "@/lib/auth-next";
+import { publicError } from "@/lib/api-error";
+import { TCG_LIST, tcgLabel, tcgOptions } from "@/lib/tcg";
 
 type CollectionCard = {
   id: string;
@@ -20,12 +22,8 @@ type CollectionCard = {
   created_at: string;
 };
 
-const TCG_LIST = ["One Piece", "Pokémon", "MTG", "Dragon Ball"];
 const RARITY_LIST = ["Common", "Uncommon", "Rare", "Super Rare", "Secret Rare", "Special"];
 const CONDITION_LIST = ["NM", "LP", "MP", "HP", "D"];
-const CONDITION_LABEL: Record<string, string> = {
-  NM: "Near Mint", LP: "Light Play", MP: "Moderate Play", HP: "Heavy Play", D: "Damaged",
-};
 
 const EMPTY_FORM = {
   card_name: "", set_name: "", card_number: "",
@@ -33,42 +31,51 @@ const EMPTY_FORM = {
   quantity: 1, note: "",
 };
 
+const chip = (on: boolean) =>
+  `text-xs px-3 py-1.5 rounded-full transition-colors ${on ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-600"}`;
+
 export default function CollectionPage() {
   const router = useRouter();
   const { L } = useLang();
   const [userId, setUserId] = useState("");
   const [cards, setCards] = useState<CollectionCard[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const [filterTcg, setFilterTcg] = useState("ทั้งหมด");
+  const [filterTcg, setFilterTcg] = useState("all");
   const [deleting, setDeleting] = useState<string | null>(null);
 
   async function loadCards(uid: string) {
     const supabase = createClient();
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("collection_cards")
       .select("*")
       .eq("user_id", uid)
       .order("created_at", { ascending: false });
+    if (error) {
+      setLoadError(publicError(error, L("โหลดคอลเลกชันไม่สำเร็จ กรุณาลองใหม่", "Couldn't load your collection. Please try again.")));
+      return;
+    }
+    setLoadError("");
     setCards((data as CollectionCard[]) ?? []);
   }
 
-  useEffect(() => {
-    async function init() {
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.replace("/login"); return; }
-      setUserId(session.user.id);
-      await loadCards(session.user.id);
-      setLoading(false);
-    }
-    init();
-  }, []);
+  async function init() {
+    setLoading(true);
+    const supabase = createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { router.replace(loginHref("/profile/collection")); return; }
+    setUserId(session.user.id);
+    await loadCards(session.user.id);
+    setLoading(false);
+  }
+
+  useEffect(() => { init(); }, []);
 
   function openAdd() {
     setForm(EMPTY_FORM);
@@ -92,92 +99,99 @@ export default function CollectionPage() {
     if (!form.card_name.trim()) { setError(L("กรุณากรอกชื่อการ์ด", "Please enter a card name")); return; }
     setSaving(true);
     setError("");
-    try {
-      const supabase = createClient();
-      if (editId) {
-        await supabase.from("collection_cards").update({ ...form }).eq("id", editId);
-      } else {
-        await supabase.from("collection_cards").insert({ ...form, user_id: userId });
-      }
-      await loadCards(userId);
-      setShowForm(false);
-    } catch (err: any) {
-      setError(err?.message ?? L("บันทึกไม่สำเร็จ", "Couldn't save"));
-    } finally {
+    const supabase = createClient();
+    const payload = { ...form, card_name: form.card_name.trim() };
+    const { error } = editId
+      ? await supabase.from("collection_cards").update(payload).eq("id", editId).eq("user_id", userId)
+      : await supabase.from("collection_cards").insert({ ...payload, user_id: userId });
+    if (error) {
+      setError(publicError(error, L("บันทึกไม่สำเร็จ กรุณาลองใหม่", "Couldn't save. Please try again.")));
       setSaving(false);
+      return;
     }
+    await loadCards(userId);
+    setShowForm(false);
+    setSaving(false);
   }
 
-  async function handleDelete(id: string) {
-    setDeleting(id);
+  async function handleDelete(c: CollectionCard) {
+    if (!window.confirm(L(`ลบ "${c.card_name}" ออกจากคอลเลกชัน?`, `Remove "${c.card_name}" from your collection?`))) return;
+    setDeleting(c.id);
     const supabase = createClient();
-    await supabase.from("collection_cards").delete().eq("id", id);
-    await loadCards(userId);
+    const { error } = await supabase.from("collection_cards").delete().eq("id", c.id).eq("user_id", userId);
+    if (error) window.alert(publicError(error, L("ลบไม่สำเร็จ กรุณาลองใหม่", "Couldn't delete. Please try again.")));
+    else await loadCards(userId);
     setDeleting(null);
   }
 
   const filtered = cards.filter((c) => {
-    const matchTcg = filterTcg === "ทั้งหมด" || c.tcg === filterTcg;
-    const matchSearch = !search || c.card_name.toLowerCase().includes(search.toLowerCase()) ||
-      c.set_name.toLowerCase().includes(search.toLowerCase());
+    const matchTcg = filterTcg === "all" || c.tcg === filterTcg;
+    const q = search.toLowerCase();
+    const matchSearch = !q || c.card_name.toLowerCase().includes(q) || c.set_name.toLowerCase().includes(q);
     return matchTcg && matchSearch;
   });
 
   const totalCards = cards.reduce((s, c) => s + c.quantity, 0);
-
-  if (loading) return (
-    <div className="min-h-screen bg-zinc-50 flex items-center justify-center">
-      <div className="w-6 h-6 border-2 border-zinc-200 border-t-zinc-900 rounded-full animate-spin" />
-    </div>
-  );
+  // เกมของร้าน + เกมเก่าที่ยังมีในข้อมูล (เช่น Dragon Ball) เพื่อให้กรองได้ครบ
+  const games = [...new Set([...TCG_LIST, ...cards.map((c) => c.tcg)])];
 
   return (
     <div className="min-h-screen bg-zinc-50 pb-24">
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-white border-b border-zinc-100">
-        <div className="flex items-center justify-between px-4 h-12">
-          <div className="flex items-center gap-3">
-            <Link href="/profile" className="text-zinc-500 active:text-zinc-700">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path d="M12 5l-5 5 5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </Link>
-            <span className="text-sm font-semibold text-zinc-900">Collection</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <LangToggle />
-            <button onClick={openAdd} className="text-xs font-semibold text-zinc-900">{L("+ เพิ่ม", "+ Add")}</button>
+      <TopBar
+        title="Collection"
+        showBack
+        onBack={showForm ? () => setShowForm(false) : undefined}
+        rightSlot={!loading && !loadError && !showForm && (
+          <button onClick={openAdd} className="text-xs font-semibold text-zinc-900 px-2 py-2">{L("+ เพิ่ม", "+ Add")}</button>
+        )}
+      />
+
+      {/* กำลังโหลด */}
+      {loading && (
+        <div className="px-4 py-4 space-y-2" aria-busy="true">
+          <div className="h-14 bg-zinc-100 animate-pulse rounded-2xl" />
+          <div className="h-11 bg-zinc-100 animate-pulse rounded-xl" />
+          {[0, 1, 2].map((i) => <div key={i} className="h-20 bg-zinc-100 animate-pulse rounded-2xl" />)}
+        </div>
+      )}
+
+      {/* โหลดไม่สำเร็จ */}
+      {!loading && loadError && (
+        <div className="px-4 py-4">
+          <div className="bg-red-50 rounded-2xl px-4 py-4">
+            <p className="text-xs text-red-700 mb-3">{loadError}</p>
+            <button onClick={init} className="btn-outline bg-white">{L("ลองใหม่", "Try again")}</button>
           </div>
         </div>
-      </header>
+      )}
 
-      {/* Stats */}
-      {!showForm && (
-        <div className="bg-white border-b border-zinc-100 px-4 py-3 flex items-center gap-4">
-          <div className="text-center">
+      {/* สรุปจำนวน */}
+      {!loading && !loadError && !showForm && (
+        <div className="bg-white border-b border-zinc-100 px-4 py-3 flex items-center gap-4 overflow-x-auto scrollbar-hide">
+          <div className="text-center flex-shrink-0">
             <p className="text-sm font-bold text-zinc-900">{cards.length}</p>
-            <p className="text-[10px] text-zinc-500 tracking-wide">{L("รายการ", "Entries")}</p>
+            <p className="text-[11px] text-zinc-500">{L("รายการ", "Entries")}</p>
           </div>
-          <div className="w-px h-8 bg-zinc-100" />
-          <div className="text-center">
+          <div className="w-px h-8 bg-zinc-100 flex-shrink-0" />
+          <div className="text-center flex-shrink-0">
             <p className="text-sm font-bold text-zinc-900">{totalCards}</p>
-            <p className="text-[10px] text-zinc-500 tracking-wide">{L("ใบรวม", "Total cards")}</p>
+            <p className="text-[11px] text-zinc-500">{L("ใบรวม", "Total cards")}</p>
           </div>
-          <div className="w-px h-8 bg-zinc-100" />
-          {TCG_LIST.map((t) => {
+          <div className="w-px h-8 bg-zinc-100 flex-shrink-0" />
+          {games.map((t) => {
             const count = cards.filter((c) => c.tcg === t).length;
             if (!count) return null;
             return (
-              <div key={t} className="text-center">
+              <div key={t} className="text-center flex-shrink-0">
                 <p className="text-sm font-bold text-zinc-900">{count}</p>
-                <p className="text-[10px] text-zinc-500 tracking-wide">{t.split(" ")[0]}</p>
+                <p className="text-[11px] text-zinc-500">{tcgLabel(t)}</p>
               </div>
             );
           })}
         </div>
       )}
 
-      {/* Add/Edit Form */}
+      {/* ฟอร์มเพิ่ม/แก้ไข */}
       {showForm && (
         <div className="bg-white border-b border-zinc-100 px-4 py-5">
           <p className="text-xs font-semibold text-zinc-900 mb-4">{editId ? L("แก้ไขการ์ด", "Edit card") : L("เพิ่มการ์ดใหม่", "Add new card")}</p>
@@ -190,59 +204,52 @@ export default function CollectionPage() {
               <input className="input" placeholder={L("เลขการ์ด เช่น OP01-001", "Card number, e.g. OP01-001")} value={form.card_number}
                 onChange={(e) => setForm({ ...form, card_number: e.target.value })} />
             </div>
-            {/* TCG */}
             <div>
-              <p className="text-[11px] text-zinc-500 mb-1.5">TCG</p>
+              <p className="text-[11px] text-zinc-500 mb-1.5">{L("เกม", "Game")}</p>
               <div className="flex gap-2 flex-wrap">
-                {TCG_LIST.map((t) => (
-                  <button key={t} onClick={() => setForm({ ...form, tcg: t })}
-                    className={`text-[11px] px-3 py-1.5 rounded-lg border transition-colors ${form.tcg === t ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 text-zinc-600"}`}>
-                    {t}
+                {tcgOptions(form.tcg).map((t) => (
+                  <button key={t} type="button" onClick={() => setForm({ ...form, tcg: t })} aria-pressed={form.tcg === t} className={chip(form.tcg === t)}>
+                    {tcgLabel(t)}
                   </button>
                 ))}
               </div>
             </div>
-            {/* Rarity */}
             <div>
               <p className="text-[11px] text-zinc-500 mb-1.5">Rarity</p>
               <div className="flex gap-2 flex-wrap">
                 {RARITY_LIST.map((r) => (
-                  <button key={r} onClick={() => setForm({ ...form, rarity: r })}
-                    className={`text-[11px] px-3 py-1.5 rounded-lg border transition-colors ${form.rarity === r ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 text-zinc-600"}`}>
+                  <button key={r} type="button" onClick={() => setForm({ ...form, rarity: r })} aria-pressed={form.rarity === r} className={chip(form.rarity === r)}>
                     {r}
                   </button>
                 ))}
               </div>
             </div>
-            {/* Condition */}
             <div>
-              <p className="text-[11px] text-zinc-500 mb-1.5">Condition</p>
+              <p className="text-[11px] text-zinc-500 mb-1.5">{L("สภาพ", "Condition")}</p>
               <div className="flex gap-2 flex-wrap">
                 {CONDITION_LIST.map((c) => (
-                  <button key={c} onClick={() => setForm({ ...form, condition: c })}
-                    className={`text-[11px] px-3 py-1.5 rounded-lg border transition-colors ${form.condition === c ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 text-zinc-600"}`}>
+                  <button key={c} type="button" onClick={() => setForm({ ...form, condition: c })} aria-pressed={form.condition === c} className={chip(form.condition === c)}>
                     {c}
                   </button>
                 ))}
               </div>
             </div>
-            {/* Quantity */}
             <div className="flex items-center gap-3">
               <p className="text-[11px] text-zinc-500 w-16">{L("จำนวน", "Quantity")}</p>
-              <div className="flex items-center gap-3 border border-zinc-200 rounded-xl px-3 py-2">
-                <button onClick={() => setForm({ ...form, quantity: Math.max(1, form.quantity - 1) })}
-                  className="text-zinc-500 w-6 text-center font-bold">−</button>
+              <div className="flex items-center gap-1 border border-zinc-200 rounded-xl px-1">
+                <button type="button" aria-label={L("ลดจำนวน", "Decrease")} onClick={() => setForm({ ...form, quantity: Math.max(1, form.quantity - 1) })}
+                  className="w-10 h-10 text-zinc-600 font-bold">−</button>
                 <span className="text-sm font-semibold w-6 text-center">{form.quantity}</span>
-                <button onClick={() => setForm({ ...form, quantity: form.quantity + 1 })}
-                  className="text-zinc-500 w-6 text-center font-bold">+</button>
+                <button type="button" aria-label={L("เพิ่มจำนวน", "Increase")} onClick={() => setForm({ ...form, quantity: form.quantity + 1 })}
+                  className="w-10 h-10 text-zinc-600 font-bold">+</button>
               </div>
             </div>
             <input className="input" placeholder={L("หมายเหตุ (ไม่บังคับ)", "Note (optional)")} value={form.note}
               onChange={(e) => setForm({ ...form, note: e.target.value })} />
-            {error && <p className="text-[11px] text-red-600">{error}</p>}
+            {error && <p className="text-xs text-red-600">{error}</p>}
             <div className="flex gap-2 pt-1">
-              <button onClick={() => setShowForm(false)} className="btn-outline flex-1 py-3">{L("ยกเลิก", "Cancel")}</button>
-              <button onClick={handleSave} disabled={saving} className="btn-primary flex-1 py-3 disabled:opacity-40">
+              <button type="button" onClick={() => setShowForm(false)} className="btn-outline flex-1 py-3">{L("ยกเลิก", "Cancel")}</button>
+              <button type="button" onClick={handleSave} disabled={saving} className="btn-primary flex-1 py-3 disabled:opacity-40">
                 {saving ? L("กำลังบันทึก...", "Saving...") : L("บันทึก", "Save")}
               </button>
             </div>
@@ -250,24 +257,24 @@ export default function CollectionPage() {
         </div>
       )}
 
-      {/* Filter & Search */}
-      {!showForm && (
+      {/* ค้นหา + กรองเกม */}
+      {!loading && !loadError && !showForm && (
         <div className="px-4 pt-4 pb-2 space-y-2">
           <input className="input" placeholder={L("ค้นหาการ์ด...", "Search cards...")} value={search}
             onChange={(e) => setSearch(e.target.value)} />
           <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
-            {["ทั้งหมด", ...TCG_LIST].map((t) => (
-              <button key={t} onClick={() => setFilterTcg(t)}
-                className={`flex-shrink-0 text-[11px] px-3 py-1.5 rounded-full border transition-colors ${filterTcg === t ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 text-zinc-500"}`}>
-                {t === "ทั้งหมด" ? L("ทั้งหมด", "All") : t}
+            {["all", ...games].map((t) => (
+              <button key={t} type="button" onClick={() => setFilterTcg(t)} aria-pressed={filterTcg === t}
+                className={`flex-shrink-0 ${chip(filterTcg === t)}`}>
+                {t === "all" ? L("ทั้งหมด", "All") : tcgLabel(t)}
               </button>
             ))}
           </div>
         </div>
       )}
 
-      {/* Card List */}
-      {!showForm && (
+      {/* รายการการ์ด */}
+      {!loading && !loadError && !showForm && (
         <div className="px-4 py-2 space-y-2">
           {filtered.length === 0 && (
             <div className="card px-5 py-10 text-center">
@@ -275,7 +282,7 @@ export default function CollectionPage() {
                 {cards.length === 0 ? L("ยังไม่มีการ์ดในคอลเลกชัน", "No cards in your collection yet") : L("ไม่พบการ์ดที่ค้นหา", "No matching cards")}
               </p>
               {cards.length === 0 && (
-                <button onClick={openAdd} className="mt-3 btn-primary px-6 py-2.5">{L("เพิ่มการ์ดแรก", "Add your first card")}</button>
+                <button type="button" onClick={openAdd} className="mt-3 btn-primary px-6 py-2.5">{L("เพิ่มการ์ดแรก", "Add your first card")}</button>
               )}
             </div>
           )}
@@ -285,21 +292,21 @@ export default function CollectionPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <p className="text-xs font-semibold text-zinc-900 truncate">{c.card_name}</p>
-                    <span className="text-[10px] font-bold bg-zinc-100 text-zinc-600 px-1.5 py-0.5 rounded flex-shrink-0">{c.condition}</span>
+                    <span className="badge-pre flex-shrink-0">{c.condition}</span>
                   </div>
                   <p className="text-[11px] text-zinc-500">
-                    {c.set_name}{c.card_number ? ` · ${c.card_number}` : ""} · {c.tcg}
+                    {[c.set_name, c.card_number, tcgLabel(c.tcg)].filter(Boolean).join(" · ")}
                   </p>
                   <div className="flex items-center gap-2 mt-1.5">
-                    <span className="text-[10px] bg-zinc-50 text-zinc-500 border border-zinc-100 px-1.5 py-0.5 rounded">{c.rarity}</span>
+                    <span className="text-[11px] bg-zinc-50 text-zinc-600 border border-zinc-100 px-1.5 py-0.5 rounded">{c.rarity}</span>
                     <span className="text-[11px] text-zinc-500">×{c.quantity}</span>
                     {c.note && <span className="text-[11px] text-zinc-500 truncate">{c.note}</span>}
                   </div>
                 </div>
-                <div className="flex items-center gap-3 ml-3 flex-shrink-0">
-                  <button onClick={() => openEdit(c)} className="text-[11px] text-zinc-500 underline">{L("แก้ไข", "Edit")}</button>
-                  <button onClick={() => handleDelete(c.id)} disabled={deleting === c.id}
-                    className="text-[11px] text-red-400 underline disabled:opacity-40">
+                <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                  <button type="button" onClick={() => openEdit(c)} className="text-[11px] text-zinc-600 underline px-2 py-2">{L("แก้ไข", "Edit")}</button>
+                  <button type="button" onClick={() => handleDelete(c)} disabled={deleting === c.id}
+                    className="text-[11px] text-red-600 underline px-2 py-2 disabled:opacity-40">
                     {deleting === c.id ? "..." : L("ลบ", "Delete")}
                   </button>
                 </div>

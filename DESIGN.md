@@ -205,7 +205,7 @@ z-index: TopBar `z-40` · BottomNav `z-50` · modal ต้องสูงกว�
    ยังใช้ `logo-long.jpg` / `logo-square.*` แทน `cardlist-logo.png`
 2. **ตัวอักษรเล็กเกินในหลังบ้าน:** `text-[9px]` / `text-[8px]` ยังอยู่ใน 16 ไฟล์ใต้ `app/admin/` (หน้าลูกค้าแก้แล้ว)
 3. **`text-[10px]` ใช้เกินขอบเขต badge/nav** ในบางหน้า: `app/profile/page.tsx` (15 จุด), `app/shop/page.tsx` (11),
-   `app/thaiartistcards/page.tsx` (8), `app/events/page.tsx` (6), `app/page.tsx` (5), `app/profile/collection/page.tsx` (5) — ควรไล่เช็กว่าจุดไหนเป็นเนื้อหาแล้วขยับเป็น `[11px]`
+   `app/thaiartistcards/page.tsx` (8), `app/events/page.tsx` (6), `app/page.tsx` (5) — ควรไล่เช็กว่าจุดไหนเป็นเนื้อหาแล้วขยับเป็น `[11px]`
 4. **Token ใน tailwind ไม่ได้ใช้:** `brand.black/white/gray` ไม่มีที่ใช้ในโค้ดเลย (ทุกหน้าใช้ zinc ตรง ๆ) และ `brand.gray` `#888780` ไม่อยู่ในสเกล zinc — ควรลบหรือกำหนดหน้าที่
 5. **สีแบรนด์สามสียังไม่เป็น token:** ตอนนี้เขียน hex ตรงในโค้ด (เช่นรูปปกข่าว) — ควรเพิ่ม `brand.red/yellow/blue` ใน tailwind
 6. **สีเกม `TCG_COLOR`** อยู่ในไฟล์หน้าอีเวนต์ไฟล์เดียว — ถ้าจะใช้ที่อื่นควรย้ายไป `lib/`

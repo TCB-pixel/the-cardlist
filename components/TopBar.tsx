@@ -8,9 +8,10 @@ interface TopBarProps {
   title?: string;
   showBack?: boolean;
   rightSlot?: React.ReactNode;
+  onBack?: () => void; // ปุ่มย้อนกลับภายในหน้า (เช่น ออกจากโหมดแก้ไข) แทนการย้อนประวัติเบราว์เซอร์
 }
 
-export default function TopBar({ title, showBack, rightSlot }: TopBarProps) {
+export default function TopBar({ title, showBack, rightSlot, onBack }: TopBarProps) {
   const { L } = useLang();
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-zinc-100">
@@ -20,7 +21,7 @@ export default function TopBar({ title, showBack, rightSlot }: TopBarProps) {
             <button
               aria-label={L("ย้อนกลับ", "Back")}
               // เข้ามาจากลิงก์ภายนอก (เช่น LINE) จะไม่มีหน้าก่อนหน้าในเว็บ → กลับหน้าแรกแทนการออกจากเว็บ
-              onClick={() => (window.history.length > 1 && document.referrer.startsWith(window.location.origin) ? window.history.back() : (window.location.href = "/"))}
+              onClick={() => onBack ? onBack() : (window.history.length > 1 && document.referrer.startsWith(window.location.origin) ? window.history.back() : (window.location.href = "/"))}
               className="-ml-2 mr-1 w-10 h-10 flex items-center justify-center text-zinc-600">
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                 <path d="M12 5l-5 5 5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
