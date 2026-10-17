@@ -11,7 +11,7 @@ type Row = {
 };
 
 const EMPTY = { game: "Gundam", lang: "en", set_code: "", set_name: "", card_number: "", name: "", rarity: "", card_type: "", variant: "normal", image_url: "" };
-const SOURCE_LABEL: Record<string, string> = { tcgdex: "TCGdex", optcgapi: "optcgapi", manual: "ทีมร้านเพิ่มเอง" };
+const SOURCE_LABEL: Record<string, string> = { tcgdex: "TCGdex", optcgapi: "optcgapi", "pokemon-th": "Pokémon Thailand", manual: "ทีมร้านเพิ่มเอง" };
 
 const inputCls = "w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-400 transition-colors";
 const labelCls = "text-[11px] font-semibold text-zinc-500 tracking-wide block mb-1";
@@ -73,7 +73,7 @@ export default function AdminTcgCardsPage() {
       <div className="flex items-start justify-between mb-5 gap-3 flex-wrap">
         <div>
           <h1 className="text-sm font-semibold text-zinc-900">ฐานข้อมูลการ์ด</h1>
-          <p className="text-[11px] text-zinc-500 mt-1">ใช้ในช่องค้นการ์ดของ Collection / Deck Builder · Pokémon และ One Piece ดึงอัตโนมัติ · เกมอื่นเพิ่มเองที่นี่ · ไม่มีราคาการ์ด</p>
+          <p className="text-[11px] text-zinc-500 mt-1">ใช้ในช่องค้นการ์ดของ Collection / Deck Builder · Pokémon (Pokémon Thailand + TCGdex) และ One Piece ดึงอัตโนมัติ · เกมอื่นเพิ่มเองที่นี่ · ไม่มีราคาการ์ด</p>
         </div>
         {can("products:create") && (
           <button onClick={() => setShowForm(!showForm)} className="bg-zinc-900 text-white text-xs font-semibold px-4 py-2.5 rounded-xl hover:bg-zinc-700">
@@ -120,7 +120,7 @@ export default function AdminTcgCardsPage() {
           <option value="">ทุกเกม</option>{TCG_LIST.map((g) => <option key={g} value={g}>{tcgLabel(g)}</option>)}
         </select>
         <select className={`${inputCls} w-auto`} value={source} onChange={(e) => setSource(e.target.value)}>
-          <option value="">ทุกแหล่ง</option><option value="tcgdex">TCGdex</option><option value="optcgapi">optcgapi</option><option value="manual">ทีมร้านเพิ่มเอง</option>
+          <option value="">ทุกแหล่ง</option><option value="tcgdex">TCGdex</option><option value="optcgapi">optcgapi</option><option value="pokemon-th">Pokémon Thailand</option><option value="manual">ทีมร้านเพิ่มเอง</option>
         </select>
       </div>
 

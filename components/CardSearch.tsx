@@ -48,10 +48,13 @@ export default function CardSearch({ game, onSelect }: { game: string; onSelect:
         .select("id, game, lang, set_code, set_name, card_number, variant, name, rarity, card_type, image_url")
         .eq("game", game)
         .or(`name.ilike.%${term}%,card_number.ilike.%${term}%`)
-        // เซตใหม่ก่อน (One Piece ไม่มีวันออก → เรียงรหัสเซตจากมากไปน้อยแทน)
+        // แหล่งข้อมูลก่อน (manual → optcgapi → pokemon-th → tcgdex = การ์ดไทยทางการขึ้นก่อน TCGdex)
+        // แล้วเซตใหม่ก่อน (ไม่มีวันออก → เรียงรหัสเซต แล้วรหัสการ์ดของแหล่งจากใหม่ไปเก่า)
+        .order("source")
         .order("release_date", { ascending: false, nullsFirst: false })
         .order("set_code", { ascending: false })
         .order("card_number")
+        .order("source_id", { ascending: false })
         .limit(20);
       if (lang !== "all") query = query.eq("lang", lang);
       const { data, error } = await query;
@@ -111,7 +114,7 @@ export default function CardSearch({ game, onSelect }: { game: string; onSelect:
         {!synced
           ? L("เกมนี้ยังมีข้อมูลการ์ดไม่ครบ — ไม่เจอให้พิมพ์ชื่อเองด้านล่าง", "Card data for this game is limited — type the name below if it's missing.")
           : game === "Pokémon"
-            ? L("ข้อมูลการ์ดจาก TCGdex", "Card data from TCGdex")
+            ? L("ข้อมูลการ์ดจาก Pokémon Thailand ©Pokémon/Nintendo/Creatures/GAME FREAK และ TCGdex", "Card data from Pokémon Thailand ©Pokémon/Nintendo/Creatures/GAME FREAK and TCGdex")
             : L("ข้อมูลการ์ดจาก optcgapi.com", "Card data from optcgapi.com")}
       </p>
     </div>
