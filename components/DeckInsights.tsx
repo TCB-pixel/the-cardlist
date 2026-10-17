@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase";
 import { useLang } from "@/lib/i18n";
 import { checkDeck } from "@/lib/deck-rules";
+import { FEATURES } from "@/lib/features";
 
 export type DeckCard = { card_name: string; quantity: number; card_number?: string; card_id?: string };
 export type CardDetail = {
@@ -50,7 +51,7 @@ export default function DeckInsights({ game, format, cards, details, userId }: {
       .eq("user_id", userId);
     setOwned((data as Owned[]) ?? []);
   }
-  useEffect(() => { if (userId) loadOwned(); }, [userId]);
+  useEffect(() => { if (userId && FEATURES.collectionTracker) loadOwned(); }, [userId]);
 
   const rule = checkDeck(game, format, cards.map((c) => {
     const d = c.card_id ? details[c.card_id] : undefined;
@@ -183,8 +184,8 @@ export default function DeckInsights({ game, format, cards, details, userId }: {
         </div>
       )}
 
-      {/* มีแล้ว / ยังขาด */}
-      <div className="card px-4 py-4">
+      {/* มีแล้ว / ยังขาด — แสดงเมื่อเปิด Collection Tracker ให้ลูกค้าแล้วเท่านั้น */}
+      {FEATURES.collectionTracker && <div className="card px-4 py-4">
         <p className="text-xs font-semibold text-zinc-900 mb-2">{L("เทียบกับคอลเลกชันของคุณ", "Compared with your collection")}</p>
         {!missing && <p className="text-[11px] text-zinc-500" role="status">{L("กำลังโหลด...", "Loading...")}</p>}
         {missing && missing.length === 0 && <p className="text-xs text-green-700">{L("มีการ์ดครบทั้งเด็คแล้ว", "You own every card in this deck")}</p>}
@@ -205,7 +206,7 @@ export default function DeckInsights({ game, format, cards, details, userId }: {
           </>
         )}
         {msg && <p className="text-[11px] text-zinc-600 mt-2" role="status">{msg}</p>}
-      </div>
+      </div>}
     </div>
   );
 }
