@@ -56,7 +56,7 @@ function Sheet({ d, event }: { d: Decklist; event: EventInfo }) {
       <p className="text-sm font-semibold mt-2">รวม {d.card_count} ใบ</p>
       {d.rule_issues.length > 0 && (
         <ul className="mt-2 text-[11px] text-zinc-700 list-disc pl-5">
-          {d.rule_issues.map((i, n) => <li key={n}>{i.th}</li>)}
+          {d.rule_issues.map((i, n) => <li key={n}>{i.level === "unknown" ? "ตรวจไม่ได้: " : ""}{i.th}</li>)}
         </ul>
       )}
 

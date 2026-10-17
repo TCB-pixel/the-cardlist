@@ -49,7 +49,7 @@ function CardList({ d }: { d: Decklist }) {
       </ul>
       {d.rule_issues.length > 0 && (
         <ul className="mt-2 space-y-0.5">
-          {d.rule_issues.map((i, n) => <li key={n} className={`text-[11px] ${i.level === "error" ? "text-red-700" : "text-amber-800"}`}>{i.th}</li>)}
+          {d.rule_issues.map((i, n) => <li key={n} className={`text-[11px] ${i.level === "error" ? "text-red-700" : i.level === "unknown" ? "text-zinc-600" : "text-amber-800"}`}>{i.level === "unknown" ? "ตรวจไม่ได้: " : ""}{i.th}</li>)}
         </ul>
       )}
     </div>

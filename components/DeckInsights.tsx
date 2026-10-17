@@ -2,13 +2,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase";
 import { useLang } from "@/lib/i18n";
-import { checkDeck } from "@/lib/deck-rules";
+import { checkDeck, toRuleCard } from "@/lib/deck-rules";
 import { FEATURES } from "@/lib/features";
 
 export type DeckCard = { card_name: string; quantity: number; card_number?: string; card_id?: string };
 export type CardDetail = {
   id: string; lang: string; rarity: string | null; card_type: string | null; color: string | null;
-  image_url: string | null; attrs: { cost?: string | number | null } | null;
+  image_url: string | null; attrs: { cost?: string | number | null; tags?: string[]; deck_points?: number } | null;
 };
 
 // ข้อมูลการ์ดจากฐานข้อมูล (รูป ประเภท สี ค่าใช้) ของการ์ดที่เลือกจากช่องค้นหา
@@ -53,10 +53,7 @@ export default function DeckInsights({ game, format, cards, details, userId }: {
   }
   useEffect(() => { if (userId && FEATURES.collectionTracker) loadOwned(); }, [userId]);
 
-  const rule = checkDeck(game, format, cards.map((c) => {
-    const d = c.card_id ? details[c.card_id] : undefined;
-    return { name: c.card_name, number: c.card_number, quantity: c.quantity, card_type: d?.card_type, color: d?.color };
-  }));
+  const rule = checkDeck(game, format, cards.map((c) => toRuleCard(c, c.card_id ? details[c.card_id] : null)));
 
   // เส้นค่าใช้ (cost curve) — เฉพาะการ์ดที่มีค่า cost ในฐานข้อมูล (ตอนนี้คือ One Piece)
   const curve = useMemo(() => {
@@ -130,6 +127,7 @@ export default function DeckInsights({ game, format, cards, details, userId }: {
   if (!cards.length) return null;
   const errors = rule.issues.filter((i) => i.level === "error");
   const warns = rule.issues.filter((i) => i.level === "warn");
+  const unknowns = rule.issues.filter((i) => i.level === "unknown");
   const maxBin = curve ? Math.max(...curve, 1) : 1;
   const shortTotal = missing?.reduce((s, x) => s + x.short, 0) ?? 0;
 
@@ -142,7 +140,8 @@ export default function DeckInsights({ game, format, cards, details, userId }: {
           <p className="text-[11px] text-zinc-500">{rule.main}{rule.target ? ` / ${rule.target}` : ""} {L("ใบ", "cards")}</p>
         </div>
         {!rule.checked && <p className="text-[11px] text-zinc-500">{L("ยังไม่มีกติกาของเกมนี้ในระบบ — แสดงเฉพาะจำนวนใบ", "No rules for this game yet — showing card count only")}</p>}
-        {rule.checked && errors.length === 0 && <p className="text-xs text-green-700 bg-green-50 rounded-xl px-3 py-2">{L("ผ่านกติกาเบื้องต้นแล้ว", "Passes the basic rules")}</p>}
+        {rule.checked && errors.length === 0 && unknowns.length === 0 && <p className="text-xs text-green-700 bg-green-50 rounded-xl px-3 py-2">{L("ผ่านกติกาเบื้องต้นแล้ว", "Passes the basic rules")}</p>}
+        {rule.checked && errors.length === 0 && unknowns.length > 0 && <p className="text-xs text-zinc-700 bg-zinc-100 rounded-xl px-3 py-2">{L("ยังไม่พบข้อผิด แต่บางข้อตรวจไม่ได้ (ดูด้านล่าง)", "No errors found, but some rules couldn't be checked (see below)")}</p>}
         {errors.length > 0 && (
           <ul className="bg-red-50 rounded-xl px-3 py-2 space-y-1">
             {errors.map((i, n) => <li key={n} className="text-xs text-red-700">{L(i.th, i.en)}</li>)}
@@ -151,6 +150,11 @@ export default function DeckInsights({ game, format, cards, details, userId }: {
         {warns.length > 0 && (
           <ul className="bg-amber-50 rounded-xl px-3 py-2 space-y-1 mt-2">
             {warns.map((i, n) => <li key={n} className="text-xs text-amber-800">{L(i.th, i.en)}</li>)}
+          </ul>
+        )}
+        {unknowns.length > 0 && (
+          <ul className="bg-zinc-100 rounded-xl px-3 py-2 space-y-1 mt-2">
+            {unknowns.map((i, n) => <li key={n} className="text-xs text-zinc-700">{L("ตรวจไม่ได้", "Can't check")}: {L(i.th, i.en)}</li>)}
           </ul>
         )}
         <p className="text-[11px] text-zinc-500 mt-2">{L("ยังไม่ตรวจ ban list / กติกาเฉพาะทัวร์ — เช็กประกาศทางการก่อนแข่ง", "Ban lists and event-specific rules aren't checked — confirm with official announcements")}</p>

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { adminDb } from "@/lib/require-admin";
-import { checkDeck } from "@/lib/deck-rules";
+import { checkDeck, toRuleCard } from "@/lib/deck-rules";
 import { checkRegulation, DECKLIST_CONSENT_VERSION, STRICT_GAMES } from "@/lib/decklist";
 
 // ผู้เล่นส่ง decklist ลงทัวร์ — ตรวจทุกอย่างฝั่ง server แล้วเก็บสำเนาถาวรใน event_decklists
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
   const cards = (deck.cards ?? []) as DeckCard[];
   if (!cards.length) return bad("เด็คนี้ยังไม่มีการ์ด");
   const ids = [...new Set(cards.map((c) => c.card_id).filter(Boolean) as string[])];
-  const details = new Map<string, { card_type: string | null; color: string | null; image_url: string | null; attrs: { regulation?: string } | null }>();
+  const details = new Map<string, { card_type: string | null; color: string | null; image_url: string | null; attrs: { regulation?: string; tags?: string[]; deck_points?: number } | null }>();
   if (ids.length) {
     const { data } = await adminDb.from("tcg_cards").select("id, card_type, color, image_url, attrs").in("id", ids);
     for (const d of data ?? []) details.set(d.id, d);
@@ -78,10 +78,12 @@ export async function POST(req: NextRequest) {
       card_name: c.card_name, card_number: c.card_number ?? "", quantity: c.quantity, card_id: c.card_id ?? null,
       card_type: d?.card_type ?? null, color: d?.color ?? null, image_url: d?.image_url ?? null,
       regulation: d?.attrs?.regulation ?? null,
+      tags: d?.attrs?.tags ?? null, deck_points: d?.attrs?.deck_points ?? null,
     };
   });
 
-  const rule = checkDeck(game, deck.format, snapshot.map((c) => ({ name: c.card_name, number: c.card_number, quantity: c.quantity, card_type: c.card_type, color: c.color })));
+  // ข้อที่ "ตรวจไม่ได้" (การ์ดยังไม่มีข้อมูล) ไม่บล็อกการส่ง — staff ตรวจต่อ
+  const rule = checkDeck(game, deck.format, cards.map((c) => toRuleCard(c, c.card_id ? details.get(c.card_id) : null)));
   const issues = [...rule.issues, ...(game === "Pokémon" ? checkRegulation(event.decklist_regulation, snapshot) : [])];
   const errors = issues.filter((i) => i.level === "error");
   if (STRICT_GAMES.includes(game) && errors.length) {
@@ -121,5 +123,5 @@ export async function POST(req: NextRequest) {
     console.error("decklist save failed", error);
     return bad("ส่ง decklist ไม่สำเร็จ กรุณาลองใหม่", 500);
   }
-  return NextResponse.json({ id: saved.id, updated: !!existing, warnings: issues.filter((i) => i.level === "warn") });
+  return NextResponse.json({ id: saved.id, updated: !!existing, warnings: issues.filter((i) => i.level !== "error") });
 }

@@ -101,7 +101,7 @@ export default function DecklistSubmit({ deck, userId, onClose, onDone }: {
             </p>
             {done.warnings.length > 0 && (
               <ul className="bg-amber-50 rounded-xl px-3 py-2 space-y-1">
-                {done.warnings.map((i, n) => <li key={n} className="text-xs text-amber-800">{L(i.th, i.en)}</li>)}
+                {done.warnings.map((i, n) => <li key={n} className="text-xs text-amber-800">{i.level === "unknown" ? L("ตรวจไม่ได้: ", "Can't check: ") : ""}{L(i.th, i.en)}</li>)}
               </ul>
             )}
             {ev?.decklist_deadline && <p className="text-[11px] text-zinc-500">{L("แก้ไขได้ถึง", "You can edit until")} {fmt(ev.decklist_deadline, lang)}</p>}
@@ -149,7 +149,7 @@ export default function DecklistSubmit({ deck, userId, onClose, onDone }: {
             {error && <p className="text-xs text-red-700 bg-red-50 rounded-xl px-3 py-2">{error}</p>}
             {issues.length > 0 && (
               <ul className="bg-red-50 rounded-xl px-3 py-2 space-y-1">
-                {issues.map((i, n) => <li key={n} className={`text-xs ${i.level === "error" ? "text-red-700" : "text-amber-800"}`}>{L(i.th, i.en)}</li>)}
+                {issues.map((i, n) => <li key={n} className={`text-xs ${i.level === "error" ? "text-red-700" : i.level === "unknown" ? "text-zinc-700" : "text-amber-800"}`}>{i.level === "unknown" ? L("ตรวจไม่ได้: ", "Can't check: ") : ""}{L(i.th, i.en)}</li>)}
               </ul>
             )}
 

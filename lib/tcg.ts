@@ -17,7 +17,7 @@ export const FORMAT_MAP: Record<string, string[]> = {
   "Union Arena": ["Standard"],
   "Riftbound":   ["Standard"],
   "Battle of Talingchan": ["Standard"],
-  "Monsnatch":   ["Standard"],
+  "Monsnatch":   ["Standard", "Draft", "Sealed"],
 };
 
 // แถวเก่าอาจมีเกมที่เลิกใช้แล้ว (เช่น Dragon Ball) — ให้เลือกค่าเดิมได้ต่อ ไม่เปลี่ยนเงียบ ๆ ตอนแก้ไข

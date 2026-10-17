@@ -9,7 +9,7 @@ export const DECKLIST_CONSENT = {
 };
 
 // เกมที่ต้องผ่านกติกาก่อนส่ง (เกมอื่นส่งได้ แต่ขึ้นเป็นคำเตือนให้ staff ตรวจ)
-export const STRICT_GAMES = ["Pokémon", "One Piece"];
+export const STRICT_GAMES = ["Pokémon", "One Piece", "Battle of Talingchan", "Monsnatch"];
 
 export function parseRegulation(text: string | null | undefined): string[] {
   return (text ?? "").toUpperCase().split(/[^A-Z]+/).filter(Boolean);

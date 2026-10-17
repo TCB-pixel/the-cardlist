@@ -10,7 +10,7 @@ type Row = {
   image_url: string | null; source: string; updated_at: string;
 };
 
-const EMPTY = { game: "Gundam", lang: "en", set_code: "", set_name: "", card_number: "", name: "", rarity: "", card_type: "", variant: "normal", image_url: "" };
+const EMPTY = { game: "Gundam", lang: "en", set_code: "", set_name: "", card_number: "", name: "", rarity: "", card_type: "", variant: "normal", image_url: "", only1: false, biased: false, deck_points: "" };
 const SOURCE_LABEL: Record<string, string> = { tcgdex: "TCGdex", optcgapi: "optcgapi", "pokemon-th": "Pokémon Thailand", manual: "ทีมร้านเพิ่มเอง" };
 
 const inputCls = "w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-400 transition-colors";
@@ -67,6 +67,7 @@ export default function AdminTcgCardsPage() {
   }
 
   const set = (k: keyof typeof EMPTY) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm({ ...form, [k]: e.target.value });
+  const tick = (k: "only1" | "biased") => (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [k]: e.target.checked });
 
   return (
     <div className="p-6">
@@ -105,6 +106,18 @@ export default function AdminTcgCardsPage() {
             <div><label className={labelCls}>Rarity</label><input className={inputCls} value={form.rarity} onChange={set("rarity")} /></div>
             <div><label className={labelCls}>ประเภท</label><input className={inputCls} value={form.card_type} onChange={set("card_type")} placeholder="Unit / Pilot ..." /></div>
             <div><label className={labelCls}>Variant</label><input className={inputCls} value={form.variant} onChange={set("variant")} /></div>
+            {/* ข้อมูลที่ตัวตรวจกติกาเด็คใช้ — กรอกตามที่พิมพ์บนการ์ด */}
+            {form.game === "Battle of Talingchan" && (
+              <div className="col-span-2 md:col-span-4 flex flex-wrap gap-4 items-center bg-zinc-50 rounded-xl px-3 py-2">
+                <span className="text-[11px] text-zinc-500">สำหรับตรวจกติกา BOT · การ์ด LIFE ให้ใส่ประเภทว่า LIFE</span>
+                <label className="flex items-center gap-1.5 text-xs text-zinc-700"><input type="checkbox" checked={form.only1} onChange={tick("only1")} /> มีสัญลักษณ์ Only #1</label>
+                <label className="flex items-center gap-1.5 text-xs text-zinc-700"><input type="checkbox" checked={form.biased} onChange={tick("biased")} /> มีสัญลักษณ์ ลำเอียง</label>
+              </div>
+            )}
+            {form.game === "Monsnatch" && (
+              <div><label className={labelCls}>Deck Point (ดาวบนการ์ด)</label>
+                <input type="number" min={0} max={25} className={inputCls} value={form.deck_points} onChange={set("deck_points")} /></div>
+            )}
             <div className="col-span-2"><label className={labelCls}>ลิงก์รูป (https://)</label><input className={inputCls} value={form.image_url} onChange={set("image_url")} /></div>
           </div>
           {formError && <p className="text-xs text-red-600 mt-3">{formError}</p>}

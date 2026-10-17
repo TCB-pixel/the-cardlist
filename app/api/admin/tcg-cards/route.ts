@@ -39,6 +39,18 @@ export async function GET(req: Request) {
   return NextResponse.json({ cards: data ?? [], counts });
 }
 
+// ข้อมูลเฉพาะเกมที่ตัวตรวจกติกาเด็คใช้ (lib/deck-rules.ts)
+function gameAttrs(game: string, body: Record<string, unknown>): Record<string, unknown> {
+  if (game === "Battle of Talingchan") {
+    return { tags: [body.only1 === true && "only1", body.biased === true && "biased"].filter(Boolean) };
+  }
+  if (game === "Monsnatch") {
+    const pts = parseInt(String(body.deck_points ?? ""), 10);
+    return Number.isFinite(pts) && pts >= 0 && pts <= 25 ? { deck_points: pts } : {};
+  }
+  return {};
+}
+
 // ---------- POST : เพิ่มการ์ดเอง ----------
 export async function POST(req: Request) {
   const auth = await requireAdmin(req, "products:create");
@@ -66,6 +78,7 @@ export async function POST(req: Request) {
     rarity: text(body.rarity, 40) || null,
     card_type: text(body.card_type, 40) || null,
     image_url: image_url || null,
+    attrs: gameAttrs(game, body),
     source: "manual",
     source_id: randomUUID(),
   }).select("id").single();
