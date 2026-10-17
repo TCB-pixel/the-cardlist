@@ -1,6 +1,7 @@
 // เกมที่ใช้ใน Collection Tracker และ Deck Builder — ตรงกับเกมที่ร้านขายจริง (company-brain/company.md)
 // ค่าที่เก็บในฐานข้อมูลคือข้อความนี้ตรง ๆ ("MTG" คงไว้ให้ตรงกับข้อมูลเดิม)
-export const TCG_LIST = ["Pokémon", "One Piece", "MTG", "Gundam", "Union Arena", "Riftbound"];
+// Battle of Talingchan และ Monsnatch: เจ้าของสั่งเพิ่ม 17 ต.ค. 2026 (มีแข่งในร้านทุกพฤ./ศ.) — ยังไม่มีกติกาเด็คและฐานข้อมูลการ์ดในระบบ
+export const TCG_LIST = ["Pokémon", "One Piece", "MTG", "Gundam", "Union Arena", "Riftbound", "Battle of Talingchan", "Monsnatch"];
 
 // เกมที่มีฐานข้อมูลการ์ดในตาราง tcg_cards แล้ว (เฟส 1) — เกมอื่นยังพิมพ์ชื่อเอง หรือทีมร้านเพิ่มผ่านหลังบ้าน
 export const CATALOG_GAMES = ["Pokémon", "One Piece"];
@@ -15,6 +16,8 @@ export const FORMAT_MAP: Record<string, string[]> = {
   "Gundam":      ["Standard"],
   "Union Arena": ["Standard"],
   "Riftbound":   ["Standard"],
+  "Battle of Talingchan": ["Standard"],
+  "Monsnatch":   ["Standard"],
 };
 
 // แถวเก่าอาจมีเกมที่เลิกใช้แล้ว (เช่น Dragon Ball) — ให้เลือกค่าเดิมได้ต่อ ไม่เปลี่ยนเงียบ ๆ ตอนแก้ไข
