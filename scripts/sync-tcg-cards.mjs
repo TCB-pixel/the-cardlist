@@ -4,7 +4,8 @@
 //     node scripts/sync-tcg-cards.mjs --dry-run
 //   เขียนจริง (ต้องได้รับอนุมัติจากเจ้าของก่อน · ใช้ service role key จาก .env.local ห้ามพิมพ์ออกมา):
 //     node --env-file=.env.local scripts/sync-tcg-cards.mjs
-//   เลือกเกม: --game=pokemon / --game=onepiece / --game=pokemon-th (ไม่ใส่ = ทั้งหมด)
+//   เลือกเกม: --game=pokemon / --game=onepiece / --game=pokemon-th / --game=eidolon (ไม่ใส่ = ทั้งหมด)
+//   Eidolon: --eidolon-csv=<ไฟล์> ใช้ CSV ที่บันทึกไว้แทนการดึงใหม่ (ใช้ตอนทดสอบ)
 //   Pokémon Thailand:
 //     --th-html=<ไฟล์>   ใช้หน้า /th/deck-build/ ที่บันทึกไว้แทนการดึงใหม่ (ใช้ตอนทดสอบ)
 //     --th-details=<N>   ดึงหน้ารายละเอียดการ์ดที่ยังไม่มีเซต/เลขการ์ด ทีละใบ ห่างกัน 1.5 วินาที สูงสุด N ใบต่อรอบ
@@ -222,6 +223,79 @@ async function pokemonTh(tcgdexTh, existing) {
   return { sets: [...sets.values()], cards };
 }
 
+// ---------- Eidolon TCG (Google Sheet ที่เผยแพร่ ซึ่งหน้า eidolontcg.com/card-list ใช้แสดงการ์ด) ----------
+// สิทธิ์: ร้านเป็นหุ้นส่วน Eidolon (company-brain/eidolon-assets.md) · ดึงวันละไม่เกิน 1 ครั้ง · รูปใช้ลิงก์ Drive thumbnail แบบเดียวกับเว็บทางการ
+// ชีตเก็บแบบแนวนอน: แต่ละแถว = 1 ช่องข้อมูล (ชื่อ, รหัส, ชุด, สี ...) · แต่ละคอลัมน์ = การ์ด 1 ใบ
+const EIDOLON_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTQ_80H95HoS2nHSkBaOSmrFoG4O-X7mEUXBc_IFVBKCYBwik1o0oDaVWmZh8fq1-J6FVTly_x6ssQM/pub?gid=424622576&single=true&output=csv";
+const EIDOLON_FILE = arg("eidolon-csv");
+
+function parseCsvRows(text) {
+  const rows = [];
+  let row = [], field = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (q) {
+      if (ch === '"' && text[i + 1] === '"') { field += '"'; i++; }
+      else if (ch === '"') q = false;
+      else field += ch;
+    } else if (ch === '"') q = true;
+    else if (ch === ",") { row.push(field); field = ""; }
+    else if (ch === "\n" || ch === "\r") {
+      if (ch === "\r" && text[i + 1] === "\n") i++;
+      row.push(field); rows.push(row); row = []; field = "";
+    } else field += ch;
+  }
+  if (field || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+
+async function eidolon() {
+  const text = EIDOLON_FILE ? readFileSync(EIDOLON_FILE, "utf8") : await getText(EIDOLON_CSV);
+  const fields = {};
+  for (const r of parseCsvRows(text.replace(/^﻿/, ""))) if (r.length > 1) fields[r[0].trim()] = r.slice(1);
+  const names = fields["ชื่อ"] ?? [];
+  if (names.filter((n) => n.trim()).length < 100) throw new Error(`Eidolon: อ่านการ์ดได้แค่ ${names.length} ใบ — ชีตอาจเปลี่ยนรูปแบบ หยุดก่อนบันทึก`);
+  const get = (k, i) => (fields[k]?.[i] ?? "").trim();
+  const num = (v) => (/^-?\d+$/.test(v) ? parseInt(v, 10) : null);
+  const thumb = (url) => {
+    const id = url.match(/[-\w]{25,}/)?.[0];
+    return id ? `https://drive.google.com/thumbnail?id=${id}&sz=w500` : null;
+  };
+
+  const sets = new Map();
+  const seen = new Map();
+  const cards = [];
+  names.forEach((raw, i) => {
+    const name = raw.trim();
+    const code = get("รหัส", i);
+    if (!name || !code) return;
+    // รหัสซ้ำในชีตต้นทาง (เช่น EP01/032) → ต่อท้าย #2 ให้ไม่ชนกัน
+    const n = (seen.get(code) ?? 0) + 1;
+    seen.set(code, n);
+    const set_code = get("ชุด", i) || code.split("/")[0];
+    sets.set(set_code, { game: "Eidolon", lang: "th", set_code, name: set_code, release_date: null, card_count: null, logo_url: null, source: "eidolon" });
+    cards.push({
+      game: "Eidolon", lang: "th", set_code, set_name: set_code,
+      card_number: code, variant: "normal", name,
+      release_date: null,
+      rarity: get("ความหายาก", i) || null,
+      card_type: get("ชนิด", i) || null,
+      color: get("สี", i) || null,
+      image_url: thumb(get("รูปการ์ด", i)),
+      attrs: {
+        sub: get("Type/Sub", i) || null,
+        cost: num(get("COST", i)), atk: num(get("ATK", i)), def: num(get("DEF", i)), hp: num(get("HP", i)),
+        text: get("ความสามารถ", i) || null,
+        artist: get("นักวาด", i) || null,
+      },
+      source: "eidolon", source_id: n > 1 ? `${code}#${n}` : code,
+    });
+  });
+  for (const s of sets.values()) s.card_count = new Set(cards.filter((c) => c.set_code === s.set_code).map((c) => c.card_number)).size;
+  console.log(`Eidolon: ${sets.size} ชุด · ${cards.length} ใบ · มีรูป ${cards.filter((c) => c.image_url).length}`);
+  return { sets: [...sets.values()], cards };
+}
+
 // ---------- main ----------
 const now = new Date().toISOString();
 const result = { sets: [], cards: [] };
@@ -275,6 +349,22 @@ if (GAME === "all" || GAME === "pokemon-th") {
     }
     if (!tcgdexTh.length) tcgdexTh = (await getJson("https://api.tcgdex.net/v2/th/cards")).map((c) => ({ name: c.name, source_id: c.id, set_code: c.id.split("-")[0], set_name: "", card_number: c.localId, release_date: null }));
     const r = await pokemonTh(tcgdexTh, existing);
+    result.sets.push(...r.sets);
+    result.cards.push(...r.cards);
+  }
+}
+
+if (GAME === "all" || GAME === "eidolon") {
+  let skip = false;
+  if (db && !FORCE) {
+    const { data } = await db.from("tcg_cards").select("updated_at").eq("source", "eidolon").order("updated_at", { ascending: false }).limit(1);
+    if (data?.[0] && Date.now() - Date.parse(data[0].updated_at) < 20 * 3600 * 1000) {
+      console.log("Eidolon: ดึงไปแล้วภายใน 20 ชั่วโมง — ข้าม (ใช้ --force ถ้าจำเป็น)");
+      skip = true;
+    }
+  }
+  if (!skip) {
+    const r = await eidolon();
     result.sets.push(...r.sets);
     result.cards.push(...r.cards);
   }

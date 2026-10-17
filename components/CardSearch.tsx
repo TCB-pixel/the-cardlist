@@ -113,7 +113,9 @@ export default function CardSearch({ game, onSelect }: { game: string; onSelect:
       <p className="text-[11px] text-zinc-500">
         {!synced
           ? L("เกมนี้ยังมีข้อมูลการ์ดไม่ครบ — ไม่เจอให้พิมพ์ชื่อเองด้านล่าง", "Card data for this game is limited — type the name below if it's missing.")
-          : game === "Pokémon"
+          : game === "Eidolon"
+            ? L("ข้อมูลและภาพการ์ดจาก Eidolon TCG (eidolontcg.com)", "Card data and images from Eidolon TCG (eidolontcg.com)")
+            : game === "Pokémon"
             ? L("ข้อมูลการ์ดจาก Pokémon Thailand ©Pokémon/Nintendo/Creatures/GAME FREAK และ TCGdex", "Card data from Pokémon Thailand ©Pokémon/Nintendo/Creatures/GAME FREAK and TCGdex")
             : L("ข้อมูลการ์ดจาก optcgapi.com", "Card data from optcgapi.com")}
       </p>

@@ -110,6 +110,7 @@ export function checkDeck(game: string, format: string, cards: RuleCard[]): Rule
     return { total, main: total, target: "50", issues, checked: true };
   }
 
+  if (game === "Eidolon") return checkEidolon(cards, total);
   if (game === "Battle of Talingchan") return checkBot(cards, total);
   if (game === "Monsnatch") return checkMonsnatch(format, cards, total);
 
@@ -165,6 +166,65 @@ function checkBot(cards: RuleCard[], total: number): RuleResult {
   issues.push({ level: "warn", th: "ยังไม่ตรวจการ์ดบาป (ban list) — ดูประกาศล่าสุดที่ bottcg.com/rule", en: "Ban list isn't checked — see bottcg.com/rule" });
 
   return { total, main: untyped.length ? total : mainCount, target: "Main 50 + LIFE 5", issues, checked: true };
+}
+
+// ---------- Eidolon TCG ----------
+// ที่มา (อ่าน/ดู 18 ต.ค. 2026):
+//   วิดีโอทางการ "How to play EidolonTCG - สอนเล่นไอโดลอน" https://youtu.be/7v1x8MoA2K8 (คำบรรยายอัตโนมัติภาษาไทย)
+//     02:44–03:05 เด็คแบ่งเป็น Terminal + Main Deck · Terminal 4 ใบ = ฮีโร่ 1 คู่ (2 ใบ) + Ultima ของฮีโร่ 1 คู่ (2 ใบ)
+//     03:05–03:19 Main Deck 50–60 ใบ · การ์ดต้องสีตรงกับสีของฮีโร่ที่เลือก ยกเว้นการ์ดไร้สีใส่ได้ทุกเด็ค
+//     03:19       การ์ดทุกใบในเด็คมีได้แบบละไม่เกิน 4 ใบ
+//   ตัวจัดเด็คบนเว็บทางการ (https://www.eidolontcg.com/card-list): Main 50–60 · ชื่อเดียวกันไม่เกิน 4 · ฝั่ง HR ไม่เกิน 4 และห้ามซ้ำชื่อ
+// ยังไม่ตรวจ / ไม่ชัด (ไม่เดา):
+//   · Ultima ต้องเป็นของฮีโร่ที่เลือก — ข้อมูลการ์ดไม่มีช่องบอกว่า Ultima ใบไหนเป็นของฮีโร่ตัวไหน
+//   · การ์ดสองสี (เช่น ฟ้า-เขียว): ต้องตรงทั้งสองสีหรือสีเดียวก็พอ — วิดีโอไม่ได้บอก → "ตรวจไม่ได้" ถ้าตรงแค่บางสี
+//   · ฮีโร่สองตัวสีซ้ำกันได้ไหม / การ์ด Token ใส่เด็คได้ไหม — ไม่มีในวิดีโอ
+const EID_COLORLESS = "ไร้สี";
+const eidColors = (c: RuleCard) => (c.color ?? "").split(/[-/]/).map((s) => s.trim()).filter(Boolean);
+const isHero = (c: RuleCard) => (c.card_type ?? "").trim() === "Hero";
+const isUltima = (c: RuleCard) => /ultima/i.test(c.card_type ?? "");
+
+function checkEidolon(cards: RuleCard[], total: number): RuleResult {
+  const issues: RuleIssue[] = [];
+  const untyped = cards.filter((c) => !c.card_type);
+  const heroes = cards.filter(isHero);
+  const ultimas = cards.filter(isUltima);
+  const main = cards.filter((c) => !isHero(c) && !isUltima(c));
+  const heroCount = heroes.reduce((s, c) => s + c.quantity, 0);
+  const ultimaCount = ultimas.reduce((s, c) => s + c.quantity, 0);
+  const mainCount = main.reduce((s, c) => s + c.quantity, 0);
+
+  if (untyped.length) {
+    issues.push({ level: "unknown", th: `แยก Terminal / Main ไม่ได้ ${untyped.length} รายการ — พิมพ์ชื่อเอง ไม่ได้เลือกจากฐานข้อมูล`, en: `Can't sort Terminal / Main for ${untyped.length} entries — typed by hand, not picked from the database` });
+  } else {
+    if (heroCount !== 2) issues.push({ level: "error", th: `Terminal มีฮีโร่ ${heroCount} ใบ (ต้อง 2 ใบ)`, en: `Terminal has ${heroCount} Heroes (needs 2)` });
+    if (ultimaCount !== 2) issues.push({ level: "error", th: `Terminal มี Ultima ${ultimaCount} ใบ (ต้อง 2 ใบ)`, en: `Terminal has ${ultimaCount} Ultimas (needs 2)` });
+    if (mainCount < 50 || mainCount > 60) issues.push({ level: "error", th: `Main Deck ${mainCount} ใบ (ต้อง 50–60)`, en: `Main Deck: ${mainCount} cards (needs 50–60)` });
+  }
+  issues.push(...overLimit([...heroes, ...ultimas], 1, nameKey).map((i) => ({ ...i, th: `Terminal ซ้ำชื่อ: ${i.th}`, en: `Duplicate in Terminal: ${i.en}` })));
+  issues.push(...overLimit(main, 4, nameKey));
+
+  // สีของการ์ดใน Main ต้องตรงกับสีของฮีโร่ (ไร้สีใส่ได้เสมอ)
+  const heroColors = new Set(heroes.flatMap(eidColors));
+  if (heroCount === 2 && heroColors.size) {
+    const wrong: string[] = [];
+    const partial: string[] = [];
+    let noColor = 0;
+    for (const c of main) {
+      const cols = eidColors(c);
+      if (!cols.length) { if (c.card_type) noColor++; continue; }
+      if (cols.includes(EID_COLORLESS)) continue;
+      const hit = cols.filter((x) => heroColors.has(x)).length;
+      if (hit === 0) wrong.push(c.name);
+      else if (hit < cols.length) partial.push(c.name);
+    }
+    if (wrong.length) issues.push({ level: "error", th: `สีไม่ตรงกับฮีโร่ (${[...heroColors].join(", ")}): ${wrong.join(", ")}`, en: `Colour doesn't match your Heroes (${[...heroColors].join(", ")}): ${wrong.join(", ")}` });
+    if (partial.length) issues.push({ level: "unknown", th: `การ์ดสองสีที่ตรงแค่บางสี (กติกายังไม่ระบุ): ${partial.join(", ")}`, en: `Two-colour cards matching only one of your colours (rule unclear): ${partial.join(", ")}` });
+    if (noColor) issues.push({ level: "unknown", th: `ตรวจสีไม่ได้ ${noColor} รายการ — ไม่มีข้อมูลสี`, en: `Couldn't check colour for ${noColor} entries — no colour data` });
+  }
+  issues.push({ level: "warn", th: "ยังไม่ตรวจว่า Ultima เป็นของฮีโร่ที่เลือก — ข้อมูลการ์ดยังไม่ระบุคู่", en: "Not checked: whether each Ultima belongs to your chosen Heroes" });
+
+  return { total, main: untyped.length ? total : mainCount, target: "Terminal 4 + Main 50–60", issues, checked: true };
 }
 
 // ---------- Monsnatch ----------

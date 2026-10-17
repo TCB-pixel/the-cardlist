@@ -82,7 +82,9 @@ export default async function SharedDeckPage({ params }: { params: Promise<{ slu
           <p className="text-xs text-zinc-600">เด็คนี้สร้างด้วย Deck Builder ของ <span className="font-cardlist font-normal tracking-wide">The Cardlist</span></p>
           <Link href="/profile/decks" className="btn-primary inline-block mt-3 px-6">สร้างเด็คของคุณ</Link>
           <p className="text-[11px] text-zinc-500 mt-3">
-            {deck.tcg === "Pokémon"
+            {deck.tcg === "Eidolon"
+              ? "ข้อมูลและภาพการ์ดจาก Eidolon TCG"
+              : deck.tcg === "Pokémon"
               ? "ข้อมูลการ์ดจาก Pokémon Thailand ©Pokémon/Nintendo/Creatures/GAME FREAK และ TCGdex"
               : "ข้อมูลการ์ดจาก TCGdex / optcgapi.com"} · รูปการ์ดเป็นลิขสิทธิ์ของเจ้าของเกม
           </p>
