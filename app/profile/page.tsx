@@ -573,6 +573,18 @@ export default function ProfilePage() {
         {/* OVERVIEW */}
         {activeTab === "overview" && (
           <div className="space-y-2">
+            {/* CARDLIST PASSPORT — สะสมแสตมป์ในงานอีเวนต์ (เจ้าของให้อยู่ในหน้าโปรไฟล์) */}
+            <Link href="/passport" className="mb-4 flex items-center gap-3 rounded-2xl bg-[#141414] px-4 py-4 active:opacity-90">
+              <img src="/images/passport/c-mark.png" alt="" className="h-10 w-10 shrink-0 object-contain" />
+              <div className="min-w-0 flex-1">
+                <p className="font-cardlist text-[10px] tracking-[0.14em] text-[#a88c4a]">THE CARDLIST</p>
+                <p className="font-cardlist text-xl leading-none tracking-[0.06em] text-[#e9d29a]">PASSPORT</p>
+                <p className="mt-1 text-[11px] text-zinc-400">{L("สะสมแสตมป์ในงานอีเวนต์ · ฉีกซองลุ้นรางวัล · Learn To Play ฟรี", "Collect event stamps · open reward packs · Learn To Play for free")}</p>
+              </div>
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0 text-[#a88c4a]">
+                <path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </Link>
             <div className="mb-4">
               <FacebookFollowCard />
             </div>
