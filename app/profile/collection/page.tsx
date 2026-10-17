@@ -8,6 +8,7 @@ import { useLang } from "@/lib/i18n";
 import { loginHref } from "@/lib/auth-next";
 import { publicError } from "@/lib/api-error";
 import { TCG_LIST, tcgLabel, tcgOptions } from "@/lib/tcg";
+import CardSearch from "@/components/CardSearch";
 
 type CollectionCard = {
   id: string;
@@ -20,6 +21,8 @@ type CollectionCard = {
   quantity: number;
   note: string;
   created_at: string;
+  card_id?: string | null;
+  card?: { image_url: string | null } | null;
 };
 
 const RARITY_LIST = ["Common", "Uncommon", "Rare", "Super Rare", "Secret Rare", "Special"];
@@ -29,6 +32,7 @@ const EMPTY_FORM = {
   card_name: "", set_name: "", card_number: "",
   tcg: "One Piece", rarity: "Rare", condition: "NM",
   quantity: 1, note: "",
+  card_id: null as string | null,
 };
 
 const chip = (on: boolean) =>
@@ -52,17 +56,20 @@ export default function CollectionPage() {
 
   async function loadCards(uid: string) {
     const supabase = createClient();
-    const { data, error } = await supabase
+    const query = (cols: string) => supabase
       .from("collection_cards")
-      .select("*")
+      .select(cols)
       .eq("user_id", uid)
       .order("created_at", { ascending: false });
+    // ดึงรูปจากฐานข้อมูลการ์ดด้วย — ถ้ายังไม่มีตาราง tcg_cards (migration เฟส 1 ยังไม่ลง) ใช้แบบเดิม
+    let { data, error } = await query("*, card:tcg_cards(image_url)");
+    if (error) ({ data, error } = await query("*"));
     if (error) {
       setLoadError(publicError(error, L("โหลดคอลเลกชันไม่สำเร็จ กรุณาลองใหม่", "Couldn't load your collection. Please try again.")));
       return;
     }
     setLoadError("");
-    setCards((data as CollectionCard[]) ?? []);
+    setCards((data as unknown as CollectionCard[]) ?? []);
   }
 
   async function init() {
@@ -89,6 +96,7 @@ export default function CollectionPage() {
       card_name: c.card_name, set_name: c.set_name, card_number: c.card_number,
       tcg: c.tcg, rarity: c.rarity, condition: c.condition,
       quantity: c.quantity, note: c.note,
+      card_id: c.card_id ?? null,
     });
     setEditId(c.id);
     setError("");
@@ -100,7 +108,10 @@ export default function CollectionPage() {
     setSaving(true);
     setError("");
     const supabase = createClient();
-    const payload = { ...form, card_name: form.card_name.trim() };
+    // ส่ง card_id เฉพาะตอนเลือกจากฐานข้อมูล (คอลัมน์นี้มาพร้อม migration เฟส 1)
+    const { card_id, ...rest } = form;
+    const hadCard = !!(editId && cards.find((x) => x.id === editId)?.card_id);
+    const payload = { ...rest, card_name: form.card_name.trim(), ...(card_id || hadCard ? { card_id } : {}) };
     const { error } = editId
       ? await supabase.from("collection_cards").update(payload).eq("id", editId).eq("user_id", userId)
       : await supabase.from("collection_cards").insert({ ...payload, user_id: userId });
@@ -196,8 +207,12 @@ export default function CollectionPage() {
         <div className="bg-white border-b border-zinc-100 px-4 py-5">
           <p className="text-xs font-semibold text-zinc-900 mb-4">{editId ? L("แก้ไขการ์ด", "Edit card") : L("เพิ่มการ์ดใหม่", "Add new card")}</p>
           <div className="space-y-3">
+            <CardSearch game={form.tcg} onSelect={(c) => setForm({
+              ...form, card_id: c.id, card_name: c.name, set_name: c.set_name, card_number: c.card_number,
+              rarity: c.rarity ?? form.rarity,
+            })} />
             <input className="input" placeholder={L("ชื่อการ์ด *", "Card name *")} value={form.card_name}
-              onChange={(e) => setForm({ ...form, card_name: e.target.value })} />
+              onChange={(e) => setForm({ ...form, card_name: e.target.value, card_id: null })} />
             <div className="grid grid-cols-2 gap-2">
               <input className="input" placeholder={L("ชื่อเซต", "Set name")} value={form.set_name}
                 onChange={(e) => setForm({ ...form, set_name: e.target.value })} />
@@ -217,7 +232,7 @@ export default function CollectionPage() {
             <div>
               <p className="text-[11px] text-zinc-500 mb-1.5">Rarity</p>
               <div className="flex gap-2 flex-wrap">
-                {RARITY_LIST.map((r) => (
+                {(RARITY_LIST.includes(form.rarity) ? RARITY_LIST : [...RARITY_LIST, form.rarity]).map((r) => (
                   <button key={r} type="button" onClick={() => setForm({ ...form, rarity: r })} aria-pressed={form.rarity === r} className={chip(form.rarity === r)}>
                     {r}
                   </button>
@@ -288,7 +303,10 @@ export default function CollectionPage() {
           )}
           {filtered.map((c) => (
             <div key={c.id} className="card px-4 py-3.5">
-              <div className="flex items-start justify-between">
+              <div className="flex items-start justify-between gap-3">
+                {c.card?.image_url && (
+                  <img src={c.card.image_url} alt={c.card_name} loading="lazy" className="w-12 h-16 object-cover rounded bg-zinc-100 flex-shrink-0" />
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <p className="text-xs font-semibold text-zinc-900 truncate">{c.card_name}</p>

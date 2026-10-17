@@ -22,6 +22,8 @@ const NAV: NavGroup[] = [
     items: [
       { href: "/admin/products", label: "สินค้าทั้งหมด", permission: "products:view",
         icon: <><rect x="2" y="3" width="16" height="14" rx="2" stroke="currentColor" strokeWidth="1.3" fill="none"/><line x1="2" y1="8" x2="18" y2="8" stroke="currentColor" strokeWidth="1.3"/></> },
+      { href: "/admin/tcg-cards", label: "ฐานข้อมูลการ์ด", permission: "products:view",
+        icon: <><rect x="5" y="2.5" width="10" height="15" rx="1.6" stroke="currentColor" strokeWidth="1.3" fill="none"/><line x1="7.5" y1="6.5" x2="12.5" y2="6.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><line x1="7.5" y1="9.5" x2="12.5" y2="9.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></> },
       { href: "/admin/stock-sync", label: "เทียบสต็อก Loyverse", permission: "products:view",
         icon: <><path d="M4 7h10l-2.5-2.5M16 13H6l2.5 2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" fill="none"/></> },
       { href: "/admin/orders", label: "คำสั่งซื้อ", permission: "orders:view",

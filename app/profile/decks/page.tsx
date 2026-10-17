@@ -8,8 +8,10 @@ import { useLang } from "@/lib/i18n";
 import { loginHref } from "@/lib/auth-next";
 import { publicError } from "@/lib/api-error";
 import { FORMAT_MAP, tcgLabel, tcgOptions, formatOptions } from "@/lib/tcg";
+import CardSearch, { TcgCard } from "@/components/CardSearch";
 
-type DeckCard = { card_name: string; quantity: number; card_number?: string };
+// card_id = การ์ดในฐานข้อมูล tcg_cards (มีเมื่อเลือกจากช่องค้นหา) · เก็บใน JSON ของเด็คจนกว่าจะย้ายไปตาราง deck_cards ในเฟส 3
+type DeckCard = { card_name: string; quantity: number; card_number?: string; card_id?: string };
 type Deck = {
   id: string;
   name: string;
@@ -94,6 +96,15 @@ export default function DecksPage() {
       : [...deck.cards, { ...newCard, card_name: name }];
     setDeck({ ...deck, cards });
     setNewCard(EMPTY_CARD);
+  }
+
+  // เลือกจากฐานข้อมูล → เพิ่มลงเด็คทันที 1 ใบ (กดซ้ำ = เพิ่มจำนวน)
+  function addFromCatalog(c: TcgCard) {
+    const same = (x: DeckCard) => (x.card_id ? x.card_id === c.id : x.card_name === c.name && (x.card_number ?? "") === c.card_number);
+    const cards = deck.cards.some(same)
+      ? deck.cards.map((x) => (same(x) ? { ...x, quantity: x.quantity + 1, card_id: c.id } : x))
+      : [...deck.cards, { card_name: c.name, card_number: c.card_number, quantity: 1, card_id: c.id }];
+    setDeck({ ...deck, cards });
   }
 
   function removeCard(idx: number) {
@@ -254,6 +265,10 @@ export default function DecksPage() {
             <p className="text-xs font-semibold text-zinc-900 mb-3">
               {L("เพิ่มการ์ด", "Add cards")} <span className="text-zinc-500 font-normal">({totalCards} {L("ใบ", "cards")})</span>
             </p>
+            <div className="mb-4">
+              <CardSearch game={deck.tcg} onSelect={addFromCatalog} />
+            </div>
+            <p className="text-[11px] text-zinc-500 mb-2">{L("หรือพิมพ์ชื่อการ์ดเอง", "Or type a card name")}</p>
             <div className="flex gap-2 mb-2">
               <input className="input flex-1 min-w-0" placeholder={L("ชื่อการ์ด", "Card name")} value={newCard.card_name}
                 onChange={(e) => setNewCard({ ...newCard, card_name: e.target.value })}

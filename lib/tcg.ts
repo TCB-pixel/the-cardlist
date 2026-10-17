@@ -2,6 +2,9 @@
 // ค่าที่เก็บในฐานข้อมูลคือข้อความนี้ตรง ๆ ("MTG" คงไว้ให้ตรงกับข้อมูลเดิม)
 export const TCG_LIST = ["Pokémon", "One Piece", "MTG", "Gundam", "Union Arena", "Riftbound"];
 
+// เกมที่มีฐานข้อมูลการ์ดในตาราง tcg_cards แล้ว (เฟส 1) — เกมอื่นยังพิมพ์ชื่อเอง หรือทีมร้านเพิ่มผ่านหลังบ้าน
+export const CATALOG_GAMES = ["Pokémon", "One Piece"];
+
 export const TCG_LABEL: Record<string, string> = { MTG: "Magic" };
 export const tcgLabel = (t: string) => TCG_LABEL[t] ?? t;
 
