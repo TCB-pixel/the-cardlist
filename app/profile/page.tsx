@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
+import { FEATURES } from "@/lib/features";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -622,8 +623,8 @@ export default function ProfilePage() {
               { label: L("แก้ไขโปรไฟล์", "Edit profile"),       href: "/profile/edit" },
               { label: L("ประวัติการสั่งซื้อ", "Order history"),   href: "/orders" },
               { label: L("ที่อยู่จัดส่ง", "Shipping address"),        href: "/profile/address" },
-              { label: "Collection Tracker",   href: "/profile/collection" },
-              { label: "Deck Builder",          href: "/profile/decks" },
+              ...(FEATURES.collectionTracker ? [{ label: "Collection Tracker", href: "/profile/collection" }] : []),
+              ...(FEATURES.deckBuilder ? [{ label: "Deck Builder", href: "/profile/decks" }] : []),
               { label: L("สิทธิประโยชน์สมาชิก", "Member benefits"),  href: "/profile/benefits" },
               { label: L("นโยบายความเป็นส่วนตัว", "Privacy policy"),  href: "/privacy" },
               { label: L("ลบบัญชี", "Delete account"),             href: "/account/delete" },
