@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import type { Session } from "@supabase/supabase-js";
 import { safeNext } from "@/lib/auth-next";
+import { APP_CHALLENGE_COOKIE, isChallenge, sealAppCode } from "@/lib/app-login";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -60,11 +62,18 @@ export async function GET(request: NextRequest) {
 
     const cookieStore = await cookies();
     const dest = safeNext(cookieStore.get("login_next")?.value);
+    // ล็อกอินที่เริ่มจากแอปมือถือ → ส่งรหัสใช้ครั้งเดียวกลับเข้าแอปแทนการพาไปหน้าเว็บ
+    const appChallenge = cookieStore.get(APP_CHALLENGE_COOKIE)?.value;
+    const fromApp = isChallenge(appChallenge);
     // ปลายทางหลังเข้าสู่ระบบ + ล้างคุกกี้ที่จำไว้
-    const goto = (path: string) => {
-      const r = NextResponse.redirect(new URL(path, request.url));
+    const goto = (path: string, session?: Session | null) => {
+      const target = fromApp && session
+        ? `/auth/app-return?code=${sealAppCode(session.refresh_token, appChallenge, path)}`
+        : path;
+      const r = NextResponse.redirect(new URL(target, request.url));
       r.cookies.set("login_next", "", { path: "/", maxAge: 0 });
       r.cookies.set("line_oauth_state", "", { path: "/", maxAge: 0 });
+      r.cookies.set(APP_CHALLENGE_COOKIE, "", { path: "/", maxAge: 0 });
       return r;
     };
     // Passport มีหน้าสมัครของตัวเอง (ชื่อเล่น ช่วงอายุ ยินยอม PDPA) — ไม่บังคับกรอกชื่อ-นามสกุลก่อน
@@ -98,7 +107,8 @@ export async function GET(request: NextRequest) {
       data: { session: existingSession },
     } = await supabase.auth.getSession();
 
-    if (existingSession?.user) {
+    // จากแอป: ไม่ผูกกับบัญชีที่ค้างอยู่ในเบราว์เซอร์ของเครื่อง (ผู้ใช้ตั้งใจล็อกอินด้วย LINE นี้)
+    if (existingSession?.user && !fromApp) {
       const { error: updateError } = await supabase
         .from("profiles")
         .update(lineProfilePayload)
@@ -138,7 +148,7 @@ export async function GET(request: NextRequest) {
 
       const isComplete = Boolean(existingProfile?.first_name && existingProfile?.last_name);
 
-      return goto(isComplete ? dest ?? "/profile" : completeUrl);
+      return goto(isComplete ? dest ?? "/profile" : completeUrl, signInData.session);
     }
 
     // สร้าง account ใหม่ กรณียังไม่เคย login ด้วย LINE นี้
@@ -161,7 +171,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Sign in ทันทีหลัง signUp เพื่อให้ browser ได้ session
-    const { error: signInAfterSignUpError } = await supabase.auth.signInWithPassword({
+    const { data: signInAfterSignUpData, error: signInAfterSignUpError } = await supabase.auth.signInWithPassword({
       email: fakeEmail,
       password: fakePassword,
     });
@@ -186,7 +196,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL("/login?error=line_profile_upsert_failed", request.url));
     }
 
-    return goto(completeUrl);
+    return goto(completeUrl, signInAfterSignUpData.session);
   } catch (err) {
     console.error("LINE callback error:", err);
     return NextResponse.redirect(new URL("/login?error=unknown", request.url));

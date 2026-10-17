@@ -1,7 +1,9 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { useLang } from "@/lib/i18n";
+import { canScanNatively, internalPathFromQr, scanQrNative } from "@/lib/native";
 
 const NAV = [
   {
@@ -79,15 +81,45 @@ const NAV = [
 ];
 
 // แถบเมนูล่างแบบลอย (แรงบันดาลใจ: Floating Dock บน 21st.dev) — เมนูที่อยู่ขยายไอคอนและมีพื้นทึบ
+// ในแอปมือถือ: 4 เมนูหลัก + ปุ่มสแกน QR ตรงกลาง (กล้องเนทีฟ) — Artist Cards / News ยังเข้าได้จากหน้าแรก
+const APP_NAV = ["/", "/shop", "/events", "/profile"].map((h) => NAV.find((n) => n.href === h)!);
+
+function ScanButton() {
+  const router = useRouter();
+  const { L } = useLang();
+  async function scan() {
+    const text = await scanQrNative(L("สแกน QR ในงานหรือที่สถานีแสตมป์", "Scan an event or stamp-station QR"));
+    if (!text) return;
+    const path = internalPathFromQr(text);
+    if (path) router.push(path);
+    else alert(L("QR นี้ไม่ใช่ของ The Cardlist", "This QR code isn't from The Cardlist"));
+  }
+  return (
+    <button onClick={scan} aria-label={L("สแกน QR", "Scan QR")}
+      className="flex flex-1 min-w-0 flex-col items-center gap-0.5 px-0.5 py-1 text-zinc-900">
+      <span className="flex items-center justify-center w-11 h-11 -mt-5 rounded-full bg-zinc-900 text-white shadow-lg active:scale-90 transition-transform">
+        <svg width="22" height="22" viewBox="0 0 20 20" fill="none">
+          <path d="M3 7V4a1 1 0 011-1h3M13 3h3a1 1 0 011 1v3M17 13v3a1 1 0 01-1 1h-3M7 17H4a1 1 0 01-1-1v-3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+          <line x1="5.5" y1="10" x2="14.5" y2="10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+        </svg>
+      </span>
+      <span className="text-[10px] tracking-tight whitespace-nowrap font-semibold">{L("สแกน", "Scan")}</span>
+    </button>
+  );
+}
+
 export default function BottomNav() {
   const pathname = usePathname();
   const { lang } = useLang();
+  const [inApp, setInApp] = useState(false);
+  useEffect(() => { setInApp(canScanNatively()); }, []);
+  const items = inApp ? APP_NAV : NAV;
   return (
     <nav className="fixed bottom-3 left-3 right-3 z-50 mx-auto max-w-md rounded-2xl bg-white/90 backdrop-blur-md border border-zinc-200/80 shadow-[0_10px_30px_-12px_rgba(0,0,0,.35)] flex items-center justify-around h-16 px-1"
       style={{ marginBottom: "env(safe-area-inset-bottom)" }}>
-      {NAV.map((item) => {
+      {items.flatMap((item, i) => {
         const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
-        return (
+        const link = (
           <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined}
             className={`group flex flex-1 min-w-0 flex-col items-center gap-0.5 px-0.5 py-1 transition-colors ${active ? "text-zinc-900" : "text-zinc-500"}`}>
             <span className={`flex items-center justify-center w-9 h-8 rounded-xl transition-all duration-200 ${active ? "bg-zinc-900 text-white scale-110 -translate-y-0.5" : "group-hover:bg-zinc-100 group-active:scale-90"}`}>
@@ -96,6 +128,7 @@ export default function BottomNav() {
             <span className={`text-[10px] tracking-tight whitespace-nowrap ${active ? "font-semibold" : "font-normal"}`}>{lang === "en" && "labelEn" in item ? item.labelEn : item.label}</span>
           </Link>
         );
+        return inApp && i === 2 ? [<ScanButton key="scan" />, link] : [link];
       })}
     </nav>
   );
