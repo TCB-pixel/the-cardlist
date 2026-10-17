@@ -9,9 +9,10 @@ import { loginHref } from "@/lib/auth-next";
 import { publicError } from "@/lib/api-error";
 import { FORMAT_MAP, tcgLabel, tcgOptions, formatOptions } from "@/lib/tcg";
 import CardSearch, { TcgCard } from "@/components/CardSearch";
+import DeckInsights, { DeckCard, useCardDetails } from "@/components/DeckInsights";
+import { parseDeckText, deckToText } from "@/lib/deck-text";
 
-// card_id = การ์ดในฐานข้อมูล tcg_cards (มีเมื่อเลือกจากช่องค้นหา) · เก็บใน JSON ของเด็คจนกว่าจะย้ายไปตาราง deck_cards ในเฟส 3
-type DeckCard = { card_name: string; quantity: number; card_number?: string; card_id?: string };
+// การ์ดในเด็คเก็บเป็น JSON ในคอลัมน์ decks.cards (card_id = การ์ดในฐานข้อมูล tcg_cards ถ้าเลือกจากช่องค้นหา/นำเข้า)
 type Deck = {
   id: string;
   name: string;
@@ -21,7 +22,11 @@ type Deck = {
   cards: DeckCard[];
   created_at: string;
   updated_at: string;
+  is_public: boolean;
+  share_slug: string | null;
 };
+
+const newSlug = () => Array.from(crypto.getRandomValues(new Uint8Array(12))).map((b) => "abcdefghijklmnopqrstuvwxyz0123456789"[b % 36]).join("");
 
 const EMPTY_DECK = { name: "", tcg: "One Piece", format: "Standard", description: "", cards: [] as DeckCard[] };
 const EMPTY_CARD = { card_name: "", quantity: 1, card_number: "" };
@@ -43,6 +48,13 @@ export default function DecksPage() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [textOpen, setTextOpen] = useState(false);
+  const [deckText, setDeckText] = useState("");
+  const [textMsg, setTextMsg] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [sharing, setSharing] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+  const details = useCardDetails(deck.cards);
 
   async function loadDecks(uid: string) {
     const supabase = createClient();
@@ -76,6 +88,8 @@ export default function DecksPage() {
     setEditId(null);
     setNewCard(EMPTY_CARD);
     setError("");
+    setTextOpen(false);
+    setTextMsg("");
     setView("edit");
   }
 
@@ -84,7 +98,82 @@ export default function DecksPage() {
     setEditId(d.id);
     setNewCard(EMPTY_CARD);
     setError("");
+    setTextOpen(false);
+    setTextMsg("");
     setView("edit");
+  }
+
+  // วางรายการเด็คจากแอป/เว็บอื่น → จับคู่กับฐานข้อมูลการ์ดด้วยเลขการ์ดหรือชื่อ แล้วรวมเข้าเด็คนี้
+  async function importText() {
+    const { lines, skipped } = parseDeckText(deckText);
+    if (!lines.length) { setTextMsg(L("ไม่พบรายการ — ใช้รูปแบบ 4xOP01-016 หรือ 4 ชื่อการ์ด", "Nothing found — use 4xOP01-016 or 4 Card Name")); return; }
+    setImporting(true);
+    setTextMsg("");
+    const supabase = createClient();
+    type Hit = { id: string; name: string; card_number: string; variant: string };
+    const cols = "id, name, card_number, variant";
+    const byNum = new Map<string, Hit>();
+    const byName = new Map<string, Hit>();
+    // เลือกแบบ normal ก่อน parallel/reprint
+    const pick = (map: Map<string, Hit>, k: string, h: Hit) => {
+      const cur = map.get(k);
+      if (!cur || (cur.variant !== "normal" && h.variant === "normal")) map.set(k, h);
+    };
+    const nums = [...new Set(lines.map((l) => l.number).filter(Boolean))];
+    const names = [...new Set(lines.filter((l) => !l.number).map((l) => l.name))];
+    if (nums.length) {
+      const { data } = await supabase.from("tcg_cards").select(cols).eq("game", deck.tcg).in("card_number", nums).limit(1000);
+      for (const h of (data as Hit[]) ?? []) pick(byNum, h.card_number.toUpperCase(), h);
+    }
+    if (names.length) {
+      const { data } = await supabase.from("tcg_cards").select(cols).eq("game", deck.tcg).in("name", names)
+        .order("release_date", { ascending: false, nullsFirst: false }).limit(2000);
+      for (const h of (data as Hit[]) ?? []) if (!byName.has(h.name.toLowerCase())) pick(byName, h.name.toLowerCase(), h);
+    }
+    let cards = [...deck.cards];
+    let matched = 0;
+    for (const l of lines) {
+      const hit = l.number ? byNum.get(l.number) : byName.get(l.name.toLowerCase());
+      if (hit) matched++;
+      const entry: DeckCard = hit
+        ? { card_name: hit.name, card_number: hit.card_number, quantity: l.quantity, card_id: hit.id }
+        : { card_name: l.name || l.number, card_number: l.number, quantity: l.quantity };
+      const same = (x: DeckCard) => (entry.card_id
+        ? x.card_id === entry.card_id
+        : !x.card_id && x.card_name === entry.card_name && (x.card_number ?? "") === (entry.card_number ?? ""));
+      cards = cards.some(same) ? cards.map((x) => (same(x) ? { ...x, quantity: x.quantity + entry.quantity } : x)) : [...cards, entry];
+    }
+    setDeck({ ...deck, cards });
+    setImporting(false);
+    setTextMsg(L(
+      `เพิ่ม ${lines.length} รายการ · จับคู่ฐานข้อมูลได้ ${matched}${skipped ? ` · ข้าม ${skipped} บรรทัด` : ""} — กดบันทึกเพื่อเก็บ`,
+      `Added ${lines.length} · matched ${matched}${skipped ? ` · skipped ${skipped} lines` : ""} — press Save to keep`,
+    ));
+  }
+
+  async function exportText() {
+    const text = deckToText(deck.tcg, deck.cards);
+    setDeckText(text);
+    setTextOpen(true);
+    try { await navigator.clipboard.writeText(text); setTextMsg(L("คัดลอกรายการเด็คแล้ว", "Deck list copied")); }
+    catch { setTextMsg(L("เลือกข้อความด้านบนแล้วคัดลอกเอง", "Select the text above and copy it")); }
+  }
+
+  // แชร์ด้วยลิงก์ (ค่าเริ่มต้นส่วนตัว) — ปิดแชร์แล้วลิงก์เดิมเปิดไม่ได้
+  async function toggleShare(d: Deck) {
+    setSharing(d.id);
+    const { error } = await createClient().from("decks")
+      .update({ is_public: !d.is_public, share_slug: d.share_slug ?? newSlug() })
+      .eq("id", d.id).eq("user_id", userId);
+    if (error) window.alert(publicError(error, L("ตั้งค่าแชร์ไม่สำเร็จ กรุณาลองใหม่", "Couldn't update sharing. Please try again.")));
+    else await loadDecks(userId);
+    setSharing(null);
+  }
+
+  async function copyLink(d: Deck) {
+    const url = `${window.location.origin}/decks/${d.share_slug}`;
+    try { await navigator.clipboard.writeText(url); setCopied(d.id); setTimeout(() => setCopied(null), 2000); }
+    catch { window.prompt(L("คัดลอกลิงก์นี้", "Copy this link"), url); }
   }
 
   function addCard() {
@@ -209,6 +298,17 @@ export default function DecksPage() {
                   </div>
                 </div>
                 {d.description && <p className="text-[11px] text-zinc-500">{d.description}</p>}
+                <div className="flex items-center gap-2 mt-3">
+                  <button type="button" onClick={() => toggleShare(d)} disabled={sharing === d.id} aria-pressed={d.is_public}
+                    className={`${chip(d.is_public)} disabled:opacity-40`}>
+                    {d.is_public ? L("แชร์อยู่ · กดเพื่อปิด", "Shared · tap to stop") : L("แชร์ด้วยลิงก์", "Share with link")}
+                  </button>
+                  {d.is_public && d.share_slug && (
+                    <button type="button" onClick={() => copyLink(d)} className="text-xs text-zinc-700 underline px-2 py-1.5">
+                      {copied === d.id ? L("คัดลอกแล้ว", "Copied") : L("คัดลอกลิงก์", "Copy link")}
+                    </button>
+                  )}
+                </div>
                 {d.cards?.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-zinc-100 space-y-1">
                     {d.cards.slice(0, 4).map((c, i) => (
@@ -286,13 +386,41 @@ export default function DecksPage() {
               onChange={(e) => setNewCard({ ...newCard, card_number: e.target.value })} />
           </div>
 
+          {/* นำเข้า / ส่งออกรายการเด็คเป็นข้อความ */}
+          <div className="card px-4 py-4">
+            <div className="flex gap-2">
+              <button type="button" onClick={() => { setTextOpen(!textOpen); setTextMsg(""); }} aria-expanded={textOpen} className="btn-outline flex-1">
+                {L("วางรายการเด็ค", "Paste deck list")}
+              </button>
+              <button type="button" onClick={exportText} disabled={!deck.cards.length} className="btn-outline flex-1 disabled:opacity-40">
+                {L("คัดลอกรายการเด็ค", "Copy deck list")}
+              </button>
+            </div>
+            {textOpen && (
+              <div className="mt-3 space-y-2">
+                <textarea className="input min-h-[140px] font-mono" value={deckText} onChange={(e) => setDeckText(e.target.value)}
+                  aria-label={L("รายการเด็ค", "Deck list")} placeholder={"4xOP01-016\n4 Nami (OP01-016)\n4 Pikachu ex SVI 57"} />
+                <button type="button" onClick={importText} disabled={importing || !deckText.trim()} className="btn-primary w-full disabled:opacity-40">
+                  {importing ? L("กำลังนำเข้า...", "Importing...") : L("เพิ่มเข้าเด็คนี้", "Add to this deck")}
+                </button>
+              </div>
+            )}
+            {textMsg && <p className="text-[11px] text-zinc-600 mt-2" role="status">{textMsg}</p>}
+          </div>
+
           {/* การ์ดในเด็ค */}
           {deck.cards.length > 0 && (
             <div className="card px-4 py-2">
               {deck.cards.map((c, i) => (
                 <div key={i} className="flex items-center gap-2 py-1 border-b border-zinc-100 last:border-0">
+                  {c.card_id && details[c.card_id]?.image_url && (
+                    <img src={details[c.card_id].image_url!} alt="" loading="lazy" className="w-8 h-11 object-cover rounded bg-zinc-100 flex-shrink-0" />
+                  )}
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-zinc-900 truncate">{c.card_name}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs font-medium text-zinc-900 truncate">{c.card_name}</p>
+                      {c.card_id && details[c.card_id]?.card_type === "Leader" && <span className="badge-new flex-shrink-0">LEADER</span>}
+                    </div>
                     {c.card_number && <p className="text-[11px] text-zinc-500">{c.card_number}</p>}
                   </div>
                   <div className="flex items-center flex-shrink-0">
@@ -309,6 +437,8 @@ export default function DecksPage() {
               ))}
             </div>
           )}
+
+          <DeckInsights game={deck.tcg} format={deck.format} cards={deck.cards} details={details} userId={userId} />
 
           {error && (
             <div className="bg-red-50 rounded-xl px-4 py-3">
