@@ -1,4 +1,4 @@
-import { createHmac, createHash, randomBytes, timingSafeEqual } from "crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "crypto";
 import { adminDb } from "@/lib/require-admin";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -10,7 +10,6 @@ import { adminDb } from "@/lib/require-admin";
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const PASSPORT_PRICE = 100;
-export const DEVICE_COOKIE = "clp_dev";
 const ROTATE_SEC = 30;
 const REDEEM_SEC = 60;
 // กันกดรัว: จุดในงานห่างกันอย่างน้อย 20 วินาที · โต๊ะสอนเล่นห่างกันอย่างน้อย 10 นาที (งานจริงเท่านั้น)
@@ -28,7 +27,7 @@ export type PEvent = {
 };
 export type Passport = {
   id: string; code: string; kind: "card" | "free"; status: "unsold" | "sold" | "active";
-  claim_secret: string; redeem_secret: string; device_hash: string | null; is_test: boolean;
+  claim_secret: string; redeem_secret: string; user_id: string | null; is_test: boolean;
 };
 
 function sign(secret: string, data: string, len = 16) {
@@ -95,33 +94,19 @@ export function newPassportCode() {
   return "CL-" + Array.from(b, (x) => ALPHA[x % ALPHA.length]).join("");
 }
 
-export function newDeviceToken() { return randomBytes(24).toString("base64url"); }
-export function hashDevice(token: string) { return createHash("sha256").update(token).digest("hex"); }
-
-export function readDeviceToken(req: Request): string | null {
-  const raw = req.headers.get("cookie") ?? "";
-  const m = raw.split(/;\s*/).find((c) => c.startsWith(DEVICE_COOKIE + "="));
-  const v = m?.slice(DEVICE_COOKIE.length + 1);
-  return v && /^[A-Za-z0-9_-]{20,64}$/.test(v) ? v : null;
-}
-
-export const DEVICE_COOKIE_OPTS = {
-  httpOnly: true, sameSite: "lax" as const, secure: true, path: "/", maxAge: 60 * 60 * 24 * 365,
-};
-
-export async function passportForDevice(token: string | null): Promise<Passport | null> {
-  if (!token) return null;
-  const { data } = await adminDb.from("passports").select("*")
-    .eq("device_hash", hashDevice(token)).eq("status", "active")
-    .order("kind", { ascending: true }) // 'card' มาก่อน 'free'
-    .limit(1).maybeSingle();
+// พาสปอร์ตของสมาชิก: การ์ดมาก่อนพาสปอร์ตฟรี · isTest ไม่ระบุ = เอาการ์ดใบไหนก็ได้ (ของจริงก่อน)
+export async function passportForUser(userId: string | null, isTest?: boolean): Promise<Passport | null> {
+  if (!userId) return null;
+  let q = adminDb.from("passports").select("*").eq("user_id", userId).eq("status", "active");
+  if (isTest !== undefined) q = q.eq("is_test", isTest);
+  const { data } = await q.order("kind", { ascending: true }).order("is_test", { ascending: true }).limit(1).maybeSingle();
   return (data as Passport) ?? null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ข้อมูลพาสปอร์ตทั้งหมดที่หน้า /passport ต้องใช้
 // ─────────────────────────────────────────────────────────────────────────────
-export async function passportState(p: Passport | null, isTestHint = false) {
+export async function passportState(p: Passport | null, isTestHint = false, member: { nickname: string | null } | null = null) {
   const isTest = p?.is_test ?? isTestHint;
   const [{ data: events }, { data: stations }, { data: rewards }] = await Promise.all([
     adminDb.from("passport_events").select("id, slug, name, venue, starts_on, ends_on, open_time, close_time, is_test, sort").eq("is_test", isTest).order("sort"),
@@ -143,6 +128,7 @@ export async function passportState(p: Passport | null, isTestHint = false) {
   const today = bangkokNow().date;
   return {
     passport: p ? { code: p.code, kind: p.kind, isTest: p.is_test } : null,
+    member,
     price: PASSPORT_PRICE,
     events: (events ?? []).map((ev: any) => ({
       id: ev.id, slug: ev.slug, name: ev.name, venue: ev.venue, startsOn: ev.starts_on, endsOn: ev.ends_on,
@@ -169,11 +155,11 @@ export async function passportState(p: Passport | null, isTestHint = false) {
 // ปั๊มแสตมป์ — คืนผลให้หน้า /passport/s/[token] แสดงแอนิเมชัน
 // ─────────────────────────────────────────────────────────────────────────────
 export type StampResult =
-  | { ok: false; reason: "invalid" | "expired" | "closed" | "need_card" | "wrong_mode" | "too_fast"; station?: { name: string; track: string; logo: string | null }; waitSec?: number }
+  | { ok: false; reason: "invalid" | "expired" | "closed" | "need_login" | "need_join" | "need_card" | "too_fast"; station?: { name: string; track: string; logo: string | null }; waitSec?: number }
   | { ok: true; already: boolean; station: { name: string; track: string; logo: string | null };
       event: { name: string } | null; count: number; total: number; packEarned: boolean; learnComplete: boolean };
 
-export async function stampWithToken(token: string, device: string | null): Promise<{ result: StampResult; newDevice?: string }> {
+export async function stampWithToken(token: string, userId: string | null, joined: boolean): Promise<{ result: StampResult }> {
   const parsed = parseStationToken(token);
   if (!parsed) return { result: { ok: false, reason: "invalid" } };
   const { data: st } = await adminDb.from("passport_stations").select("*").eq("code", parsed.code).maybeSingle();
@@ -189,21 +175,22 @@ export async function stampWithToken(token: string, device: string | null): Prom
   const openEv = (evs ?? []).find((e: any) => (station.event_id ? e.id === station.event_id : true) && eventOpenNow(e as PEvent)) as PEvent | undefined;
   if (!openEv) return { result: { ok: false, reason: "closed", station: stInfo } };
 
-  let p = await passportForDevice(device);
-  let newDevice: string | undefined;
-  if (p && p.is_test !== station.is_test) return { result: { ok: false, reason: "wrong_mode", station: stInfo } };
+  // ต้องล็อกอิน LINE และสมัคร Passport (ยินยอม PDPA) ก่อน
+  if (!userId) return { result: { ok: false, reason: "need_login", station: stInfo } };
+  if (!joined) return { result: { ok: false, reason: "need_join", station: stInfo } };
 
+  let p = await passportForUser(userId, station.is_test);
   if (station.track === "passport") {
     if (!p || p.kind !== "card") return { result: { ok: false, reason: "need_card", station: stInfo } };
   } else if (!p) {
-    // Learn To Play ฟรี: สร้างพาสปอร์ตแบบ free ผูกกับเครื่องนี้
-    newDevice = device ?? newDeviceToken();
+    // Learn To Play ฟรี: สร้างพาสปอร์ตแบบ free ผูกกับบัญชีนี้
     for (let i = 0; i < 5 && !p; i++) {
-      const { data } = await adminDb.from("passports").insert({
-        code: newPassportCode(), kind: "free", status: "active", device_hash: hashDevice(newDevice),
+      const { data, error } = await adminDb.from("passports").insert({
+        code: newPassportCode(), kind: "free", status: "active", user_id: userId,
         is_test: station.is_test, activated_at: new Date().toISOString(),
       }).select("*").single();
-      p = (data as Passport) ?? null;
+      if (error?.code === "23505") p = await passportForUser(userId, station.is_test);
+      else p = (data as Passport) ?? null;
     }
     if (!p) throw new Error("create_free_passport_failed");
   }
@@ -222,7 +209,7 @@ export async function stampWithToken(token: string, device: string | null): Prom
         .order("stamped_at", { ascending: false }).limit(1).maybeSingle();
       if (last) {
         const wait = gap - (Date.now() - new Date(last.stamped_at).getTime());
-        if (wait > 0) return { result: { ok: false, reason: "too_fast", station: stInfo, waitSec: Math.ceil(wait / 1000) }, newDevice };
+        if (wait > 0) return { result: { ok: false, reason: "too_fast", station: stInfo, waitSec: Math.ceil(wait / 1000) } };
       }
     }
     const { error } = await adminDb.from("passport_stamps").insert({
@@ -257,6 +244,5 @@ export async function stampWithToken(token: string, device: string | null): Prom
   const evName = station.event_id ? (evs ?? []).find((e: any) => e.id === station.event_id)?.name ?? null : null;
   return {
     result: { ok: true, already, station: stInfo, event: evName ? { name: evName } : null, count: n, total, packEarned, learnComplete },
-    newDevice,
   };
 }

@@ -6,6 +6,7 @@ import { adminFetch } from "@/lib/admin-fetch";
 type Stats = {
   isTest: boolean; manage: boolean; price: number;
   kpi: Record<string, number>;
+  members: { total: number; marketing: number; ages: Record<string, number>; games: Record<string, number> };
   events: { id: string; slug: string; name: string; venue: string; starts_on: string; ends_on: string; open_time: string; close_time: string }[];
   stations: { id: string; code: string; event_id: string | null; track: string; name: string; logo_path: string | null; qr_mode: string; display_key?: string; active: boolean; total: number; today: number }[];
   rewards: { id: string; track: string; tier: string; name: string; color: string; stock: number; initial_stock: number; given: number; active: boolean }[];
@@ -65,6 +66,17 @@ export default function AdminPassportPage() {
           <div key={l as string} className="rounded-xl bg-zinc-100 p-3"><p className="text-xl font-semibold text-zinc-900">{v}</p><p className="text-[11px] text-zinc-600">{l}</p></div>
         ))}
       </div>
+
+      <section className="mb-6 rounded-xl border border-zinc-200 bg-white p-4">
+        <h2 className="mb-1 text-sm font-semibold">สมาชิก Passport</h2>
+        <p className="mb-3 text-[11px] text-zinc-500">ตัวเลขรวมเท่านั้น · รายชื่อดูได้ที่ &quot;จัดการสมาชิก&quot; ตามสิทธิ์เดิม</p>
+        <div className="flex flex-wrap gap-4 text-xs text-zinc-700">
+          <span>สมัครแล้ว <b>{s.members.total}</b></span>
+          <span>ยินยอมรับข่าวสาร <b>{s.members.marketing}</b></span>
+          <span>อายุ: {Object.entries(s.members.ages).map(([a, n]) => `${a} ${n}`).join(" · ") || "—"}</span>
+          <span>เกม: {Object.entries(s.members.games).sort((a, b) => b[1] - a[1]).map(([g, n]) => `${g} ${n}`).join(" · ") || "—"}</span>
+        </div>
+      </section>
 
       <section className="mb-6 rounded-xl border border-zinc-200 bg-white p-4">
         <h2 className="mb-3 text-sm font-semibold">กองรางวัล</h2>

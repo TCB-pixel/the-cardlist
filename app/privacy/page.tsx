@@ -7,9 +7,9 @@ import { useLang } from "@/lib/i18n";
 // นโยบายความเป็นส่วนตัว — ใช้ประกอบการส่งแอปขึ้น Google Play / App Store ด้วย
 // ถ้าเพิ่มบริการภายนอกที่รับข้อมูลลูกค้า (เช่น analytics) ให้อัปเดตหัวข้อ "ผู้ให้บริการที่เราใช้" และวันที่ด้านล่าง
 const CONTACT_EMAIL = "thecardlistbkk@gmail.com";
-const UPDATED = { th: "16 ตุลาคม 2569", en: "16 October 2026" };
+const UPDATED = { th: "17 ตุลาคม 2569", en: "17 October 2026" };
 
-type Section = { th: { h: string; p: string[] }; en: { h: string; p: string[] } };
+type Section = { id?: string; th: { h: string; p: string[] }; en: { h: string; p: string[] } };
 
 const SECTIONS: Section[] = [
   {
@@ -109,6 +109,33 @@ const SECTIONS: Section[] = [
     },
   },
   {
+    id: "passport",
+    th: {
+      h: "CARDLIST PASSPORT (สะสมแสตมป์ในงานอีเวนต์)",
+      p: [
+        "ผู้ให้บริการและผู้ควบคุมข้อมูล: CL Studio Creative Lab ผู้จัดงานและเจ้าของร้าน The Cardlist",
+        "ข้อมูลที่เก็บ: บัญชี LINE (LINE user ID ชื่อที่แสดง รูปโปรไฟล์) ชื่อเล่น ช่วงอายุ เกมที่เล่น (ถ้าเลือก) รหัสการ์ด Passport จุดที่สแกนพร้อมวันเวลา ของรางวัลที่ได้และวันที่แลก และบันทึกความยินยอม — เราไม่ขอชื่อจริง เบอร์โทร หรือตำแหน่งที่ตั้งสำหรับ Passport",
+        "ใช้เพื่อ: ให้บริการสะสมแสตมป์ สุ่มและแจกของรางวัล กันการใช้สิทธิ์ซ้ำ และสรุปสถิติงานแบบไม่ระบุตัวตน (เช่น จำนวนคนที่มาซ้ำ) — ฐานทางกฎหมาย: ความยินยอมของคุณ",
+        "ข่าวสารและโปรโมชันทาง LINE: ส่งเฉพาะเมื่อคุณติ๊กยินยอมแยกต่างหาก ยกเลิกได้ทุกเมื่อในหน้า Passport",
+        "ผู้ที่เห็นข้อมูล: พนักงานหน้าบูธเห็นเฉพาะชื่อเล่น รหัสการ์ด แสตมป์ และของรางวัล · ข้อมูลอื่นเข้าถึงได้เฉพาะเจ้าของกิจการและผู้ดูแลระบบ · ไม่ขายหรือส่งต่อให้สปอนเซอร์",
+        "ผู้เยาว์: อายุต่ำกว่า 20 ปีต้องได้รับความยินยอมจากผู้ปกครอง เด็กอายุต่ำกว่า 10 ปีให้ผู้ปกครองสมัครแทน และเราไม่ส่งข่าวสารการตลาดถึงผู้เยาว์",
+        "ระยะเวลาเก็บ: ตลอดช่วงที่คุณยังใช้ Passport และไม่เกิน 1 ปีหลังงานสุดท้ายของฤดูกาล แล้วลบหรือทำให้ไม่ระบุตัวตน · ถอนความยินยอมได้ในหน้า Passport หรือขอลบบัญชีที่หน้าขอลบบัญชี",
+      ],
+    },
+    en: {
+      h: "CARDLIST PASSPORT (event stamp collection)",
+      p: [
+        "Controller: CL Studio Creative Lab, organiser of the events and owner of The Cardlist.",
+        "What we collect: your LINE account (LINE user ID, display name, picture), nickname, age range, games you play (optional), Passport card code, the stations you scan with date and time, rewards won and redeemed, and your consent records. We do not ask for your real name, phone number or location for Passport.",
+        "Why: to run the stamp collection, draw and hand out rewards, prevent duplicate claims, and produce anonymous event statistics such as repeat visits. Legal basis: your consent.",
+        "News and offers on LINE are sent only if you tick the separate marketing consent, and you can switch it off at any time on the Passport page.",
+        "Who sees it: booth staff see only your nickname, card code, stamps and rewards. Other data is limited to the business owner and system administrators. We do not sell it or share it with sponsors.",
+        "Minors: under-20s need a parent's or guardian's consent, under-10s must be registered by a parent, and we send no marketing to minors.",
+        "Retention: while you use Passport and no longer than 1 year after the season's last event, then deleted or anonymised. Withdraw consent on the Passport page or request account deletion at any time.",
+      ],
+    },
+  },
+  {
     th: {
       h: "เด็กและเยาวชน",
       p: ["บริการของเราไม่ได้ออกแบบมาสำหรับเด็กอายุต่ำกว่า 13 ปี หากผู้ปกครองพบว่าบุตรหลานให้ข้อมูลกับเรา โปรดติดต่อเพื่อให้เราลบข้อมูล"],
@@ -140,7 +167,7 @@ export default function PrivacyPage() {
         {SECTIONS.map((s) => {
           const c = s[lang];
           return (
-            <section key={s.en.h} className="mt-6">
+            <section key={s.en.h} id={s.id} className="mt-6 scroll-mt-20">
               <h2 className="text-sm font-semibold text-zinc-900">{c.h}</h2>
               <ul className="mt-2 space-y-2">
                 {c.p.map((t) => (

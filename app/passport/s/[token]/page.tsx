@@ -16,7 +16,8 @@ const REASON: Record<string, string> = {
   expired: "QR นี้หมดอายุแล้ว — สแกนป้าย/จอที่จุดอีกครั้ง",
   closed: "ตอนนี้ยังไม่ใช่เวลางาน — สแกนได้ช่วงที่งานเปิดเท่านั้น",
   need_card: "จุดนี้เป็นแสตมป์ CARDLIST PASSPORT — ซื้อการ์ดที่บูธ The Cardlist ก่อน",
-  wrong_mode: "พาสปอร์ตนี้เป็นชุดทดสอบ ใช้กับจุดจริงไม่ได้ (หรือกลับกัน)",
+  need_login: "เข้าสู่ระบบด้วย LINE ก่อน",
+  need_join: "สมัคร Passport ก่อน",
   too_fast: "สแกนเร็วเกินไป",
   error: "ระบบขัดข้อง ลองอีกครั้ง",
 };
@@ -32,6 +33,11 @@ export default function StampPage() {
     sent.current = true;
     fetch("/api/passport/stamp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: decodeURIComponent(token) }) })
       .then((x) => x.json()).then((j: Res) => {
+        // ยังไม่ล็อกอิน LINE / ยังไม่สมัคร Passport → ไปสมัครแล้วกลับมาสแกนจุดนี้ต่อ
+        if (j.reason === "need_login" || j.reason === "need_join") {
+          window.location.replace(`/passport/join?next=${encodeURIComponent(window.location.pathname)}`);
+          return;
+        }
         setR(j);
         if (j.ok && !j.already) {
           const done = j.packEarned || j.learnComplete;

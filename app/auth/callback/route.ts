@@ -67,7 +67,9 @@ export async function GET(request: NextRequest) {
       r.cookies.set("line_oauth_state", "", { path: "/", maxAge: 0 });
       return r;
     };
-    const completeUrl = dest ? `/profile/complete?next=${encodeURIComponent(dest)}` : "/profile/complete";
+    // Passport มีหน้าสมัครของตัวเอง (ชื่อเล่น ช่วงอายุ ยินยอม PDPA) — ไม่บังคับกรอกชื่อ-นามสกุลก่อน
+    const completeUrl = dest?.startsWith("/passport") ? dest
+      : dest ? `/profile/complete?next=${encodeURIComponent(dest)}` : "/profile/complete";
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

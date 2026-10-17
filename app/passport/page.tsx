@@ -7,6 +7,8 @@ import Scanner from "@/components/passport/Scanner";
 import Confetti, { vibrate } from "@/components/passport/Confetti";
 
 type State = {
+  auth: "login" | "join" | "ok";
+  member: { nickname: string | null } | null;
   passport: { code: string; kind: "card" | "free"; isTest: boolean } | null;
   price: number;
   events: { id: string; slug: string; name: string; venue: string | null; startsOn: string; endsOn: string; today: boolean;
@@ -38,7 +40,11 @@ export default function PassportPage() {
   const load = useCallback(async () => {
     const test = new URLSearchParams(window.location.search).get("test") === "1" ? "?test=1" : "";
     const r = await fetch("/api/passport/me" + test, { cache: "no-store" });
-    if (r.ok) setS(await r.json());
+    if (!r.ok) return;
+    const j: State = await r.json();
+    // ต้องล็อกอิน LINE + สมัคร Passport ก่อน
+    if (j.auth !== "ok") { window.location.replace(`/passport/join?next=${encodeURIComponent(window.location.pathname + window.location.search)}`); return; }
+    setS(j);
   }, []);
   useEffect(() => { load(); }, [load]);
   // หน้า "รางวัลของฉัน": QR เปลี่ยนทุก 60 วินาที + เห็นสถานะ "แลกแล้ว" ทันทีที่พนักงานยืนยัน
@@ -63,7 +69,7 @@ export default function PassportPage() {
   async function tear() {
     setPack({ phase: "suspense" });
     vibrate(30);
-    const r = await fetch("/api/passport/pack", { method: "POST" });
+    const r = await fetch("/api/passport/pack" + (s?.passport?.isTest ? "?test=1" : ""), { method: "POST" });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) {
       setPack(null);
@@ -94,7 +100,7 @@ export default function PassportPage() {
       <Confetti fire={boom} />
       <header className="mb-4 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2"><img src="/images/passport/c-mark.png" alt="The Cardlist" className="h-8 w-8 object-contain" /></Link>
-        {p && <span className="font-mono text-[11px] tracking-[0.15em] text-[var(--hi)]">{p.code}{p.isTest ? " · TEST" : ""}</span>}
+        <span className="text-right text-[11px] leading-tight text-zinc-400">{s.member?.nickname && <span className="block text-sm text-white">{s.member.nickname}</span>}{p && <span className="font-mono tracking-[0.15em] text-[var(--hi)]">{p.code}{p.isTest ? " · TEST" : ""}</span>}</span>
       </header>
 
       {msg && <div className="pp-fade mb-3 rounded-xl bg-zinc-800 px-3 py-2 text-sm text-zinc-200" onClick={() => setMsg("")}>{msg}</div>}
@@ -222,10 +228,15 @@ export default function PassportPage() {
             <button onClick={() => setScan(true)} className="rounded-xl border border-zinc-700 py-3 text-sm text-zinc-200">สแกน QR</button>
             <button onClick={() => p ? setView("wallet") : setMsg("ยังไม่มีรางวัล")} className="rounded-xl border border-[var(--gold)] py-3 text-sm text-[var(--hi)]">รางวัลของฉัน{pending.length ? ` (${pending.length})` : ""}</button>
           </div>
-          <p className="mt-5 text-[11px] leading-relaxed text-zinc-500">
-            ไม่ต้องสมัครสมาชิก · เราเก็บแค่รหัสพาสปอร์ตและเวลาที่สแกน ไว้ในเครื่องนี้ (คุกกี้) และในระบบของ The Cardlist ·
-            เปลี่ยนมือถือ? สแกน QR บนการ์ดใบเดิมได้เลย
-          </p>
+          <details className="mt-5 text-[11px] leading-relaxed text-zinc-500">
+            <summary className="cursor-pointer">ข้อมูลส่วนตัวและความยินยอม</summary>
+            <p className="mt-2">Passport ผูกกับบัญชี LINE ของคุณ เปลี่ยนมือถือแค่เข้าสู่ระบบด้วย LINE ใหม่ · เราเก็บชื่อเล่น ช่วงอายุ เกมที่เล่น และประวัติการสแกน · <Link href="/privacy#passport" className="underline">ประกาศความเป็นส่วนตัว</Link></p>
+            <div className="mt-2 flex flex-wrap gap-3">
+              <button className="underline" onClick={async () => { if (!confirm("ยกเลิกการรับข่าวสารจาก The Cardlist?")) return; await fetch("/api/passport/join", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "withdraw_marketing" }) }); setMsg("ยกเลิกการรับข่าวสารแล้ว"); }}>ยกเลิกรับข่าวสาร</button>
+              <button className="underline" onClick={async () => { if (!confirm("ถอนความยินยอมและเลิกใช้ Passport? (สะสมแสตมป์ต่อไม่ได้จนกว่าจะสมัครใหม่)")) return; await fetch("/api/passport/join", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "withdraw_passport" }) }); window.location.href = "/"; }}>เลิกใช้ Passport</button>
+              <Link href="/account/delete" className="underline">ขอลบบัญชีและข้อมูล</Link>
+            </div>
+          </details>
         </>
       )}
 

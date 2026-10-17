@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/require-admin";
-import { passportForDevice, readDeviceToken } from "@/lib/passport";
+import { passportForUser } from "@/lib/passport";
+import { currentUserId } from "@/lib/passport-auth";
 
 export const dynamic = "force-dynamic";
 
 // ฉีกซอง — สุ่มจากของที่เหลือจริง (ฟังก์ชัน passport_open_pack ล็อกสต็อกในฐานข้อมูล)
 export async function POST(req: Request) {
-  const p = await passportForDevice(readDeviceToken(req));
+  const test = new URL(req.url).searchParams.get("test") === "1";
+  const p = await passportForUser(await currentUserId(), test ? true : undefined);
   if (!p) return NextResponse.json({ error: "no_passport" }, { status: 401 });
 
   const { data: pack } = await adminDb.from("passport_packs").select("id")

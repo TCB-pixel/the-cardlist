@@ -18,6 +18,10 @@ export default function ClaimPage() {
     fetch("/api/passport/claim", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, secret }) })
       .then(async (r) => ({ r, j: await r.json() }))
       .then(({ r, j }) => {
+        if (j.error === "need_login" || j.error === "need_join") {
+          window.location.replace(`/passport/join?next=${encodeURIComponent(window.location.pathname)}`);
+          return;
+        }
         if (r.ok) { setState({ ok: true, code: j.code, firstTime: j.firstTime }); vibrate([60, 40, 120]); setTimeout(() => setBoom(1), 300); }
         else setState({ ok: false, error: j.error });
       }).catch(() => setState({ ok: false, error: "error" }));
@@ -33,12 +37,15 @@ export default function ClaimPage() {
             <p className="relative font-cardlist text-xl tracking-[0.06em] text-[var(--hi)]">PASSPORT</p>
             <p className="relative font-mono text-xs tracking-[0.15em] text-white">{state.code}</p>
           </div>
-          <h1 className="mt-6 text-xl font-semibold text-white">{state.firstTime ? "เปิดใช้ Passport แล้ว" : "ย้าย Passport มาเครื่องนี้แล้ว"}</h1>
-          <p className="mt-1 text-sm text-zinc-400">สแกน QR ตามจุดในงานเพื่อสะสมแสตมป์ · เก็บการ์ดไว้ใช้กู้คืนเมื่อเปลี่ยนมือถือ</p>
+          <h1 className="mt-6 text-xl font-semibold text-white">{state.firstTime ? "เปิดใช้ Passport แล้ว" : "การ์ดนี้อยู่ในบัญชีของคุณแล้ว"}</h1>
+          <p className="mt-1 text-sm text-zinc-400">สแกน QR ตามจุดในงานเพื่อสะสมแสตมป์ · Passport ผูกกับบัญชี LINE ของคุณ</p>
         </>
       ) : (
         <h1 className="text-lg font-semibold text-white">
-          {state.error === "not_sold" ? "การ์ดใบนี้ยังไม่ได้ลงทะเบียนการขาย — ให้พนักงานบูธกดขายก่อน" : "QR บนการ์ดไม่ถูกต้อง — ติดต่อพนักงานบูธ The Cardlist"}
+          {state.error === "not_sold" ? "การ์ดใบนี้ยังไม่ได้ลงทะเบียนการขาย — ให้พนักงานบูธกดขายก่อน"
+            : state.error === "taken" ? "การ์ดใบนี้ผูกกับบัญชี LINE อื่นแล้ว — ติดต่อพนักงานบูธ The Cardlist"
+            : state.error === "has_card" ? "บัญชีนี้มีการ์ด Passport อยู่แล้ว 1 ใบ — ติดต่อพนักงานบูธ The Cardlist"
+            : "QR บนการ์ดไม่ถูกต้อง — ติดต่อพนักงานบูธ The Cardlist"}
         </h1>
       )}
       {state && <Link href="/passport" className="mt-8 w-full max-w-xs rounded-xl bg-[var(--gold)] py-3 text-sm font-semibold text-[var(--night)]">ไปที่ Passport</Link>}

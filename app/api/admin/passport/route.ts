@@ -17,12 +17,26 @@ export async function GET(req: Request) {
     adminDb.from("passport_events").select("*").eq("is_test", isTest).order("sort"),
     adminDb.from("passport_stations").select("id, code, event_id, track, name, logo_path, qr_mode, display_key, active, sort").eq("is_test", isTest).order("sort"),
     adminDb.from("passport_rewards").select("*").eq("is_test", isTest).order("track").order("sort"),
-    adminDb.from("passports").select("id, kind, status, sold_price").eq("is_test", isTest),
+    adminDb.from("passports").select("id, kind, status, sold_price, user_id").eq("is_test", isTest),
     adminDb.from("passport_stamps").select("passport_id, station_id, event_id, stamped_at, passports!inner(is_test)").eq("passports.is_test", isTest),
     adminDb.from("passport_packs").select("id, opened_at, passports!inner(is_test)").eq("passports.is_test", isTest),
     adminDb.from("passport_redemptions").select("id, kind, status, reward_id, passports!inner(is_test)").eq("passports.is_test", isTest),
   ]);
   const passports = ps.data ?? [], allStamps = stamps.data ?? [];
+
+  // สมาชิก Passport — ส่งเฉพาะตัวเลขรวม ไม่ส่งรายชื่อ
+  const owners = Array.from(new Set(passports.map((p: any) => p.user_id).filter(Boolean)));
+  const [{ data: mem }, { data: cons }] = owners.length ? await Promise.all([
+    adminDb.from("passport_members").select("user_id, age_range, games").in("user_id", owners),
+    adminDb.from("member_consents").select("user_id, granted, created_at").eq("purpose", "marketing").in("user_id", owners).order("created_at", { ascending: false }),
+  ]) : [{ data: [] }, { data: [] }];
+  const lastMkt = new Map<string, boolean>();
+  for (const c of (cons ?? []) as any[]) if (!lastMkt.has(c.user_id)) lastMkt.set(c.user_id, c.granted);
+  const ages: Record<string, number> = {}, gameCount: Record<string, number> = {};
+  for (const m of (mem ?? []) as any[]) {
+    ages[m.age_range] = (ages[m.age_range] ?? 0) + 1;
+    for (const g of m.games ?? []) gameCount[g] = (gameCount[g] ?? 0) + 1;
+  }
 
   const byStation = new Map<string, { total: number; today: number }>();
   const eventsByPassport = new Map<string, Set<string>>();
@@ -58,6 +72,7 @@ export async function GET(req: Request) {
       redeemed: redemptions.filter((r: any) => r.status === "redeemed").length,
       learnComplete: redemptions.filter((r: any) => r.kind === "learn_complete").length,
     },
+    members: { total: (mem ?? []).length, marketing: Array.from(lastMkt.values()).filter(Boolean).length, ages, games: gameCount },
     events: ev.data ?? [],
     stations: (st.data ?? []).map((s: any) => ({
       ...s, display_key: manage ? s.display_key : undefined,

@@ -6,7 +6,7 @@ import Scanner from "@/components/passport/Scanner";
 import PassportQR from "@/components/passport/PassportQR";
 
 type Lookup = {
-  passport: { id: string; code: string; kind: string; isTest: boolean; activatedAt: string | null; soldAt: string | null };
+  passport: { id: string; code: string; kind: string; isTest: boolean; activatedAt: string | null; soldAt: string | null; nickname: string | null; memberCode: string | null };
   stamps: { name: string; track: string; at: string }[];
   wallet: { id: string; kind: string; status: string; tier: string; name: string; color: string; needsPayment: boolean; redeemedAt: string | null; redeemedBy: string | null }[];
   warn: string[];
@@ -98,6 +98,7 @@ export default function PassportBoothPage() {
           {lookup && (
             <>
               <div className="rounded-xl border border-zinc-200 bg-white p-4">
+                {lookup.passport.nickname && <p className="text-base font-semibold">{lookup.passport.nickname}<span className="ml-2 text-xs font-normal text-zinc-500">{lookup.passport.memberCode ?? ""}</span></p>}
                 <p className="font-mono text-sm font-semibold">{lookup.passport.code}{lookup.passport.isTest ? " · TEST" : ""}</p>
                 <p className="text-xs text-zinc-500">{lookup.passport.kind === "card" ? `การ์ด · เปิดใช้ ${lookup.passport.activatedAt ? t(lookup.passport.activatedAt) : "—"}` : "Learn To Play (ไม่ได้ซื้อการ์ด)"}</p>
                 <div className="mt-2 divide-y divide-zinc-100 text-xs">

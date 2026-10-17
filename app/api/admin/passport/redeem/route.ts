@@ -16,6 +16,12 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "QR หมดอายุหรือไม่ถูกต้อง — ให้ลูกค้าเปิดหน้า \"รางวัลของฉัน\" ใหม่" }, { status: 409 });
   }
 
+  // พนักงานเห็นแค่ชื่อเล่นและรหัสสมาชิก (ไม่เห็นข้อมูลส่วนตัวอื่น)
+  const [{ data: member }, { data: prof }] = p.user_id ? await Promise.all([
+    adminDb.from("passport_members").select("nickname").eq("user_id", p.user_id).maybeSingle(),
+    adminDb.from("profiles").select("member_code").eq("id", p.user_id).maybeSingle(),
+  ]) : [{ data: null }, { data: null }];
+
   const [{ data: stamps }, { data: wallet }] = await Promise.all([
     adminDb.from("passport_stamps").select("stamped_at, event_id, passport_stations(name, track)").eq("passport_id", p.id).order("stamped_at"),
     adminDb.from("passport_redemptions").select("id, kind, status, created_at, redeemed_at, redeemed_by, passport_rewards(tier, name, color, needs_payment)").eq("passport_id", p.id).order("created_at"),
@@ -34,7 +40,8 @@ export async function GET(req: Request) {
   }
 
   return NextResponse.json({
-    passport: { id: p.id, code: p.code, kind: p.kind, isTest: p.is_test, activatedAt: p.activated_at, soldAt: p.sold_at },
+    passport: { id: p.id, code: p.code, kind: p.kind, isTest: p.is_test, activatedAt: p.activated_at, soldAt: p.sold_at,
+      nickname: member?.nickname ?? null, memberCode: prof?.member_code ?? null },
     stamps: (stamps ?? []).map((s: any) => ({ name: s.passport_stations?.name, track: s.passport_stations?.track, at: s.stamped_at })),
     wallet: (wallet ?? []).map((w: any) => ({
       id: w.id, kind: w.kind, status: w.status, redeemedAt: w.redeemed_at, redeemedBy: w.redeemed_by,
